@@ -1,7 +1,8 @@
 # --- BUILD STAGE ---
 FROM node:22-slim AS base
 
-# Instalar pnpm v9 directamente (evita problemas de compatibilidad con v11)
+# Instalar openssl (requerido por Prisma) y pnpm v9
+RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 RUN npm install -g pnpm@9.15.4
 
 WORKDIR /app
@@ -16,7 +17,7 @@ RUN pnpm install --frozen-lockfile
 COPY . .
 
 # Generar el cliente de Prisma
-RUN pnpm prisma generate
+RUN npx prisma generate
 
 # Construir la aplicación de Next.js
 RUN pnpm run build
@@ -24,6 +25,7 @@ RUN pnpm run build
 # --- RUNNER STAGE ---
 FROM node:22-slim AS runner
 
+RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 RUN npm install -g pnpm@9.15.4
 
 WORKDIR /app
