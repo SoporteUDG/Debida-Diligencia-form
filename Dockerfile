@@ -10,7 +10,7 @@ WORKDIR /app
 COPY package.json pnpm-lock.yaml* .npmrc* ./
 
 # Instalar dependencias necesarias para construir el proyecto
-RUN pnpm install --frozen-lockfile
+RUN pnpm config set only-built-dependencies @prisma/engines,prisma,sharp,core-js,unrs-resolver && pnpm install --frozen-lockfile
 
 # Copiar el resto del código de la aplicación
 COPY . .
