@@ -9,8 +9,8 @@ WORKDIR /app
 # Copiar archivos de dependencias
 COPY package.json pnpm-lock.yaml* ./
 
-# Instalar dependencias necesarias para construir el proyecto (permitiendo scripts de construcción)
-RUN pnpm config set only-built-dependencies-file /dev/null && pnpm install --frozen-lockfile
+# Instalar dependencias necesarias para construir el proyecto (permitiendo scripts de construcción localmente)
+RUN echo "only-built-dependencies-file=/dev/null" > .npmrc && pnpm install --frozen-lockfile
 
 # Copiar el resto del código de la aplicación
 COPY . .
