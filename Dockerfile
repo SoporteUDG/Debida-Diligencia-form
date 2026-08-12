@@ -6,11 +6,11 @@ RUN corepack enable
 
 WORKDIR /app
 
-# Copiar archivos de dependencias
-COPY package.json pnpm-lock.yaml* ./
+# Copiar archivos de dependencias y configuración de pnpm
+COPY package.json pnpm-lock.yaml* .npmrc* ./
 
-# Instalar dependencias necesarias para construir el proyecto (permitiendo scripts de construcción mediante CLI flag)
-RUN pnpm install --frozen-lockfile --only-built-dependencies-file=/dev/null
+# Instalar dependencias necesarias para construir el proyecto
+RUN pnpm install --frozen-lockfile
 
 # Copiar el resto del código de la aplicación
 COPY . .
