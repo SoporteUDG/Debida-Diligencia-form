@@ -3,4 +3,4 @@
 npx prisma db push --accept-data-loss
 
 # Iniciar el servidor de producción de Next.js
-pnpm run start
+npx next start

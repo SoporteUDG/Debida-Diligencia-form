@@ -1,15 +1,15 @@
 # --- BUILD STAGE ---
 FROM node:22-slim AS base
-ENV PNPM_HOME="/pnpm"
-ENV PATH="$PNPM_HOME:$PATH"
-RUN corepack enable
+
+# Instalar pnpm v9 directamente (evita problemas de compatibilidad con v11)
+RUN npm install -g pnpm@9.15.4
 
 WORKDIR /app
 
-# Copiar archivos de dependencias y configuración de pnpm
-COPY package.json pnpm-lock.yaml* .npmrc* pnpm-workspace.yaml* ./
+# Copiar archivos de dependencias
+COPY package.json pnpm-lock.yaml* ./
 
-# Instalar dependencias necesarias para construir el proyecto
+# Instalar dependencias
 RUN pnpm install --frozen-lockfile
 
 # Copiar el resto del código de la aplicación
@@ -23,9 +23,8 @@ RUN pnpm run build
 
 # --- RUNNER STAGE ---
 FROM node:22-slim AS runner
-ENV PNPM_HOME="/pnpm"
-ENV PATH="$PNPM_HOME:$PATH"
-RUN corepack enable
+
+RUN npm install -g pnpm@9.15.4
 
 WORKDIR /app
 
