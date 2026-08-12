@@ -1,6 +1,7 @@
 #!/bin/sh
-# Sincronizar el esquema de Prisma con la base de datos de producción
+echo "=== INICIANDO SERVICIO DE CUMPLIMIENTO ==="
+echo "1. Sincronizando base de datos con Prisma..."
 npx prisma db push --accept-data-loss
 
-# Iniciar el servidor de producción de Next.js
-npx next start
+echo "2. Iniciando Next.js en 0.0.0.0:3000..."
+npx next start -H 0.0.0.0 -p 3000
