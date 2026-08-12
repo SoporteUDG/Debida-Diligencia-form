@@ -1,0 +1,314 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ==========================================
+// ENUMS
+// ==========================================
+
+enum AdminRole {
+  SUPERADMIN
+  ADMIN
+  USER
+}
+
+enum FormType {
+  NATURAL
+  JURIDICA
+}
+
+enum FormStatus {
+  DRAFT
+  SUBMITTED
+  REVIEWED
+  APPROVED
+  REJECTED
+}
+
+enum TokenType {
+  ACCESS
+  VERIFICATION
+  PASSWORD_RESET
+}
+
+enum DocumentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum SyncStatus {
+  PENDING
+  IN_PROGRESS
+  SUCCESS
+  FAILED
+}
+
+// ==========================================
+// MODELS
+// ==========================================
+
+// 1. AdminUser
+model AdminUser {
+  id           String      @id @default(uuid())
+  email        String      @unique
+  passwordHash String
+  name         String
+  role         AdminRole   @default(USER)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  deletedAt    DateTime?
+  auditLogs    AuditLog[]
+
+  @@index([email])
+  @@index([deletedAt])
+}
+
+// 2. CrmContact
+model CrmContact {
+  id        String      @id @default(uuid())
+  crmId     String      @unique
+  firstName String
+  lastName  String
+  email     String      @unique
+  phone     String?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  deletedAt DateTime?
+  forms     Form[]
+  tokens    Token[]
+  drafts    Draft[]
+
+  @@index([crmId])
+  @@index([email])
+  @@index([deletedAt])
+}
+
+// 3. Form (Formulario)
+model Form {
+  id                       String               @id @default(uuid())
+  type                     FormType
+  status                   FormStatus           @default(SUBMITTED)
+  clientName               String
+  projectName              String
+  crmContactId             String?
+  crmContact               CrmContact?          @relation(fields: [crmContactId], references: [id], onDelete: SetNull)
+  data                     Json                 // Payload completo de FormState (JSONB)
+  conclusionesVerificacion String?              @db.Text
+  submittedAt              DateTime?            @default(now())
+  createdAt                DateTime             @default(now())
+  updatedAt                DateTime             @updatedAt
+  deletedAt                DateTime?
+
+  // Relaciones hijas (Cascade onDelete)
+  gjcMembers               GjcMember[]
+  bfMembers                BfMember[]
+  legalRepresentative      LegalRepresentative?
+  signature                Signature?
+  documents                Document[]
+  crmSync                  CrmSync?
+  workDriveSync            WorkDriveSync?
+  sapSync                  SapSync?
+
+  @@index([status])
+  @@index([crmContactId])
+  @@index([createdAt])
+  @@index([submittedAt])
+}
+
+// 4. Token
+model Token {
+  id           String     @id @default(uuid())
+  token        String     @unique
+  type         TokenType
+  crmContactId String
+  crmContact   CrmContact @relation(fields: [crmContactId], references: [id], onDelete: Cascade)
+  used         Boolean    @default(false)
+  expiresAt    DateTime
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@index([token])
+  @@index([crmContactId])
+  @@index([expiresAt])
+}
+
+// 5. Draft (Borrador JSONB)
+model Draft {
+  id           String      @id @default(uuid())
+  type         FormType
+  data         Json        // Progreso temporal del FormState
+  step         Int         @default(1)
+  token        String      @unique
+  crmContactId String?
+  crmContact   CrmContact? @relation(fields: [crmContactId], references: [id], onDelete: Cascade)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  expiresAt    DateTime?
+  documents    Document[]
+
+  @@index([token])
+  @@index([crmContactId])
+}
+
+// 6. Document
+model Document {
+  id           String         @id @default(uuid())
+  formId       String?
+  form         Form?          @relation(fields: [formId], references: [id], onDelete: Cascade)
+  draftId      String?
+  draft        Draft?         @relation(fields: [draftId], references: [id], onDelete: Cascade)
+  name         String
+  fileType     String
+  url          String         @db.Text // URL en almacenamiento/WorkDrive
+  status       DocumentStatus @default(PENDING)
+  comments     String?        @db.Text
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  deletedAt    DateTime?
+
+  @@index([formId])
+  @@index([draftId])
+}
+
+// 7. GjcMember (Gobierno y Junta Directiva)
+model GjcMember {
+  id              String    @id @default(uuid())
+  formId          String
+  form            Form      @relation(fields: [formId], references: [id], onDelete: Cascade)
+  cargo           String
+  nombre          String
+  apellidos       String
+  nacionalidad    String
+  fechaNacimiento DateTime?
+  nroId           String
+  direccion       String?   @db.Text
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([formId])
+}
+
+// 8. BfMember (Beneficiarios Finales)
+model BfMember {
+  id                      String    @id @default(uuid())
+  formId                  String
+  form                    Form      @relation(fields: [formId], references: [id], onDelete: Cascade)
+  nombreCompleto          String
+  noIdentificacion        String
+  nacionalidad            String
+  fechaAdquisicion        DateTime?
+  porcentajeParticipacion String?   // Guardado como texto para soportar rangos o valores ingresados
+  paisNacimiento          String
+  direccion               String?   @db.Text
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  @@index([formId])
+}
+
+// 9. LegalRepresentative (Representante Legal)
+model LegalRepresentative {
+  id                  String    @id @default(uuid())
+  formId              String    @unique
+  form                Form      @relation(fields: [formId], references: [id], onDelete: Cascade)
+  nombre              String
+  fechaNacimiento     DateTime?
+  nacionalidad        String
+  noIdentificacion    String
+  profesionOcupacion  String?
+  actividadEconomica  String?
+  direccion           String?   @db.Text
+  paisResidencia      String?
+  telefono            String?
+  objetoInvestigacion String?   @db.Text
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+}
+
+// 10. Signature (Firma)
+model Signature {
+  id            String   @id @default(uuid())
+  formId        String   @unique
+  form          Form     @relation(fields: [formId], references: [id], onDelete: Cascade)
+  signerName    String
+  signatureDate DateTime
+  firmaImage    String   @db.Text // Base64 de la firma
+  ipAddress     String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// 11. CrmSync
+model CrmSync {
+  id           String     @id @default(uuid())
+  formId       String     @unique
+  form         Form       @relation(fields: [formId], references: [id], onDelete: Cascade)
+  status       SyncStatus @default(PENDING)
+  crmId        String?
+  attempts     Int        @default(0)
+  lastAttempt  DateTime?
+  errorMessage String?    @db.Text
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@index([status])
+}
+
+// 12. WorkDriveSync
+model WorkDriveSync {
+  id           String     @id @default(uuid())
+  formId       String     @unique
+  form         Form       @relation(fields: [formId], references: [id], onDelete: Cascade)
+  status       SyncStatus @default(PENDING)
+  folderUrl    String?    @db.Text
+  attempts     Int        @default(0)
+  lastAttempt  DateTime?
+  errorMessage String?    @db.Text
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@index([status])
+}
+
+// 13. SapSync
+model SapSync {
+  id           String     @id @default(uuid())
+  formId       String     @unique
+  form         Form       @relation(fields: [formId], references: [id], onDelete: Cascade)
+  status       SyncStatus @default(PENDING)
+  sapCardCode  String?
+  attempts     Int        @default(0)
+  lastAttempt  DateTime?
+  errorMessage String?    @db.Text
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@index([status])
+}
+
+// 14. AuditLog (Registro de Auditoría / Logs)
+model AuditLog {
+  id         String     @id @default(uuid())
+  action     String     // Ejemplo: "USER_LOGIN", "FORM_SUBMIT", "FORM_APPROVE", "DOCUMENT_UPLOAD"
+  entityName String     // Ejemplo: "Form", "Document", "AdminUser"
+  entityId   String?
+  details    Json?      // Metadatos adicionales de la auditoría en formato JSON
+  ipAddress  String?
+  userAgent  String?
+  userId     String?
+  adminUser  AdminUser? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  createdAt  DateTime   @default(now())
+
+  @@index([createdAt])
+  @@index([userId])
+  @@index([entityName, entityId])
+}
+
