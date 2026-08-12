@@ -7,10 +7,10 @@ RUN corepack enable
 WORKDIR /app
 
 # Copiar archivos de dependencias y configuración de pnpm
-COPY package.json pnpm-lock.yaml* .npmrc* ./
+COPY package.json pnpm-lock.yaml* .npmrc* pnpm-workspace.yaml* ./
 
 # Instalar dependencias necesarias para construir el proyecto
-RUN pnpm config set only-built-dependencies @prisma/engines,prisma,sharp,core-js,unrs-resolver && pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile
 
 # Copiar el resto del código de la aplicación
 COPY . .

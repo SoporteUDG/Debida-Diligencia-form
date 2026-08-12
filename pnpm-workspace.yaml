@@ -1,6 +1,6 @@
-allowBuilds:
-  '@prisma/engines': true
-  core-js: true
-  prisma: true
-  sharp: true
-  unrs-resolver: true
+onlyBuiltDependencies:
+  - '@prisma/engines'
+  - core-js
+  - prisma
+  - sharp
+  - unrs-resolver
