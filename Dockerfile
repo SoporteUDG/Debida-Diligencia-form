@@ -43,6 +43,6 @@ COPY --from=base /app/start.sh ./start.sh
 # Dar permisos de ejecución al script de inicio
 RUN chmod +x start.sh
 
-EXPOSE 3000
+EXPOSE 3003
 
 CMD ["./start.sh"]
