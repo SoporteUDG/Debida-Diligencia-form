@@ -24,6 +24,7 @@ describe("ZohoService Unit Tests", () => {
         email: "maria.gonzalez@example.com",
         celular: "50769998888",
         idNumber: "PE-123456",
+        module: "Contacts",
       });
     });
 
@@ -54,6 +55,7 @@ describe("ZohoService Unit Tests", () => {
         contactoTelefono: "5073004000",
         rlNombre: "Jorge Ramírez",
         rlNoIdentificacion: "8-111-1111",
+        module: "Leads",
       });
     });
   });

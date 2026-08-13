@@ -22,7 +22,10 @@ import {
   Check,
   ExternalLink,
   Link2,
-  Loader2
+  Loader2,
+  CalendarPlus,
+  RefreshCw,
+  Bell
 } from "lucide-react";
 import { generatePDF } from "@/lib/pdfGenerator";
 
@@ -59,6 +62,9 @@ export default function AdminDashboard() {
   const [generatedLink, setGeneratedLink] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
+  const [isReactivating, setIsReactivating] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
+  const [isSendingReminder, setIsSendingReminder] = useState(false);
 
   // Cargar envíos desde la base de datos (con fallback a localStorage)
   const fetchSubmissions = async () => {
@@ -315,6 +321,139 @@ export default function AdminDashboard() {
       alert("Error al conectar con el servidor para generar el enlace");
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  const handleExtendLink = async (tokenUuid: string) => {
+    if (isReactivating) return;
+    setIsReactivating(true);
+    try {
+      const res = await fetch("/api/trpc/reactivateClientToken", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          tokenUuid,
+          extendDays: 30,
+        }),
+      });
+
+      if (res.ok) {
+        const json = await res.json();
+        if (json.result?.data?.success) {
+          alert("Vigencia del enlace extendida por 30 días adicionales con éxito.");
+          await fetchSubmissions();
+          // Update selectedSub to reflect the new expiration date
+          if (selectedSub) {
+            setSelectedSub((prev) => {
+              if (!prev) return null;
+              return {
+                ...prev,
+                data: {
+                  ...prev.data,
+                  tokenExpiresAt: json.result.data.newExpiresAt,
+                  tokenUsed: false,
+                },
+              };
+            });
+          }
+        } else {
+          alert("Error: " + (json.error?.message || "No se pudo extender la vigencia"));
+        }
+      } else {
+        alert("Error al conectar con el servidor.");
+      }
+    } catch (err) {
+      console.error("[Extend Link Error]:", err);
+      alert("Ocurrió un error al extender la vigencia del enlace.");
+    } finally {
+      setIsReactivating(false);
+    }
+  };
+
+  const handleRegenerateLink = async (tokenUuid: string) => {
+    if (isRegenerating) return;
+    if (!confirm("¿Estás seguro de regenerar este enlace? Esto invalidará el token actual permanentemente y creará uno nuevo.")) return;
+    setIsRegenerating(true);
+    try {
+      const res = await fetch("/api/trpc/regenerateClientLink", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          tokenUuid,
+          expiresInDays: 30,
+        }),
+      });
+
+      if (res.ok) {
+        const json = await res.json();
+        if (json.result?.data?.success) {
+          alert("Enlace regenerado con éxito. El enlace antiguo ha sido invalidado.");
+          await fetchSubmissions();
+          // Update selectedSub with the new token
+          if (selectedSub) {
+            setSelectedSub((prev) => {
+              if (!prev) return null;
+              const newSignedToken = json.result.data.signedToken;
+              const newExpiresAt = new Date();
+              newExpiresAt.setDate(newExpiresAt.getDate() + 30);
+              return {
+                ...prev,
+                data: {
+                  ...prev.data,
+                  token: newSignedToken,
+                  tokenExpiresAt: newExpiresAt.toISOString(),
+                  tokenUsed: false,
+                },
+              };
+            });
+          }
+        } else {
+          alert("Error: " + (json.error?.message || "No se pudo regenerar el enlace"));
+        }
+      } else {
+        alert("Error al conectar con el servidor.");
+      }
+    } catch (err) {
+      console.error("[Regenerate Link Error]:", err);
+      alert("Ocurrió un error al regenerar el enlace.");
+    } finally {
+      setIsRegenerating(false);
+    }
+  };
+
+  const handleSendReminder = async (tokenUuid: string) => {
+    if (isSendingReminder) return;
+    setIsSendingReminder(true);
+    try {
+      const res = await fetch("/api/trpc/sendClientReminder", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          tokenUuid,
+        }),
+      });
+
+      if (res.ok) {
+        const json = await res.json();
+        if (json.result?.data?.success) {
+          alert("Recordatorio enviado con éxito al cliente a través de Zoho CRM.");
+        } else {
+          alert("Error: " + (json.error?.message || "No se pudo enviar el recordatorio"));
+        }
+      } else {
+        alert("Error al conectar con el servidor.");
+      }
+    } catch (err) {
+      console.error("[Send Reminder Error]:", err);
+      alert("Ocurrió un error al enviar el recordatorio.");
+    } finally {
+      setIsSendingReminder(false);
     }
   };
 
@@ -632,42 +771,135 @@ export default function AdminDashboard() {
                 </div>
 
                 {/* Enlace de Cliente si es Borrador */}
-                {selectedSub.data.isDraftRecord && selectedSub.data.token && (
-                  <div className="bg-yellow-950/20 border border-yellow-800/40 p-4 rounded-xl space-y-2">
-                    <span className="text-[10px] text-yellow-500 font-bold uppercase tracking-wider flex items-center gap-1">
-                      <Link2 className="w-3.5 h-3.5 text-yellow-500" />
-                      Enlace de Acceso
-                    </span>
-                    <p className="text-[10px] text-zinc-400 leading-normal">
-                      Copia y envía este enlace para que el cliente complete el formulario:
-                    </p>
-                    <div className="flex gap-1.5">
-                      <input
-                        type="text"
-                        readOnly
-                        value={
-                          typeof window !== "undefined"
-                            ? `${window.location.origin}/persona-${selectedSub.type}?token=${selectedSub.data.token}`
-                            : `/persona-${selectedSub.type}?token=${selectedSub.data.token}`
-                        }
-                        className="flex-1 bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-1 text-[10px] font-mono text-zinc-300 focus:outline-none"
-                      />
-                      <button
-                        onClick={() => {
-                          const url = typeof window !== "undefined"
-                            ? `${window.location.origin}/persona-${selectedSub.type}?token=${selectedSub.data.token}`
-                            : `/persona-${selectedSub.type}?token=${selectedSub.data.token}`;
-                          navigator.clipboard.writeText(url);
-                          alert("Enlace copiado al portapapeles");
-                        }}
-                        className="bg-[#c8a788] hover:bg-yellow-600 text-zinc-950 px-2 py-1 rounded-lg text-[10px] font-bold transition flex items-center justify-center cursor-pointer"
-                        title="Copiar Enlace"
-                      >
-                        <Copy className="w-3 h-3" />
-                      </button>
+                {selectedSub.data.isDraftRecord && selectedSub.data.token && (() => {
+                  const isExpired = selectedSub.data.tokenExpiresAt
+                    ? new Date(selectedSub.data.tokenExpiresAt).getTime() < Date.now()
+                    : false;
+                  const isInvalid = isExpired || selectedSub.data.tokenUsed;
+
+                  return (
+                    <div className="bg-yellow-950/20 border border-yellow-800/40 p-4 rounded-xl space-y-3">
+                      <span className="text-[10px] text-yellow-500 font-bold uppercase tracking-wider flex items-center gap-1">
+                        <Link2 className="w-3.5 h-3.5 text-yellow-500" />
+                        Enlace de Acceso
+                      </span>
+                      <p className="text-[10px] text-zinc-400 leading-normal">
+                        Copia y envía este enlace para que el cliente complete el formulario:
+                      </p>
+                      
+                      <div className="flex gap-1.5">
+                        <input
+                          type="text"
+                          readOnly
+                          value={
+                            typeof window !== "undefined"
+                              ? `${window.location.origin}/persona-${selectedSub.type}?token=${selectedSub.data.token}`
+                              : `/persona-${selectedSub.type}?token=${selectedSub.data.token}`
+                          }
+                          className="flex-1 bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-1 text-[10px] font-mono text-zinc-300 focus:outline-none"
+                        />
+                        <button
+                          onClick={() => {
+                            const url = typeof window !== "undefined"
+                              ? `${window.location.origin}/persona-${selectedSub.type}?token=${selectedSub.data.token}`
+                              : `/persona-${selectedSub.type}?token=${selectedSub.data.token}`;
+                            navigator.clipboard.writeText(url);
+                            alert("Enlace copiado al portapapeles");
+                          }}
+                          className="bg-[#c8a788] hover:bg-yellow-600 text-zinc-950 px-2 py-1 rounded-lg text-[10px] font-bold transition flex items-center justify-center cursor-pointer"
+                          title="Copiar Enlace"
+                        >
+                          <Copy className="w-3 h-3" />
+                        </button>
+                      </div>
+
+                      {/* Status and Expiration Info */}
+                      <div className="space-y-1.5 border-t border-zinc-800/60 pt-2.5">
+                        <div className="flex items-center justify-between text-[10px]">
+                          <span className="text-zinc-500 font-semibold uppercase">Estado Enlace:</span>
+                          {isInvalid ? (
+                            <span className="bg-red-950/50 border border-red-800/40 text-red-400 font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                              Expirado / Revocado
+                            </span>
+                          ) : (
+                            <span className="bg-emerald-950/50 border border-emerald-800/40 text-emerald-400 font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                              Activo
+                            </span>
+                          )}
+                        </div>
+
+                        {selectedSub.data.tokenExpiresAt && (
+                          <div className="text-[10px] text-zinc-450 flex justify-between">
+                            <span className="text-zinc-500 font-semibold uppercase">Vence el:</span>
+                            <span className="font-mono text-zinc-300">
+                              {new Date(selectedSub.data.tokenExpiresAt).toLocaleString()}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="pt-2 flex flex-wrap gap-2">
+                        <button
+                          onClick={() => {
+                            const parts = selectedSub.data.token.split(".");
+                            if (parts.length > 0) {
+                              handleExtendLink(parts[0]);
+                            }
+                          }}
+                          disabled={isReactivating}
+                          className="flex-1 bg-zinc-800 hover:bg-[#c8a788] hover:text-zinc-950 disabled:opacity-50 text-zinc-300 px-2 py-1.5 rounded-xl text-[10px] font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
+                          title="Extender Vigencia por 30 días"
+                        >
+                          {isReactivating ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <CalendarPlus className="w-3.5 h-3.5" />
+                          )}
+                          Extender
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            const parts = selectedSub.data.token.split(".");
+                            if (parts.length > 0) {
+                              handleRegenerateLink(parts[0]);
+                            }
+                          }}
+                          disabled={isRegenerating}
+                          className="flex-1 bg-zinc-800 hover:bg-yellow-600 hover:text-zinc-950 disabled:opacity-50 text-zinc-300 px-2 py-1.5 rounded-xl text-[10px] font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
+                          title="Invalidar enlace actual y generar uno nuevo"
+                        >
+                          {isRegenerating ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <RefreshCw className="w-3.5 h-3.5" />
+                          )}
+                          Regenerar
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            const parts = selectedSub.data.token.split(".");
+                            if (parts.length > 0) {
+                              handleSendReminder(parts[0]);
+                            }
+                          }}
+                          disabled={isSendingReminder}
+                          className="flex-1 bg-[#c8a788]/20 border border-[#c8a788]/30 hover:bg-[#c8a788] hover:text-zinc-950 disabled:opacity-50 text-[#c8a788] px-2 py-1.5 rounded-xl text-[10px] font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
+                          title="Enviar recordatorio a Zoho CRM"
+                        >
+                          {isSendingReminder ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <Bell className="w-3.5 h-3.5" />
+                          )}
+                          Recordatorio
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
 
                 {/* Perfil del Solicitante */}
                 <div className="space-y-3">

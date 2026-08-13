@@ -40,6 +40,7 @@ export interface MappedCrmData {
   contactoTelefono?: string;
   rlNombre?: string;
   rlNoIdentificacion?: string;
+  module?: "Contacts" | "Leads";
 }
 
 /**
@@ -91,6 +92,7 @@ export function mapCrmRecord(record: any, moduleType: "Contacts" | "Leads"): Map
       email,
       celular: phone,
       idNumber,
+      module: moduleType,
     };
   } else {
     // JURIDICA mapping
@@ -141,6 +143,7 @@ export function mapCrmRecord(record: any, moduleType: "Contacts" | "Leads"): Map
       contactoTelefono: phone,
       rlNombre,
       rlNoIdentificacion,
+      module: moduleType,
     };
   }
 }
@@ -208,6 +211,7 @@ export const zoho = {
             contactoTelefono: "50766112233",
             rlNombre: "Carlos Gómez",
             rlNoIdentificacion: "8-888-8888",
+            module: "Contacts",
           };
         } else {
           return {
@@ -218,6 +222,7 @@ export const zoho = {
             email: "juan.perez.mock@gmail.com",
             celular: "50766554433",
             idNumber: "8-777-7777",
+            module: "Contacts",
           };
         }
       }

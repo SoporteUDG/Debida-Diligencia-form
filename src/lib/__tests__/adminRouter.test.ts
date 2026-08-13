@@ -23,7 +23,8 @@ vi.mock("../tokenService", () => {
   return {
     generateToken: vi.fn().mockResolvedValue("mock-token-uuid.mock-signature"),
     reactivateToken: vi.fn().mockResolvedValue({ success: true }),
-    signUuid: vi.fn(),
+    revokeToken: vi.fn().mockResolvedValue({ success: true }),
+    signUuid: vi.fn().mockReturnValue("mock-signature"),
     verifySignature: vi.fn(),
   };
 });
@@ -77,6 +78,9 @@ describe("Admin Router tRPC Procedures", () => {
             documents: [],
           }
         ])
+      },
+      token: {
+        findMany: vi.fn().mockResolvedValue([])
       }
     };
 
@@ -202,5 +206,102 @@ describe("Admin Router tRPC Procedures", () => {
 
     expect(result).toBeDefined();
     expect(result.conclusionesVerificacion).toBe("Aprobado sin novedades");
+  });
+
+  it("should regenerate client link via regenerateClientLink mutation", async () => {
+    // 1. Mock zoho
+    vi.mocked(zoho.service.getContact).mockResolvedValue({
+      type: "NATURAL",
+      nombreProyecto: "Coastal Building",
+      module: "Contacts"
+    });
+    vi.mocked(zoho.service.updateClientFormLink).mockResolvedValue({ success: true });
+
+    // 2. Mock prisma
+    const mockPrisma = {
+      token: {
+        findUnique: vi.fn().mockResolvedValue({
+          token: "old-token-uuid",
+          crmContactId: "contact-uuid",
+          type: "NATURAL"
+        })
+      },
+      draft: {
+        findUnique: vi.fn().mockResolvedValue({ id: "draft-uuid" }),
+        update: vi.fn().mockResolvedValue({ id: "draft-uuid" })
+      },
+      crmContact: {
+        findUnique: vi.fn().mockResolvedValue({ id: "contact-uuid", crmId: "crm-contact-id" })
+      }
+    };
+
+    const caller = appRouter.createCaller({
+      prisma: mockPrisma as any,
+      req: {
+        headers: new Map([["x-admin-token", "admin-secret-dev"]])
+      } as any,
+      ip: "127.0.0.1",
+      userAgent: "vitest"
+    });
+
+    const result = await caller.regenerateClientLink({
+      tokenUuid: "123e4567-e89b-12d3-a456-426614174000",
+      expiresInDays: 30
+    });
+
+    expect(result).toBeDefined();
+    expect(result.success).toBe(true);
+    expect(result.clientUrl).toContain("token=mock-token-uuid.mock-signature");
+
+    expect(mockPrisma.token.findUnique).toHaveBeenCalled();
+    expect(mockPrisma.draft.update).toHaveBeenCalled();
+    expect(zoho.service.updateClientFormLink).toHaveBeenCalled();
+  });
+
+  it("should send reminder via sendClientReminder mutation", async () => {
+    // 1. Mock zoho
+    vi.mocked(zoho.service.getContact).mockResolvedValue({
+      type: "NATURAL",
+      nombreProyecto: "Coastal Building",
+      module: "Contacts"
+    });
+    vi.mocked(zoho.service.updateClientFormLink).mockResolvedValue({ success: true });
+
+    // 2. Mock prisma
+    const mockPrisma = {
+      token: {
+        findUnique: vi.fn().mockResolvedValue({
+          token: "token-uuid",
+          crmContactId: "contact-uuid",
+          type: "NATURAL"
+        })
+      },
+      crmContact: {
+        findUnique: vi.fn().mockResolvedValue({ id: "contact-uuid", crmId: "crm-contact-id" })
+      },
+      draft: {
+        findUnique: vi.fn().mockResolvedValue({ id: "draft-uuid", type: "NATURAL" })
+      }
+    };
+
+    const caller = appRouter.createCaller({
+      prisma: mockPrisma as any,
+      req: {
+        headers: new Map([["x-admin-token", "admin-secret-dev"]])
+      } as any,
+      ip: "127.0.0.1",
+      userAgent: "vitest"
+    });
+
+    const result = await caller.sendClientReminder({
+      tokenUuid: "123e4567-e89b-12d3-a456-426614174000"
+    });
+
+    expect(result).toBeDefined();
+    expect(result.success).toBe(true);
+
+    expect(mockPrisma.token.findUnique).toHaveBeenCalled();
+    expect(mockPrisma.crmContact.findUnique).toHaveBeenCalled();
+    expect(zoho.service.updateClientFormLink).toHaveBeenCalled();
   });
 });

@@ -1,6 +1,6 @@
 import { router, publicProcedure, tokenProcedure, adminProcedure } from "../trpc";
 import { z } from "zod";
-import { reactivateToken, generateToken, signUuid } from "@/lib/tokenService";
+import { reactivateToken, generateToken, signUuid, revokeToken } from "@/lib/tokenService";
 import { documentsRouter } from "./documents";
 import { naturalFormSchema, juridicaFormSchema } from "@/lib/validation";
 import { syncFormToCrm } from "@/lib/crmSyncService";
@@ -265,6 +265,182 @@ export const appRouter = router({
       return result;
     }),
 
+  // 4.1 Admin-protected mutation: Regenerate link (revoke old token, generate new, update Draft & Zoho)
+  regenerateClientLink: adminProcedure
+    .input(
+      z.object({
+        tokenUuid: z.string().uuid("Se requiere un UUID de token válido"),
+        expiresInDays: z.number().int().min(1).default(30),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      // 1. Fetch the old token
+      const oldToken = await ctx.prisma.token.findUnique({
+        where: { token: input.tokenUuid },
+      });
+
+      if (!oldToken) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Token antiguo no encontrado",
+        });
+      }
+
+      // 2. Revoke the old token
+      await revokeToken(input.tokenUuid);
+
+      // 3. Generate a new token for the same contact
+      const signedToken = await generateToken(oldToken.crmContactId, oldToken.type, input.expiresInDays);
+      const newTokenUuid = signedToken.split(".")[0];
+
+      // 4. Find and update the associated Draft
+      const draft = await ctx.prisma.draft.findUnique({
+        where: { token: input.tokenUuid },
+      });
+
+      if (draft) {
+        await ctx.prisma.draft.update({
+          where: { id: draft.id },
+          data: {
+            token: newTokenUuid,
+            updatedAt: new Date(),
+          },
+        });
+      }
+
+      // 5. Fetch local CrmContact to get crmId and query Zoho CRM module info
+      const crmContact = await ctx.prisma.crmContact.findUnique({
+        where: { id: oldToken.crmContactId },
+      });
+
+      let clientUrl = "";
+      if (crmContact && crmContact.crmId) {
+        const isNatural = draft?.type === "NATURAL";
+        const formPath = isNatural ? "persona-natural" : "persona-juridica";
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+        clientUrl = `${appUrl}/${formPath}?token=${signedToken}`;
+
+        try {
+          // Fetch the CRM record using getContact to resolve which module it lives in
+          const crmData = await zoho.service.getContact(crmContact.crmId);
+          const resolvedModule = crmData.module || "Contacts";
+
+          // Sync the new link back to Zoho CRM
+          await zoho.service.updateClientFormLink(crmContact.crmId, resolvedModule, clientUrl);
+        } catch (err) {
+          console.error(`[regenerateClientLink CRM Error] Falló actualización de enlace en Zoho para ${crmContact.crmId}:`, err);
+        }
+      }
+
+      // 6. Log audit event
+      await logAuditEvent({
+        action: "LINK_REGENERATE",
+        entityName: "Draft",
+        entityId: draft?.id || null,
+        ipAddress: ctx.ip,
+        userAgent: ctx.userAgent,
+        userId: ctx.admin?.id || null,
+        details: sanitizeDetails({
+          oldTokenUuid: input.tokenUuid,
+          newTokenUuid,
+          crmContactId: oldToken.crmContactId,
+          clientUrl,
+        }),
+      });
+
+      return {
+        success: true,
+        signedToken,
+        clientUrl,
+      };
+    }),
+
+  // 4.2 Admin-protected mutation: Send Client Reminder (re-pushes link to Zoho CRM to trigger emails/workflows)
+  sendClientReminder: adminProcedure
+    .input(
+      z.object({
+        tokenUuid: z.string().uuid("Se requiere un UUID de token válido"),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      // 1. Fetch the token metadata
+      const token = await ctx.prisma.token.findUnique({
+        where: { token: input.tokenUuid },
+      });
+
+      if (!token) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Token no encontrado",
+        });
+      }
+
+      // 2. Fetch local CrmContact
+      const crmContact = await ctx.prisma.crmContact.findUnique({
+        where: { id: token.crmContactId },
+      });
+
+      if (!crmContact || !crmContact.crmId) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "El token no tiene un contacto de Zoho CRM asociado",
+        });
+      }
+
+      // 2.1 Fetch associated Draft to check the type
+      const draft = await ctx.prisma.draft.findUnique({
+        where: { token: token.token },
+      });
+
+      if (!draft) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "No se encontró ningún borrador asociado a este token",
+        });
+      }
+
+      const isNatural = draft.type === "NATURAL";
+      const formPath = isNatural ? "persona-natural" : "persona-juridica";
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+      
+      // Since generateToken doesn't return the signature unless we sign it, let's compute it
+      const signature = signUuid(token.token);
+      const signedToken = `${token.token}.${signature}`;
+      const clientUrl = `${appUrl}/${formPath}?token=${signedToken}`;
+
+      // 3. Fetch the CRM record using getContact to resolve which module it lives in
+      const crmData = await zoho.service.getContact(crmContact.crmId);
+      const resolvedModule = crmData.module || "Contacts";
+
+      // 4. Re-push the link to Zoho CRM to trigger CRM workflows/emails
+      const syncResult = await zoho.service.updateClientFormLink(crmContact.crmId, resolvedModule, clientUrl);
+      if (!syncResult.success) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Error al actualizar Zoho CRM: " + syncResult.error,
+        });
+      }
+
+      // 5. Log audit event
+      await logAuditEvent({
+        action: "LINK_REMINDER_SEND",
+        entityName: "Token",
+        entityId: token.token,
+        ipAddress: ctx.ip,
+        userAgent: ctx.userAgent,
+        userId: ctx.admin?.id || null,
+        details: sanitizeDetails({
+          crmContactId: token.crmContactId,
+          crmId: crmContact.crmId,
+          module: resolvedModule,
+        }),
+      });
+
+      return {
+        success: true,
+      };
+    }),
+
   // Admin query: Retrieve all forms/submissions and drafts mapped into a unified layout
   getSubmissions: adminProcedure.query(async ({ ctx }) => {
     // 1. Fetch submitted forms
@@ -292,6 +468,12 @@ export const appRouter = router({
       },
     });
 
+    const draftTokens = drafts.map((d) => d.token);
+    const dbTokens = await ctx.prisma.token.findMany({
+      where: { token: { in: draftTokens } },
+    });
+    const tokenMap = new Map(dbTokens.map((t) => [t.token, t]));
+
     // 3. Map drafts into submission schema
     const mappedDrafts = drafts.map((draft) => {
       const draftData = (draft.data || {}) as any;
@@ -300,6 +482,8 @@ export const appRouter = router({
         : (draftData.firstName || draftData.lastName
           ? `${draftData.firstName || ""} ${draftData.lastName || ""}`.trim()
           : draftData.razonSocial || "Cliente Pendiente");
+
+      const tokenRecord = tokenMap.get(draft.token);
 
       return {
         id: draft.id,
@@ -318,6 +502,8 @@ export const appRouter = router({
           crmContact: draft.crmContact,
           isDraftRecord: true,
           token: `${draft.token}.${signUuid(draft.token)}`,
+          tokenExpiresAt: tokenRecord?.expiresAt?.toISOString() || null,
+          tokenUsed: tokenRecord?.used || false,
         },
       };
     });
