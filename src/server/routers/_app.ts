@@ -317,7 +317,9 @@ export const appRouter = router({
       if (crmContact && crmContact.crmId) {
         const isNatural = draft?.type === "NATURAL";
         const formPath = isNatural ? "persona-natural" : "persona-juridica";
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+        const host = ctx.req.headers.get("host") || "localhost:3000";
+        const protocol = ctx.req.headers.get("x-forwarded-proto") || "http";
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || `${protocol}://${host}`;
         clientUrl = `${appUrl}/${formPath}?token=${signedToken}`;
 
         try {
@@ -401,7 +403,9 @@ export const appRouter = router({
 
       const isNatural = draft.type === "NATURAL";
       const formPath = isNatural ? "persona-natural" : "persona-juridica";
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+      const host = ctx.req.headers.get("host") || "localhost:3000";
+      const protocol = ctx.req.headers.get("x-forwarded-proto") || "http";
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || `${protocol}://${host}`;
       
       // Since generateToken doesn't return the signature unless we sign it, let's compute it
       const signature = signUuid(token.token);
@@ -654,7 +658,9 @@ export const appRouter = router({
       });
 
       // 8. Construct public URL link
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+      const host = ctx.req.headers.get("host") || "localhost:3000";
+      const protocol = ctx.req.headers.get("x-forwarded-proto") || "http";
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || `${protocol}://${host}`;
       const formPath = isNatural ? "persona-natural" : "persona-juridica";
       const clientUrl = `${appUrl}/${formPath}?token=${signedToken}`;
 
