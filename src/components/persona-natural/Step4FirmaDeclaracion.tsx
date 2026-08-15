@@ -294,11 +294,18 @@ export default function Step4FirmaDeclaracion({ formData, onInputChange, errors 
         </div>
 
         {/* Signature Pad Area */}
-        <div className="flex flex-col gap-3">
+        <div className={`flex flex-col gap-3 transition-all duration-300 ${!formData.termsAccepted ? "opacity-45 pointer-events-none select-none" : ""}`}>
           <div className="flex items-center justify-between">
-            <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700">
-              Firma Digital del Cliente <span className="text-red-500 font-bold">*</span>
-            </label>
+            <div className="flex items-center gap-2">
+              <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700">
+                Firma Digital del Cliente <span className="text-red-500 font-bold">*</span>
+              </label>
+              {!formData.termsAccepted && (
+                <span className="text-[9px] text-amber-700 bg-amber-50 border border-amber-200/50 px-2 py-0.5 rounded-full font-bold uppercase tracking-wide">
+                  Bloqueado: Acepta consentimiento arriba
+                </span>
+              )}
+            </div>
             
             {/* Signature Mode Selector */}
             <div className="flex items-center gap-1.5 bg-[#f4f6f8] border border-zinc-200 p-1 rounded-lg">
@@ -423,29 +430,6 @@ export default function Step4FirmaDeclaracion({ formData, onInputChange, errors 
         </div>
       </div>
 
-      {/* Solo para uso de la empresa */}
-      <div className="bg-white rounded-2xl p-6 md:p-8 shadow-xl border border-zinc-200 space-y-6 text-[#1a1c1a] font-sans">
-        <h3 className="text-sm font-bold tracking-widest text-[#002b49] uppercase border-b border-zinc-200 pb-3">
-          SOLO PARA USO DE LA EMPRESA
-        </h3>
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
-          <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700 md:col-span-1 pt-3" htmlFor="conclusionesVerificacion">
-            CONCLUSIONES DE LA VERIFICACIÓN
-          </label>
-          <div className="md:col-span-2">
-            <textarea
-              id="conclusionesVerificacion"
-              name="conclusionesVerificacion"
-              rows={4}
-              value={formData.conclusionesVerificacion || ""}
-              onChange={onInputChange}
-              placeholder="Escriba aquí las conclusiones de la verificación interna..."
-              className="w-full bg-[#f4f6f8] border border-zinc-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[#002b49] focus:ring-1 focus:ring-[#002b49] transition text-zinc-800 resize-y"
-            />
-          </div>
-        </div>
-      </div>
 
     </div>
   );

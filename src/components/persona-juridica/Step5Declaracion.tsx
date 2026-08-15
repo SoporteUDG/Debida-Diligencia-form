@@ -251,6 +251,29 @@ export default function Step5Declaracion({ formData, onInputChange, errors = {} 
           </p>
         </div>
 
+        {/* Terms Acceptance Checkbox */}
+        <div className="flex flex-col gap-1.5 pt-4 border-t border-zinc-100">
+          <div className="flex items-start gap-3">
+            <input
+              type="checkbox"
+              id="termsAccepted"
+              name="termsAccepted"
+              checked={formData.termsAccepted}
+              onChange={onInputChange}
+              className="mt-1 h-4 w-4 rounded border-zinc-300 bg-[#f4f6f8] text-[#c8a788] accent-[#c8a788] focus:ring-0 focus:ring-offset-0 cursor-pointer"
+              required
+            />
+            <label htmlFor="termsAccepted" className="text-xs text-zinc-500 leading-normal select-none cursor-pointer">
+              Doy consentimiento legal expreso, certifico que la información declarada es verídica e íntegra, y autorizo el análisis conforme a la Ley de Prevención de Capitales.
+            </label>
+          </div>
+          {errors.termsAccepted && (
+            <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
+              ⚠️ {errors.termsAccepted}
+            </span>
+          )}
+        </div>
+
         {/* Form Inputs for Name and Date */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-zinc-100">
           <div className="flex flex-col gap-2">
@@ -304,11 +327,18 @@ export default function Step5Declaracion({ formData, onInputChange, errors = {} 
         </div>
 
         {/* Signature Pad Area */}
-        <div className="flex flex-col gap-3">
+        <div className={`flex flex-col gap-3 transition-all duration-300 ${!formData.termsAccepted ? "opacity-45 pointer-events-none select-none" : ""}`}>
           <div className="flex items-center justify-between">
-            <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700">
-              Firma Digital del Cliente <span className="text-red-500 font-bold">*</span>
-            </label>
+            <div className="flex items-center gap-2">
+              <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700">
+                Firma Digital del Cliente <span className="text-red-500 font-bold">*</span>
+              </label>
+              {!formData.termsAccepted && (
+                <span className="text-[9px] text-amber-700 bg-amber-50 border border-amber-200/50 px-2 py-0.5 rounded-full font-bold uppercase tracking-wide">
+                  Bloqueado: Acepta consentimiento arriba
+                </span>
+              )}
+            </div>
             
             {/* Signature Mode Selector */}
             <div className="flex items-center gap-1.5 bg-[#f4f6f8] border border-zinc-200 p-1 rounded-lg">
@@ -433,68 +463,9 @@ export default function Step5Declaracion({ formData, onInputChange, errors = {} 
           </div>
         </div>
 
-        {/* Terms Acceptance Checkbox */}
-        <div className="flex flex-col gap-1.5 pt-4 border-t border-zinc-100">
-          <div className="flex items-start gap-3">
-            <input
-              type="checkbox"
-              id="termsAccepted"
-              name="termsAccepted"
-              checked={formData.termsAccepted}
-              onChange={onInputChange}
-              className="mt-1 h-4 w-4 rounded border-zinc-300 bg-[#f4f6f8] text-[#c8a788] accent-[#c8a788] focus:ring-0 focus:ring-offset-0 cursor-pointer"
-              required
-            />
-            <label htmlFor="termsAccepted" className="text-xs text-zinc-500 leading-normal select-none cursor-pointer">
-              Doy consentimiento legal expreso, certifico que la información declarada es verídica e íntegra, y autorizo el análisis conforme a la Ley de Prevención de Capitales.
-            </label>
-          </div>
-          {errors.termsAccepted && (
-            <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
-              ⚠️ {errors.termsAccepted}
-            </span>
-          )}
-        </div>
       </div>
 
-      {/* SECTION: SOLO PARA USO DE LA EMPRESA */}
-      <div className="bg-white rounded-2xl p-6 md:p-8 shadow-xl border border-zinc-200 space-y-6">
-        <h3 className="text-sm font-bold tracking-widest text-[#002b49] uppercase border-b border-zinc-200 pb-3">
-          SOLO PARA USO DE LA EMPRESA
-        </h3>
 
-        <div className="space-y-6 text-[#1a1c1a]">
-          <div className="flex flex-col gap-2">
-            <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="conclusionesVerificacion">
-              CONCLUSIONES DE LA VERIFICACIÓN
-            </label>
-            <textarea
-              id="conclusionesVerificacion"
-              name="conclusionesVerificacion"
-              value={formData.conclusionesVerificacion || ""}
-              onChange={onInputChange}
-              rows={4}
-              placeholder="Escribe aquí las observaciones o conclusiones del análisis de cumplimiento..."
-              className="w-full bg-[#f4f6f8] border border-zinc-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[#002b49] focus:ring-1 focus:ring-[#002b49] transition text-zinc-800 resize-none"
-            />
-          </div>
-
-          <div className="flex flex-col gap-2 max-w-sm">
-            <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="crmid">
-              crmid
-            </label>
-            <input
-              type="text"
-              id="crmid"
-              name="crmid"
-              value={formData.crmid || ""}
-              onChange={onInputChange}
-              placeholder="Código identificador de Zoho CRM"
-              className="bg-[#f4f6f8] border border-zinc-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[#002b49] focus:ring-1 focus:ring-[#002b49] transition text-zinc-800"
-            />
-          </div>
-        </div>
-      </div>
 
     </div>
   );
