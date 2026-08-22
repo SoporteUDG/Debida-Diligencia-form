@@ -243,7 +243,7 @@ export const zoho = {
             },
           });
 
-          if (response.ok) {
+          if (response.ok && response.status !== 204) {
             const resJson = await response.json();
             if (resJson.data && resJson.data.length > 0) {
               const record = resJson.data[0];
@@ -279,7 +279,7 @@ export const zoho = {
           },
         });
 
-        if (response.ok) {
+        if (response.ok && response.status !== 204) {
           const resJson = await response.json();
           if (resJson.data && resJson.data.length > 0) {
             console.log(`[Zoho Service] Contacto ${crmId} encontrado.`);
@@ -296,7 +296,7 @@ export const zoho = {
           },
         });
 
-        if (response.ok) {
+        if (response.ok && response.status !== 204) {
           const resJson = await response.json();
           if (resJson.data && resJson.data.length > 0) {
             console.log(`[Zoho Service] Lead ${crmId} encontrado.`);
@@ -501,7 +501,7 @@ export const zoho = {
             method: "GET",
             headers: { Authorization: `Zoho-oauthtoken ${accessToken}` },
           });
-          if (res.ok) {
+          if (res.ok && res.status !== 204) {
             const data = await res.json();
             if (data.data) {
               for (const record of data.data) {
@@ -531,7 +531,7 @@ export const zoho = {
             method: "GET",
             headers: { Authorization: `Zoho-oauthtoken ${accessToken}` },
           });
-          if (res.ok) {
+          if (res.ok && res.status !== 204) {
             const data = await res.json();
             if (data.data) {
               for (const record of data.data) {
@@ -561,7 +561,7 @@ export const zoho = {
             method: "GET",
             headers: { Authorization: `Zoho-oauthtoken ${accessToken}` },
           });
-          if (res.ok) {
+          if (res.ok && res.status !== 204) {
             const data = await res.json();
             if (data.data) {
               for (const record of data.data) {
