@@ -4,6 +4,10 @@ import { reactivateToken } from "@/lib/tokenService";
 
 export const dynamic = "force-dynamic";
 
+export async function GET() {
+  return NextResponse.json({ message: "El endpoint de reactivación está activo y listo." });
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
