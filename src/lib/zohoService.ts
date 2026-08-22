@@ -1,4 +1,5 @@
 import { executeWithRetry } from "./zohoAuthService";
+import crypto from "crypto";
 
 /**
  * Normalizes values returned by Zoho CRM (e.g. converting null/undefined or string "null" to "").
@@ -40,7 +41,7 @@ export interface MappedCrmData {
   contactoTelefono?: string;
   rlNombre?: string;
   rlNoIdentificacion?: string;
-  module?: "Contacts" | "Leads";
+  module?: "Contacts" | "Leads" | "Debida_Diligencia";
 }
 
 /**
@@ -198,6 +199,7 @@ export const zoho = {
       if (isPlaceholder || crmId.startsWith("mock-") || crmId === "simulated-crm-contact-id") {
         console.log(`[Zoho Service] Modo placeholder. Generando datos simulados para ID: ${crmId}`);
         const isCrmIdJur = crmId.toLowerCase().includes("jur") || crmId.startsWith("mock-jur");
+        const module = crmId.includes("debida") ? "Debida_Diligencia" as const : "Contacts" as const;
         
         if (isCrmIdJur) {
           return {
@@ -211,7 +213,7 @@ export const zoho = {
             contactoTelefono: "50766112233",
             rlNombre: "Carlos Gómez",
             rlNoIdentificacion: "8-888-8888",
-            module: "Contacts",
+            module,
           };
         } else {
           return {
@@ -222,16 +224,53 @@ export const zoho = {
             email: "juan.perez.mock@gmail.com",
             celular: "50766554433",
             idNumber: "8-777-7777",
-            module: "Contacts",
+            module,
           };
         }
       }
 
-      // Query Zoho CRM modules (try Contacts first, then fall back to Leads)
+      // Query Zoho CRM modules (try Debida_Diligencia first, then Contacts/Leads)
       return executeWithRetry(async (accessToken) => {
         const crmBaseUrl = process.env.ZOHO_CRM_BASE_URL || "https://www.zohoapis.com/crm/v2";
 
-        // 1. Try Contacts Module
+        // 1. Try Debida_Diligencia Module
+        try {
+          console.log(`[Zoho Service] Buscando registro ${crmId} en módulo Debida_Diligencia...`);
+          const response = await fetch(`${crmBaseUrl}/Debida_Diligencia/${crmId}`, {
+            method: "GET",
+            headers: {
+              Authorization: `Zoho-oauthtoken ${accessToken}`,
+            },
+          });
+
+          if (response.ok) {
+            const resJson = await response.json();
+            if (resJson.data && resJson.data.length > 0) {
+              const record = resJson.data[0];
+              console.log(`[Zoho Service] Registro de Debida_Diligencia ${crmId} encontrado.`);
+              
+              const isJur = record.Tipo_de_Persona === "Persona Jurídica" || record.Tipo_de_Persona === "JURIDICA";
+              const type = isJur ? "JURIDICA" as const : "NATURAL" as const;
+              const projectName = record.Proyecto?.name || record.Proyecto || "";
+              
+              return {
+                type,
+                nombreProyecto: projectName,
+                razonSocial: record.Raz_n_social || "",
+                numeroDocumento: record.RUC_NIT || "",
+                contactoNombre: record.Name || "Expediente",
+                contactoApellido: "",
+                contactoEmail: record.Email || record.Correo_de_contacto || "",
+                contactoTelefono: record.Tel_fono || "",
+                module: "Debida_Diligencia",
+              };
+            }
+          }
+        } catch (e) {
+          console.log(`[Zoho Service] Error buscando en módulo Debida_Diligencia, intentando estándar...`, e);
+        }
+
+        // 2. Try Contacts Module
         console.log(`[Zoho Service] Buscando contacto ${crmId} en módulo Contacts...`);
         let response = await fetch(`${crmBaseUrl}/Contacts/${crmId}`, {
           method: "GET",
@@ -248,7 +287,7 @@ export const zoho = {
           }
         }
 
-        // 2. Fallback to Leads Module
+        // 3. Fallback to Leads Module
         console.log(`[Zoho Service] Contacto no encontrado en Contacts. Buscando en módulo Leads...`);
         response = await fetch(`${crmBaseUrl}/Leads/${crmId}`, {
           method: "GET",
@@ -265,12 +304,12 @@ export const zoho = {
           }
         }
 
-        throw new Error(`No se pudo encontrar ningún Contacto o Lead con el ID de CRM: ${crmId}`);
+        throw new Error(`No se pudo encontrar ningún Expediente, Contacto o Lead con el ID de CRM: ${crmId}`);
       });
     },
 
     /**
-     * Updates an existing Zoho Contact or Lead with the full mapped client form data.
+     * Updates an existing Zoho record in Debida_Diligencia (or fallback to Contacts/Leads) with form data.
      * Integrates with oauth automatic retries and development simulation fallback.
      */
     updateContact: async (
@@ -301,7 +340,7 @@ export const zoho = {
         const crmBaseUrl = process.env.ZOHO_CRM_BASE_URL || "https://www.zohoapis.com/crm/v2";
 
         // Helper function to update record in a specific module
-        const tryUpdateInModule = async (module: "Contacts" | "Leads") => {
+        const tryUpdateInModule = async (module: string) => {
           console.log(`[Zoho Service] Intentando actualizar registro ${crmId} en módulo ${module}...`);
           const response = await fetch(`${crmBaseUrl}/${module}/${crmId}`, {
             method: "PUT",
@@ -328,7 +367,6 @@ export const zoho = {
           
           if (result.status === "error") {
             const code = result.code;
-            // If the record was not found or invalid id, we returns notFound so we can try fallback module
             if (code === "INVALID_DATA" || code === "NOT_FOUND" || result.message?.toLowerCase().includes("record not found") || result.message?.toLowerCase().includes("invalid id")) {
               return { success: false, notFound: true, details: result };
             }
@@ -336,20 +374,31 @@ export const zoho = {
           }
 
           if (result.status !== "success" || result.code !== "SUCCESS") {
-            throw new Error(`Zoho CRM Sincronización Parcial/Warning [${result.code}]: ${result.message} - details: ${JSON.stringify(result.details)}`);
+            throw new Error(`Zoho CRM Sincronización Parcial [${result.code}]: ${result.message}`);
           }
 
           return { success: true, notFound: false };
         };
 
-        // 1. Try updating in Contacts
+        // 1. Try updating in Debida_Diligencia
+        try {
+          const updateRes = await tryUpdateInModule("Debida_Diligencia");
+          if (updateRes.success) {
+            console.log(`[Zoho Service] Registro ${crmId} actualizado exitosamente en módulo Debida_Diligencia.`);
+            return { success: true, crmId };
+          }
+        } catch (e) {
+          console.log(`[Zoho Service] Falló actualización en módulo Debida_Diligencia, intentando estándar...`, e);
+        }
+
+        // 2. Try updating in Contacts
         let updateRes = await tryUpdateInModule("Contacts");
         if (updateRes.success) {
           console.log(`[Zoho Service] Registro ${crmId} actualizado exitosamente en módulo Contacts.`);
           return { success: true, crmId };
         }
 
-        // 2. If not found, try updating in Leads
+        // 3. Try updating in Leads
         if (updateRes.notFound) {
           console.log(`[Zoho Service] Registro no encontrado en Contacts. Intentando en Leads...`);
           updateRes = await tryUpdateInModule("Leads");
@@ -359,13 +408,10 @@ export const zoho = {
           }
         }
 
-        throw new Error(`No se pudo encontrar ni actualizar ningún Contacto o Lead con el ID de CRM: ${crmId}`);
+        throw new Error(`No se pudo encontrar ni actualizar ningún registro con el ID de CRM: ${crmId}`);
       });
     },
 
-    /**
-     * Searches Contacts and Leads in Zoho CRM matching a text query.
-     */
     searchContacts: async (
       query: string
     ): Promise<
@@ -374,7 +420,7 @@ export const zoho = {
         name: string;
         email: string;
         phone: string;
-        module: "Contacts" | "Leads";
+        module: "Contacts" | "Leads" | "Debida_Diligencia";
         type: "NATURAL" | "JURIDICA";
         projectInterest?: string;
       }>
@@ -387,13 +433,31 @@ export const zoho = {
         !clientId ||
         clientId === "placeholder_client_id" ||
         !clientSecret ||
-        clientSecret === "placeholder_client_secret" ||
+        clientSecret === "placeholder_secret" ||
         !refreshToken ||
         refreshToken === "placeholder_refresh_token";
 
       if (isPlaceholder) {
         console.log(`[Zoho Service] Búsqueda simulada activa para query: "${query}"`);
         const mockResults = [
+          {
+            id: "mock-debida-natural",
+            name: "Expediente: Juan Pérez (Debida Diligencia)",
+            email: "juan.perez.mock@gmail.com",
+            phone: "50766554433",
+            module: "Debida_Diligencia" as const,
+            type: "NATURAL" as const,
+            projectInterest: "Proyecto Terrazas Mock",
+          },
+          {
+            id: "mock-debida-juridica",
+            name: "Expediente: Inversiones Tecnológicas S.A. (Debida Diligencia)",
+            email: "contacto@inversionesmock.com",
+            phone: "50766112233",
+            module: "Debida_Diligencia" as const,
+            type: "JURIDICA" as const,
+            projectInterest: "Proyecto Edificio Mock",
+          },
           {
             id: "mock-contact-natural",
             name: "Juan Pérez",
@@ -412,33 +476,6 @@ export const zoho = {
             type: "JURIDICA" as const,
             projectInterest: "Proyecto Edificio Mock",
           },
-          {
-            id: "mock-contact-natural-maria",
-            name: "María Alejandra González",
-            email: "maria.gonzalez@example.com",
-            phone: "50769998888",
-            module: "Contacts" as const,
-            type: "NATURAL" as const,
-            projectInterest: "Costa del Este Residence",
-          },
-          {
-            id: "mock-lead-juridica-bolivar",
-            name: "Inversiones Bolívar S.A.",
-            email: "contacto@inversionesbolivar.com",
-            phone: "5073004000",
-            module: "Leads" as const,
-            type: "JURIDICA" as const,
-            projectInterest: "Alta Plaza Business Tower",
-          },
-          {
-            id: "mock-contact-pep",
-            name: "Carlos Alberto Vicepresidente",
-            email: "carlos.vice@gob.pa",
-            phone: "50761234567",
-            module: "Contacts" as const,
-            type: "NATURAL" as const,
-            projectInterest: "Ocean Reef Phase 2",
-          }
         ];
         return mockResults.filter(
           r => r.name.toLowerCase().includes(query.toLowerCase()) || r.email.toLowerCase().includes(query.toLowerCase())
@@ -452,12 +489,42 @@ export const zoho = {
           name: string;
           email: string;
           phone: string;
-          module: "Contacts" | "Leads";
+          module: "Contacts" | "Leads" | "Debida_Diligencia";
           type: "NATURAL" | "JURIDICA";
           projectInterest?: string;
         }> = [];
 
-        // 1. Search in Contacts
+        // 1. Search in Debida_Diligencia
+        try {
+          console.log(`[Zoho Service] Buscando "${query}" en módulo Debida_Diligencia...`);
+          const res = await fetch(`${crmBaseUrl}/Debida_Diligencia/search?word=${encodeURIComponent(query)}`, {
+            method: "GET",
+            headers: { Authorization: `Zoho-oauthtoken ${accessToken}` },
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.data) {
+              for (const record of data.data) {
+                const isJur = record.Tipo_de_Persona === "Persona Jurídica" || record.Tipo_de_Persona === "JURIDICA";
+                const type = isJur ? "JURIDICA" as const : "NATURAL" as const;
+                const projectName = record.Proyecto?.name || record.Proyecto || "";
+                results.push({
+                  id: record.id,
+                  name: record.Name || "Expediente sin nombre",
+                  email: record.Email || record.Correo_de_contacto || "",
+                  phone: record.Tel_fono || "",
+                  module: "Debida_Diligencia",
+                  type,
+                  projectInterest: projectName || undefined,
+                });
+              }
+            }
+          }
+        } catch (err) {
+          console.error("[Zoho Service Search Contacts] Error searching Debida_Diligencia:", err);
+        }
+
+        // 2. Search in Contacts
         try {
           console.log(`[Zoho Service] Buscando "${query}" en módulo Contacts...`);
           const res = await fetch(`${crmBaseUrl}/Contacts/search?word=${encodeURIComponent(query)}`, {
@@ -487,7 +554,7 @@ export const zoho = {
           console.error("[Zoho Service Search Contacts] Error searching Contacts:", err);
         }
 
-        // 2. Search in Leads
+        // 3. Search in Leads
         try {
           console.log(`[Zoho Service] Buscando "${query}" en módulo Leads...`);
           const res = await fetch(`${crmBaseUrl}/Leads/search?word=${encodeURIComponent(query)}`, {
@@ -525,7 +592,7 @@ export const zoho = {
      */
     updateClientFormLink: async (
       crmId: string,
-      module: "Contacts" | "Leads",
+      module: "Contacts" | "Leads" | "Debida_Diligencia",
       formLink: string
     ): Promise<{ success: boolean; error?: string }> => {
       const clientId = process.env.ZOHO_CLIENT_ID;
@@ -554,6 +621,7 @@ export const zoho = {
               Client_Form_Link: formLink,
               Enlace_Formulario: formLink,
               Enlace_Debida_Diligencia: formLink,
+              Enlace_de_Formulario: formLink,
             }
           ]
         };
@@ -577,6 +645,82 @@ export const zoho = {
         return { success: false, error: errText };
       });
     },
+
+    /**
+     * Creates an activity note in Zoho CRM associated with a Contact, Lead or Debida_Diligencia.
+     */
+    createNote: async (
+      crmId: string,
+      title: string,
+      content: string
+    ): Promise<{ success: boolean; noteId?: string }> => {
+      const clientId = process.env.ZOHO_CLIENT_ID;
+      const clientSecret = process.env.ZOHO_CLIENT_SECRET;
+      const refreshToken = process.env.ZOHO_REFRESH_TOKEN;
+
+      const isPlaceholder =
+        !clientId ||
+        clientId === "placeholder_client_id" ||
+        !clientSecret ||
+        clientSecret === "placeholder_client_secret" ||
+        !refreshToken ||
+        refreshToken === "placeholder_refresh_token";
+
+      if (isPlaceholder || crmId.startsWith("mock-") || crmId === "simulated-crm-contact-id") {
+        console.log(`[Zoho Service] Modo placeholder. Simulando creación de nota para ID ${crmId}: "${title}"`);
+        return { success: true, noteId: "mock-note-id-" + crypto.randomUUID() };
+      }
+
+      return executeWithRetry(async (accessToken) => {
+        const crmBaseUrl = process.env.ZOHO_CRM_BASE_URL || "https://www.zohoapis.com/crm/v2";
+
+        // Determine if it is under Contacts, Leads or Debida_Diligencia
+        let resolvedModule: "Contacts" | "Leads" | "Debida_Diligencia" = "Contacts";
+        try {
+          const contactInfo = await zoho.service.getContact(crmId);
+          resolvedModule = contactInfo.module || "Contacts";
+        } catch (e) {
+          console.warn(`[Zoho Note] No se pudo determinar el módulo para ID ${crmId}, asumiendo Contacts:`, e);
+        }
+
+        console.log(`[Zoho Service] Creando nota de actividad para ${crmId} (${resolvedModule}): ${title}`);
+
+        const response = await fetch(`${crmBaseUrl}/Notes`, {
+          method: "POST",
+          headers: {
+            Authorization: `Zoho-oauthtoken ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            data: [
+              {
+                Note_Title: title,
+                Note_Content: content,
+                Parent_Id: crmId,
+                $se_module: resolvedModule,
+              },
+            ],
+          }),
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Zoho CRM Notes API returned HTTP ${response.status}: ${errorText}`);
+        }
+
+        const resJson = await response.json();
+        if (!resJson.data || resJson.data.length === 0) {
+          throw new Error(`Zoho CRM Notes response was empty or invalid: ${JSON.stringify(resJson)}`);
+        }
+
+        const result = resJson.data[0];
+        if (result.status === "error") {
+          throw new Error(`Zoho CRM Notes Error [${result.code}]: ${result.message}`);
+        }
+
+        return { success: true, noteId: result.details?.id };
+      });
+    },
   },
 };
 
@@ -585,71 +729,83 @@ export const zoho = {
  */
 export function mapFormToCrmPayload(clientType: "NATURAL" | "JURIDICA", formData: any): any {
   const payload: any = {
-    "Due_Diligence_Status": "Completado",
-    "Form_Submission_Date": new Date().toISOString().split("T")[0],
+    "Estado": "Completado",
+    "Fecha_de_Ingreso": new Date().toISOString().split("T")[0],
+    "Tipo_de_Persona": clientType === "NATURAL" ? "Persona Natural" : "Persona Jurídica",
   };
 
+  // Mapear Proyecto si está definido
   const project = formData.nombreProyecto || formData.projectName || "";
   if (project) {
-    payload["Project_Interest"] = project;
     payload["Proyecto"] = project;
-    payload["Proyecto_de_Interes"] = project;
   }
 
   if (clientType === "NATURAL") {
-    if (formData.firstName) payload["First_Name"] = formData.firstName;
-    if (formData.lastName) payload["Last_Name"] = formData.lastName;
-    if (formData.email) payload["Email"] = formData.email;
-    if (formData.celular) payload["Mobile"] = formData.celular;
-    if (formData.telefono) payload["Phone"] = formData.telefono;
+    const fullName = `${formData.firstName || ""} ${formData.lastName || ""}`.trim();
+    payload["Name"] = fullName || "Expediente Natural";
     
-    if (formData.paisNacimiento) payload["Country_of_Birth"] = formData.paisNacimiento;
-    if (formData.nationality) payload["Nationality"] = formData.nationality;
-    if (formData.idNumber) payload["Identificacion"] = formData.idNumber;
-    if (formData.tipoIdentificacion) payload["ID_Type"] = formData.tipoIdentificacion;
-    if (formData.fechaNacimiento) payload["Date_of_Birth"] = formData.fechaNacimiento;
-
-    if (formData.direccionResidencial) payload["Mailing_Street"] = formData.direccionResidencial;
-    if (formData.ciudad) payload["Mailing_City"] = formData.ciudad;
-    if (formData.provinciaEstado) payload["Mailing_State"] = formData.provinciaEstado;
-    if (formData.paisResidencial) payload["Mailing_Country"] = formData.paisResidencial;
-
-    if (formData.profession) payload["Profession"] = formData.profession;
-    if (formData.employer) payload["Employer"] = formData.employer;
-    if (formData.ingresosMensuales) payload["Monthly_Income"] = formData.ingresosMensuales;
-    if (formData.medioPago) payload["Payment_Method"] = formData.medioPago;
-    if (formData.fuenteFondosInmueble) payload["Source_of_Funds"] = formData.fuenteFondosInmueble;
-    if (formData.esPep) payload["PEP_Status"] = formData.esPep;
+    if (formData.idNumber) payload["RUC_NIT"] = formData.idNumber;
+    if (formData.email) payload["Email"] = formData.email;
+    if (formData.celular || formData.telefono) payload["Tel_fono"] = formData.celular || formData.telefono;
+    if (formData.profession) payload["Actividad_Principal"] = formData.profession;
+    if (formData.paisResidencial) payload["Pa_s"] = formData.paisResidencial;
+    if (formData.provinciaEstado) payload["Provincia"] = formData.provinciaEstado;
+    if (formData.ciudad) payload["Ciudad"] = formData.ciudad;
+    if (formData.direccionResidencial) payload["Direccion_Calle"] = formData.direccionResidencial;
+    
+    if (formData.fuenteFondosInmueble || formData.origenFondos) {
+      payload["Origen_de_Fondos"] = formData.fuenteFondosInmueble || formData.origenFondos;
+    }
+    if (formData.medioPago) payload["Medio_de_Pago"] = formData.medioPago;
+    if (formData.propositoInmueble) payload["Prop_sito_del_inmueble"] = formData.propositoInmueble;
+    if (formData.ingresosMensuales) payload["Monto_anual_estimado"] = formData.ingresosMensuales;
+    payload["A_nombre_de_otro"] = !!formData.terceroNombre;
   } else {
-    if (formData.razonSocial) {
-      payload["Company"] = formData.razonSocial;
-      payload["Razon_Social"] = formData.razonSocial;
-      payload["Account_Name"] = formData.razonSocial;
+    payload["Name"] = formData.razonSocial || "Expediente Jurídico";
+    if (formData.razonSocial) payload["Raz_n_social"] = formData.razonSocial;
+    if (formData.numeroDocumento) payload["RUC_NIT"] = formData.numeroDocumento;
+    if (formData.fechaConstitucion) payload["Fecha_de_constituci_n"] = formData.fechaConstitucion;
+    
+    if (formData.empresaDireccion) payload["Direccion_Calle"] = formData.empresaDireccion;
+    if (formData.empresaCiudad) payload["Ciudad"] = formData.empresaCiudad;
+    if (formData.empresaProvincia) payload["Provincia"] = formData.empresaProvincia;
+    if (formData.empresaPais) payload["Pa_s"] = formData.empresaPais;
+    
+    if (formData.empresaTelefono) payload["Tel_fono"] = formData.empresaTelefono;
+    if (formData.empresaEmail) {
+      payload["Email"] = formData.empresaEmail;
+      payload["Email_corporativo"] = formData.empresaEmail;
     }
-    if (formData.numeroDocumento) {
-      payload["RUC"] = formData.numeroDocumento;
-      payload["Identificacion_Empresa"] = formData.numeroDocumento;
+    
+    if (formData.empresaActividad || formData.actividadPrincipal) {
+      payload["Actividad_Principal"] = formData.empresaActividad || formData.actividadPrincipal;
     }
-    if (formData.fechaConstitucion) {
-      payload["Constituent_Date"] = formData.fechaConstitucion;
-      payload["Constitucion"] = formData.fechaConstitucion;
+    if (formData.medioPago) payload["Medio_de_Pago"] = formData.medioPago;
+    if (formData.origenFondos) payload["Origen_de_Fondos"] = formData.origenFondos;
+    if (formData.propositoInmueble) payload["Prop_sito_del_inmueble"] = formData.propositoInmueble;
+    if (formData.ingresosMensuales || formData.montoAnualEstimado) {
+      payload["Monto_anual_estimado"] = formData.ingresosMensuales || formData.montoAnualEstimado;
     }
 
-    if (formData.empresaDireccion) payload["Billing_Street"] = formData.empresaDireccion;
-    if (formData.empresaCiudad) payload["Billing_City"] = formData.empresaCiudad;
-    if (formData.empresaProvincia) payload["Billing_State"] = formData.empresaProvincia;
-    if (formData.empresaPais) payload["Billing_Country"] = formData.empresaPais;
+    // Subformulario: Beneficiarios Finales
+    const bfMembers = formData.bfMembers || [];
+    payload["Beneficiario_Finales"] = bfMembers.map((m: any) => ({
+      "Nombre_completo": m.name || m.nombreCompleto || "",
+      "No_Identificaci_n": m.idNumber || m.noIdentificacion || "",
+      "Nacionalidad": m.nationality || m.nacionalidad || "",
+      "Participaci_n": parseFloat(String(m.percentage || m.porcentajeParticipacion || 0)),
+      "Pais_nac_Residencia": m.country || m.paisNacimiento || "",
+    }));
 
-    if (formData.empresaTelefono) payload["Phone"] = formData.empresaTelefono;
-    if (formData.empresaEmail) payload["Email"] = formData.empresaEmail;
-
-    if (formData.rlNombre) payload["Representante_Legal"] = formData.rlNombre;
-    if (formData.rlNoIdentificacion) payload["Cedula_Representante"] = formData.rlNoIdentificacion;
-
-    if (formData.contactoNombre) payload["First_Name"] = formData.contactoNombre;
-    if (formData.contactoApellido) payload["Last_Name"] = formData.contactoApellido;
-    if (formData.contactoEmail) payload["Email"] = formData.contactoEmail;
-    if (formData.contactoTelefono) payload["Mobile"] = formData.contactoTelefono;
+    // Subformulario: Gobierno Corporativo / Junta Directiva
+    const gjcMembers = formData.gjcMembers || [];
+    payload["Gobierno_Coporativo_Junta_Directiva"] = gjcMembers.map((m: any) => ({
+      "Nombre_y_apellido": `${m.nombre || ""} ${m.apellidos || ""}`.trim(),
+      "Cargo": m.cargo || "",
+      "Nacionalidad": m.nacionalidad || "",
+      "Fecha_de_nacimiento": m.fechaNacimiento || null,
+      "No_Identificaci_n": m.nroId || "",
+    }));
   }
 
   return payload;

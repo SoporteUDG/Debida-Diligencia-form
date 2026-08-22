@@ -11,4 +11,4 @@
 - [x] Modificar y ampliar pruebas unitarias en `src/lib/__tests__/adminRouter.test.ts`
 - [x] Ejecutar suite de pruebas unitarias (`pnpm run test`)
 - [x] Validar consistencia y tipado estático (`npx tsc --noEmit`)
-- [x] Compilar el bundle de producción de Next.js (`pnpm run build`)
+- [x] Verificación: Validar funcionamiento (redirección no autenticada, acceso denegado por rol y compilación de producción) de Next.js (`pnpm run build`)

@@ -7,7 +7,7 @@ interface Step4Props {
   formData: FormState;
   uploadStatus: Record<string, "idle" | "uploading" | "success">;
   uploadProgress: Record<string, number>;
-  onFileUploadSimulated: (fieldName: keyof FormState, fileName: string) => void;
+  onFileUpload: (fieldName: keyof FormState, file: File) => void;
   onRemoveFile: (fieldName: keyof FormState) => void;
   onInputChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => void;
   errors: Record<string, string>;
@@ -17,7 +17,7 @@ export default function Step4Documentos({
   formData,
   uploadStatus,
   uploadProgress,
-  onFileUploadSimulated,
+  onFileUpload,
   onRemoveFile,
   onInputChange,
   errors = {},
@@ -82,8 +82,8 @@ export default function Step4Documentos({
   ];
 
   // Helper to trigger file upload and check the corresponding checkbox
-  const handleFileChange = (field: keyof FormState, checkboxField: keyof FormState, fileName: string) => {
-    onFileUploadSimulated(field, fileName);
+  const handleFileChange = (field: keyof FormState, checkboxField: keyof FormState, file: File) => {
+    onFileUpload(field, file);
     // Auto check the corresponding checklist checkbox
     const event = {
       target: {
@@ -178,7 +178,7 @@ export default function Step4Documentos({
                   <h4 className="text-xs md:text-sm font-semibold text-zinc-200">
                     {doc.title} {doc.required && <span className="text-red-500 font-bold">*</span>}
                   </h4>
-                  {hasFile && status === "success" && (
+                  {hasFile && (status === "success" || (status === "idle" && hasFile)) && (
                     <div className="inline-flex items-center gap-1.5 text-xs text-emerald-400 font-medium pt-1.5">
                       <FileCheck2 className="h-4 w-4" />
                       <span>{fileName}</span>
@@ -192,7 +192,7 @@ export default function Step4Documentos({
                 </div>
 
                 <div className="w-full flex items-center justify-start mt-2">
-                  {status === "idle" && (
+                  {status === "idle" && !hasFile && (
                     <label className="inline-flex items-center gap-2 bg-[#040e16] border border-[#c8a788]/30 text-[#c8a788] px-4 py-2.5 rounded-lg text-xs font-semibold hover:bg-[#c8a788]/10 hover:border-[#c8a788]/60 transition cursor-pointer active:scale-95">
                       <UploadCloud className="h-4 w-4" />
                       Choose File
@@ -203,7 +203,7 @@ export default function Step4Documentos({
                         onChange={(e) => {
                           const file = e.target.files?.[0];
                           if (file) {
-                            handleFileChange(doc.field, doc.checkboxField, file.name);
+                            handleFileChange(doc.field, doc.checkboxField, file);
                           }
                         }}
                       />
@@ -225,7 +225,7 @@ export default function Step4Documentos({
                     </div>
                   )}
 
-                  {status === "success" && (
+                  {(status === "success" || (status === "idle" && hasFile)) && (
                     <div className="flex items-center gap-3">
                       <div className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-3 py-1.5 rounded-lg text-xs font-medium inline-flex items-center gap-1.5">
                         <Check className="h-3.5 w-3.5" />

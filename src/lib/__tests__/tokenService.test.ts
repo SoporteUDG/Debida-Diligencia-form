@@ -72,21 +72,18 @@ describe("TokenService Unit Tests", () => {
   });
 
   describe("generateToken", () => {
-    it("should generate a token in the format uuid.signature and persist metadata in DB", async () => {
+    it("should generate a 14-character token and persist metadata in DB", async () => {
       const spyCreate = vi.spyOn(prisma.token, "create").mockResolvedValue({} as any);
 
       const token = await generateToken(mockCrmContactId, "ACCESS", 30);
       expect(token).toBeDefined();
-      expect(token).toContain(".");
-
-      const [uuid, signature] = token.split(".");
-      expect(uuid).toBeDefined();
-      expect(signature).toBeDefined();
+      expect(token.length).toBe(14);
+      expect(token).not.toContain(".");
 
       // Check DB persistence call
       expect(spyCreate).toHaveBeenCalledTimes(1);
       const callArgs = spyCreate.mock.calls[0][0];
-      expect(callArgs.data.token).toBe(uuid);
+      expect(callArgs.data.token).toBe(token);
       expect(callArgs.data.type).toBe("ACCESS");
       expect(callArgs.data.crmContactId).toBe(mockCrmContactId);
       expect(callArgs.data.used).toBe(false);
@@ -212,6 +209,23 @@ describe("TokenService Unit Tests", () => {
       expect(result.crmContactId).toBe(mockCrmContactId);
       expect(result.type).toBe("ACCESS");
       expect(result.uuid).toBe(mockUuid);
+    });
+
+    it("should successfully verify a 14-character short code token", async () => {
+      const shortToken = "a1b2c3d4e5f678";
+      vi.spyOn(prisma.token, "findUnique").mockResolvedValue({
+        token: shortToken,
+        used: false,
+        expiresAt: new Date("2026-08-31T12:00:00.000Z"),
+        crmContactId: mockCrmContactId,
+        type: "ACCESS",
+      } as any);
+
+      const result = await verifyToken(shortToken);
+      expect(result.success).toBe(true);
+      expect(result.crmContactId).toBe(mockCrmContactId);
+      expect(result.type).toBe("ACCESS");
+      expect(result.uuid).toBe(shortToken);
     });
   });
 

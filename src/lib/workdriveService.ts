@@ -318,3 +318,39 @@ export async function createShareLink(
 
   return result.data.attributes.link;
 }
+
+/**
+ * Deletes a file or folder from Zoho WorkDrive.
+ * 
+ * @param resourceId The ID of the file or folder to delete in WorkDrive
+ * @param accessToken A valid Zoho access token
+ */
+export async function deleteFileFromWorkDrive(
+  resourceId: string,
+  accessToken: string
+): Promise<void> {
+  const workdriveBaseUrl =
+    process.env.ZOHO_WORKDRIVE_BASE_URL || "https://www.zohoapis.com/workdrive/api/v1";
+  const url = `${workdriveBaseUrl}/files/${resourceId}`;
+
+  console.log(`[WorkDrive Service] Intentando eliminar recurso de WorkDrive con ID: ${resourceId}`);
+
+  const response = await fetch(url, {
+    method: "DELETE",
+    headers: {
+      "Authorization": `Zoho-oauthtoken ${accessToken}`,
+      "Accept": "application/vnd.api+json",
+    },
+  });
+
+  // Zoho WorkDrive DELETE API returns 204 No Content on success
+  if (!response.ok && response.status !== 204) {
+    const errorText = await response.text();
+    throw new Error(
+      `Error al eliminar recurso ${resourceId} de WorkDrive: ${response.status} ${response.statusText} - ${errorText}`
+    );
+  }
+
+  console.log(`[WorkDrive Service] Recurso ${resourceId} eliminado exitosamente de WorkDrive.`);
+}
+

@@ -45,8 +45,7 @@ export async function GET(request: NextRequest) {
     const signedToken = await generateToken(contact.id, "ACCESS", 30);
     log.push(`Token generado con éxito: "${signedToken}"`);
 
-    const parts = signedToken.split(".");
-    const uuid = parts[0];
+    const uuid = signedToken.includes(".") ? signedToken.split(".")[0] : signedToken;
     testTokenUuid = uuid;
 
     // 3. Verify valid token

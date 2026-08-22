@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import prisma from "./prisma";
 import { logAuditEvent } from "./auditService";
+import { zoho } from "./zohoService";
 
 // Retrieve the token secret from environment or fallback to a hardcoded string
 const getSecret = () => process.env.TOKEN_SECRET || "default_token_secret_key_udg_2026";
@@ -54,17 +55,16 @@ export async function generateToken(
   type: "ACCESS" | "VERIFICATION" | "PASSWORD_RESET" = "ACCESS",
   expiresInDays: number = 30
 ): Promise<string> {
-  const uuid = crypto.randomUUID();
-  const signature = signUuid(uuid);
-  const signedToken = `${uuid}.${signature}`;
+  // Generar un token criptográficamente seguro de exactamente 14 caracteres hexadecimales (7 bytes)
+  const tokenValue = crypto.randomBytes(7).toString("hex");
 
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + expiresInDays);
 
-  // Persist the token metadata to the database (saving the UUID as the unique database key)
+  // Persistir la metadata en base de datos
   await prisma.token.create({
     data: {
-      token: uuid,
+      token: tokenValue,
       type,
       crmContactId,
       expiresAt,
@@ -75,7 +75,7 @@ export async function generateToken(
   await logAuditEvent({
     action: "TOKEN_GENERATE",
     entityName: "Token",
-    entityId: uuid,
+    entityId: tokenValue,
     details: {
       crmContactId,
       type,
@@ -83,7 +83,7 @@ export async function generateToken(
     },
   });
 
-  return signedToken;
+  return tokenValue;
 }
 
 /**
@@ -108,6 +108,25 @@ export async function verifyToken(
     };
   }
 
+  // Soporte para tokens cortos de 14 caracteres (sin firma HMAC externa en URL)
+  if (signedToken.length === 14 && !signedToken.includes(".")) {
+    const dbToken = await prisma.token.findUnique({
+      where: { token: signedToken },
+    });
+
+    if (!dbToken) {
+      return { success: false, error: "Token no encontrado en base de datos" };
+    }
+
+    if (dbToken.used) {
+      return { success: false, error: "Token ya ha sido utilizado o se encuentra revocado" };
+    }
+
+    // Usaremos dbToken para las validaciones subsiguientes
+    const uuid = dbToken.token;
+    return checkDbTokenValidity(dbToken, uuid);
+  }
+
   const parts = signedToken.split(".");
   if (parts.length !== 2) {
     return { success: false, error: "Formato de token alterado o inválido" };
@@ -130,13 +149,45 @@ export async function verifyToken(
     return { success: false, error: "Token no encontrado en base de datos" };
   }
 
-  // 3. Verify status (check if already used or explicitly revoked)
   if (dbToken.used) {
     return { success: false, error: "Token ya ha sido utilizado o se encuentra revocado" };
   }
 
+  return checkDbTokenValidity(dbToken, uuid);
+}
+
+/**
+ * Helper internal function to check database token expiration and return verification outcome.
+ */
+async function checkDbTokenValidity(dbToken: any, uuid: string) {
+
   // 4. Verify expiration date
   if (dbToken.expiresAt < new Date()) {
+    if (!dbToken.expirationNoted) {
+      try {
+        // Mark as noted first to prevent duplicate attempts
+        await prisma.token.update({
+          where: { token: dbToken.token },
+          data: { expirationNoted: true },
+        });
+
+        // Write note to Zoho CRM
+        await zoho.service.createNote(
+          dbToken.crmContactId,
+          "Enlace Expirado",
+          `El enlace de acceso para el formulario de Debida Diligencia ha expirado.\n\n` +
+          `Referencia de Token: ${dbToken.token}\n` +
+          `Fecha de Expiración: ${dbToken.expiresAt.toLocaleString()}\n` +
+          `Tipo de Formulario: ${dbToken.type}\n` +
+          `Actor: Sistema (Expiración detectada por acceso del cliente)\n` +
+          `Timestamp: ${new Date().toLocaleString()}\n` +
+          `Resultado de Sincronización: Formulario expirado sin responder`
+        );
+      } catch (err) {
+        console.error("[TokenService] Error writing token expiration note to Zoho CRM:", err);
+      }
+    }
+
     await logAuditEvent({
       action: "TOKEN_EXPIRED",
       entityName: "Token",

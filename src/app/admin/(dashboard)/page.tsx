@@ -65,6 +65,7 @@ export default function AdminDashboard() {
   const [isReactivating, setIsReactivating] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [isSendingReminder, setIsSendingReminder] = useState(false);
+  const [isApproving, setIsApproving] = useState(false);
 
   // Cargar envíos desde la base de datos (con fallback a localStorage)
   const fetchSubmissions = async () => {
@@ -251,13 +252,45 @@ export default function AdminDashboard() {
     }, 3000);
   };
 
-  const handleLogout = async () => {
+  const handleApproveForm = async () => {
+    if (!selectedSub) return;
+    if (!confirm("¿Estás seguro de aprobar este expediente de Debida Diligencia?")) return;
+
+    setIsApproving(true);
     try {
-      await fetch("/api/admin/logout", { method: "POST" });
-      router.push("/admin/login");
-      router.refresh();
-    } catch (err) {
-      console.error("[Logout Error]:", err);
+      const res = await fetch("/api/trpc/approveForm", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          formId: selectedSub.id,
+        }),
+      });
+
+      if (res.ok) {
+        // Refresh submissions table
+        await fetchSubmissions();
+        
+        // Update selected sub state locally
+        setSelectedSub(prev => prev ? {
+          ...prev,
+          status: "APPROVED"
+        } : null);
+
+        setShowSuccessToast(true);
+        setTimeout(() => {
+          setShowSuccessToast(false);
+        }, 3000);
+      } else {
+        const errJson = await res.json();
+        alert(`Error al aprobar formulario: ${errJson.error?.message || "Error desconocido"}`);
+      }
+    } catch (e: any) {
+      console.error("[Admin App] Error approving form:", e);
+      alert(`Error al conectar con el servidor: ${e.message || e}`);
+    } finally {
+      setIsApproving(false);
     }
   };
 
@@ -475,59 +508,8 @@ export default function AdminDashboard() {
   });
 
   return (
-    <div className="min-h-screen bg-[#001b2e] text-zinc-100 flex flex-col font-sans selection:bg-[#c8a788]/30">
+    <div className="flex-1 flex flex-col min-h-0 bg-[#001b2e] text-zinc-100">
       
-      {/* Navbar Premium */}
-      <header className="border-b border-zinc-800 bg-[#002b49] px-8 py-5 flex items-center justify-between sticky top-0 z-10 shadow-md">
-        <div className="flex items-center gap-4">
-          <Link href="/" className="text-zinc-400 hover:text-white transition">
-            <ArrowLeft className="w-5 h-5" />
-          </Link>
-          <div>
-            <h1 className="text-lg font-serif font-semibold text-white tracking-wider uppercase">
-              Oficina de Cumplimiento UDG
-            </h1>
-            <p className="text-[10px] text-zinc-400 font-sans uppercase tracking-[0.15em]">
-              Panel de Control e Inspección de Expedientes
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => {
-              setSelectedContact(null);
-              setSearchQuery("");
-              setSearchResults([]);
-              setProjectName("");
-              setAdvisorName("");
-              setGeneratedLink("");
-              setShowLinkModal(true);
-            }}
-            className="bg-[#c8a788] hover:bg-yellow-650 text-zinc-950 px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-md shadow-[#c8a788]/10 active:scale-95"
-          >
-            <Link2 className="w-4 h-4 text-zinc-950" />
-            Generar Enlace
-          </button>
-
-          <button
-            onClick={handleGenerateDemo}
-            className="border border-dashed border-[#c8a788]/60 hover:bg-[#c8a788]/10 text-[#c8a788] px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
-          >
-            <PlusCircle className="w-4 h-4" />
-            Cargar Datos Demo
-          </button>
-          
-          <button
-            onClick={handleLogout}
-            className="bg-red-950/30 hover:bg-red-900/40 text-red-400 border border-red-900/55 px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
-          >
-            <LogOut className="w-4 h-4" />
-            Cerrar Sesión
-          </button>
-        </div>
-      </header>
-
       {/* Cuerpo Principal */}
       <main className="flex-1 flex flex-col lg:flex-row min-h-0">
         
@@ -542,8 +524,35 @@ export default function AdminDashboard() {
                 Revisa la documentación, formula conclusiones y descarga reportes PDF firmados de forma segura.
               </p>
             </div>
-            <div className="text-xs text-[#c8a788] font-bold bg-[#c8a788]/10 px-3 py-1.5 rounded-lg border border-[#c8a788]/20">
-              Total: {filteredList.length} expediente(s)
+            
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="text-xs text-[#c8a788] font-bold bg-[#c8a788]/10 px-3 py-2 rounded-xl border border-[#c8a788]/20 select-none">
+                Total: {filteredList.length} expediente(s)
+              </div>
+
+              <button
+                onClick={() => {
+                  setSelectedContact(null);
+                  setSearchQuery("");
+                  setSearchResults([]);
+                  setProjectName("");
+                  setAdvisorName("");
+                  setGeneratedLink("");
+                  setShowLinkModal(true);
+                }}
+                className="bg-[#c8a788] hover:bg-yellow-650 text-zinc-950 px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-md shadow-[#c8a788]/10 active:scale-95"
+              >
+                <Link2 className="w-4 h-4 text-zinc-950" />
+                Generar Enlace
+              </button>
+
+              <button
+                onClick={handleGenerateDemo}
+                className="border border-dashed border-[#c8a788]/60 hover:bg-[#c8a788]/10 text-[#c8a788] px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
+              >
+                <PlusCircle className="w-4 h-4" />
+                Cargar Datos Demo
+              </button>
             </div>
           </div>
 
@@ -1727,6 +1736,16 @@ export default function AdminDashboard() {
                     <Save className="w-4 h-4" />
                     Guardar Notas
                   </button>
+                  {selectedSub && !selectedSub.data.isDraftRecord && selectedSub.status !== "APPROVED" && (
+                    <button
+                      onClick={handleApproveForm}
+                      disabled={isApproving}
+                      className="flex-1 bg-emerald-700 hover:bg-emerald-600 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <Check className="w-4 h-4" />
+                      {isApproving ? "Aprobando..." : "Aprobar Expediente"}
+                    </button>
+                  )}
                   <button
                     onClick={() => setShowDetailModal(false)}
                     className="bg-zinc-800 hover:bg-zinc-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer active:scale-95 text-center"
@@ -1811,7 +1830,7 @@ export default function AdminDashboard() {
                           <p className="text-[10px] text-zinc-400 font-mono mt-0.5">{contact.email || "Sin correo"}</p>
                         </div>
                         <span className="text-[9px] bg-zinc-950 px-2 py-0.5 rounded font-bold uppercase tracking-wider text-zinc-400">
-                          {contact.module}
+                          {contact.module === "Debida_Diligencia" ? "Debida Diligencia" : contact.module}
                         </span>
                       </div>
                     ))}
@@ -1823,7 +1842,7 @@ export default function AdminDashboard() {
               {selectedContact && (
                 <div className="bg-emerald-950/20 border border-emerald-800/40 p-4 rounded-xl space-y-1">
                   <span className="text-[9px] text-emerald-400 font-bold uppercase tracking-widest block">
-                    Contacto Seleccionado
+                    {selectedContact.module === "Debida_Diligencia" ? "Expediente Seleccionado" : "Contacto Seleccionado"}
                   </span>
                   <p className="text-white font-medium text-sm">{selectedContact.name}</p>
                   <p className="text-[10px] text-zinc-400 font-mono">CRM ID: {selectedContact.id}</p>
@@ -1961,13 +1980,6 @@ export default function AdminDashboard() {
           </div>
         </div>
       )}
-
-      {/* Footer */}
-      <footer className="border-t border-zinc-800 bg-[#001b2e] py-6 text-center text-xs text-zinc-500">
-        <p className="font-serif text-[11px] font-medium tracking-[0.1em] text-zinc-400">
-          URBAN DEVELOPMENT GROUP (UDG)
-        </p>
-      </footer>
 
     </div>
   );

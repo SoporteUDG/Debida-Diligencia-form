@@ -8,6 +8,54 @@ import { TRPCError } from "@trpc/server";
 import { logAuditEvent, computeDiff, sanitizeDetails } from "@/lib/auditService";
 import { zoho, mergeCrmAndDraft } from "@/lib/zohoService";
 
+/**
+ * Passive scanning function to identify expired tokens, mark them as noted in the DB,
+ * and record a note in Zoho CRM for compliance history tracking.
+ */
+async function checkAndLogExpiredTokens(prismaClient: any) {
+  try {
+    const expiredTokens = await prismaClient.token.findMany({
+      where: {
+        expiresAt: { lt: new Date() },
+        used: false,
+        expirationNoted: false,
+      },
+    });
+
+    if (expiredTokens.length === 0) return;
+
+    console.log(`[Expiration Tracker] Detectados ${expiredTokens.length} tokens expirados sin registrar en CRM.`);
+
+    for (const token of expiredTokens) {
+      try {
+        // Mark as noted first to prevent race condition/duplicates
+        await prismaClient.token.update({
+          where: { token: token.token },
+          data: { expirationNoted: true },
+        });
+
+        // Write note to Zoho CRM
+        await zoho.service.createNote(
+          token.crmContactId,
+          "Enlace Expirado",
+          `El enlace de acceso para el formulario de Debida Diligencia ha expirado.\n\n` +
+          `Referencia de Token: ${token.token}\n` +
+          `Fecha de Expiración: ${token.expiresAt.toLocaleString()}\n` +
+          `Tipo de Formulario: ${token.type}\n` +
+          `Actor: Sistema (Expiración automática)\n` +
+          `Timestamp: ${new Date().toLocaleString()}\n` +
+          `Resultado de Sincronización: Formulario expirado sin responder`
+        );
+        console.log(`[Expiration Tracker] Expiración de token ${token.token} registrada exitosamente en Zoho CRM.`);
+      } catch (err) {
+        console.error(`[Expiration Tracker Error] Falló al procesar expiración de token ${token.token}:`, err);
+      }
+    }
+  } catch (error) {
+    console.error("[Expiration Tracker Error] Error en barrido de tokens expirados:", error);
+  }
+}
+
 export const appRouter = router({
   documents: documentsRouter,
   // 1. Public query (Accessible by anyone)
@@ -256,7 +304,7 @@ export const appRouter = router({
   reactivateClientToken: adminProcedure
     .input(
       z.object({
-        tokenUuid: z.string().uuid("Se requiere un UUID de token válido"),
+        tokenUuid: z.string().min(1, "Se requiere un token válido"),
         extendDays: z.number().int().min(1).default(30),
       })
     )
@@ -269,7 +317,7 @@ export const appRouter = router({
   regenerateClientLink: adminProcedure
     .input(
       z.object({
-        tokenUuid: z.string().uuid("Se requiere un UUID de token válido"),
+        tokenUuid: z.string().min(1, "Se requiere un token válido"),
         expiresInDays: z.number().int().min(1).default(30),
       })
     )
@@ -361,7 +409,7 @@ export const appRouter = router({
   sendClientReminder: adminProcedure
     .input(
       z.object({
-        tokenUuid: z.string().uuid("Se requiere un UUID de token válido"),
+        tokenUuid: z.string().min(1, "Se requiere un token válido"),
       })
     )
     .mutation(async ({ input, ctx }) => {
@@ -407,9 +455,10 @@ export const appRouter = router({
       const protocol = ctx.req.headers.get("x-forwarded-proto") || "http";
       const appUrl = process.env.NEXT_PUBLIC_APP_URL || `${protocol}://${host}`;
       
-      // Since generateToken doesn't return the signature unless we sign it, let's compute it
-      const signature = signUuid(token.token);
-      const signedToken = `${token.token}.${signature}`;
+      // Determine if short token (no dot) or legacy signed token
+      const signedToken = token.token.length === 14 
+        ? token.token 
+        : `${token.token}.${signUuid(token.token)}`;
       const clientUrl = `${appUrl}/${formPath}?token=${signedToken}`;
 
       // 3. Fetch the CRM record using getContact to resolve which module it lives in
@@ -447,6 +496,9 @@ export const appRouter = router({
 
   // Admin query: Retrieve all forms/submissions and drafts mapped into a unified layout
   getSubmissions: adminProcedure.query(async ({ ctx }) => {
+    // Passive scan for expired tokens
+    await checkAndLogExpiredTokens(ctx.prisma);
+
     // 1. Fetch submitted forms
     const forms = await ctx.prisma.form.findMany({
       orderBy: { submittedAt: "desc" },
@@ -560,6 +612,91 @@ export const appRouter = router({
       return updated;
     }),
 
+  // Admin mutation: Approve a client submission
+  approveForm: adminProcedure
+    .input(
+      z.object({
+        formId: z.string().uuid("ID de formulario inválido"),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      try {
+        console.log(`[tRPC Admin] Aprobando formulario con ID: ${input.formId}`);
+
+        // Find the form first
+        const form = await ctx.prisma.form.findUnique({
+          where: { id: input.formId },
+          include: { crmContact: true },
+        });
+
+        if (!form) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "El expediente no existe.",
+          });
+        }
+
+        // Idempotency: check if already approved
+        if (form.status === "APPROVED") {
+          return { success: true, message: "El expediente ya se encuentra aprobado." };
+        }
+
+        // Update status in database
+        const updatedForm = await ctx.prisma.form.update({
+          where: { id: input.formId },
+          data: {
+            status: "APPROVED",
+            updatedAt: new Date(),
+          },
+        });
+
+        // Write note to Zoho CRM
+        if (form.crmContact?.crmId) {
+          try {
+            const adminEmail = ctx.admin?.email || "Oficial de Cumplimiento";
+            await zoho.service.createNote(
+              form.crmContact.crmId,
+              "Formulario Aprobado",
+              `El formulario de Debida Diligencia ha sido aprobado por la Oficina de Cumplimiento UDG.\n\n` +
+              `Referencia del Formulario: ${form.id}\n` +
+              `Proyecto: ${form.projectName || "General UDG"}\n` +
+              `Actor: ${adminEmail} (Oficial de Cumplimiento)\n` +
+              `Timestamp: ${new Date().toLocaleString()}\n` +
+              `Resultado de Sincronización: Expediente Evaluado y Aprobado`
+            );
+          } catch (noteErr) {
+            console.error(`[tRPC Admin Warning] Error al escribir nota de aprobación en Zoho CRM:`, noteErr);
+          }
+        }
+
+        // Log audit event
+        await ctx.prisma.auditLog.create({
+          data: {
+            action: "FORM_APPROVE",
+            entityName: "Form",
+            entityId: form.id,
+            ipAddress: ctx.ip,
+            userAgent: ctx.userAgent,
+            userId: ctx.admin?.id || null,
+            details: {
+              clientName: form.clientName,
+              projectName: form.projectName,
+              approvedBy: ctx.admin?.email || "System",
+            },
+          },
+        });
+
+        return { success: true, form: updatedForm };
+      } catch (error: any) {
+        console.error("[tRPC Admin Error] Falló al aprobar formulario:", error);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: `Error al aprobar formulario: ${error.message || error}`,
+          cause: error,
+        });
+      }
+    }),
+
   // Admin query: Search Contacts and Leads from Zoho CRM
   searchCrmContacts: adminProcedure
     .input(
@@ -580,7 +717,7 @@ export const appRouter = router({
         clientType: z.enum(["NATURAL", "JURIDICA"]),
         projectName: z.string().min(1, "El nombre del proyecto es requerido"),
         advisorName: z.string().min(1, "El nombre del asesor es requerido"),
-        module: z.enum(["Contacts", "Leads"]),
+        module: z.enum(["Contacts", "Leads", "Debida_Diligencia"]),
       })
     )
     .mutation(async ({ input, ctx }) => {
@@ -853,12 +990,11 @@ export const appRouter = router({
       if (rawToken && !rawToken.startsWith("draft-")) {
         try {
           const parts = rawToken.split(".");
-          if (parts.length === 2) {
-            await ctx.prisma.token.update({
-              where: { token: parts[0] },
-              data: { used: true, updatedAt: new Date() },
-            });
-          }
+          const tokenUuid = parts.length === 2 ? parts[0] : rawToken;
+          await ctx.prisma.token.update({
+            where: { token: tokenUuid },
+            data: { used: true, updatedAt: new Date() },
+          });
         } catch (tokenErr) {
           console.error("[Submit Form] Error revoking access token:", tokenErr);
         }

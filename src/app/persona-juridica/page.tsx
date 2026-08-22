@@ -288,36 +288,123 @@ export default function PersonaJuridicaPage() {
     triggerSaveIndicator();
   };
 
-  // Simulated file upload handler
-  const handleFileUploadSimulated = (fieldName: keyof FormState, fileName: string) => {
+  const handleFileUpload = (fieldName: keyof FormState, file: File) => {
     setUploadStatus(prev => ({ ...prev, [fieldName]: "uploading" }));
     setUploadProgress(prev => ({ ...prev, [fieldName]: 10 }));
-    
-    const interval = setInterval(() => {
+
+    // Start a smooth visual progress simulation while upload happens
+    const progressInterval = setInterval(() => {
       setUploadProgress(prev => {
-        const nextVal = (prev[fieldName] || 10) + 30;
-        if (nextVal >= 100) {
-          clearInterval(interval);
-          setUploadStatus(prevStatus => ({ ...prevStatus, [fieldName]: "success" }));
-          setFormData(prevForm => ({ ...prevForm, [fieldName]: fileName }));
-          setErrors(prevErrors => {
-            const copy = { ...prevErrors };
-            delete copy[fieldName];
-            return copy;
-          });
-          triggerSaveIndicator();
-          return { ...prev, [fieldName]: 100 };
+        const current = prev[fieldName] || 10;
+        if (current >= 90) {
+          clearInterval(progressInterval);
+          return prev;
         }
-        return { ...prev, [fieldName]: nextVal };
+        return { ...prev, [fieldName]: current + 15 };
       });
-    }, 300);
+    }, 200);
+
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = async () => {
+      try {
+        const base64Data = (reader.result as string).split(",")[1];
+        
+        const response = await fetch("/api/trpc/documents.uploadDocument", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${draftToken}`,
+          },
+          body: JSON.stringify({
+            fileName: file.name,
+            fileType: file.type,
+            fileData: base64Data,
+            documentType: fieldName,
+            draftId: draftToken,
+          }),
+        });
+
+        const resJson = await response.json();
+        clearInterval(progressInterval);
+
+        if (!response.ok) {
+          const errMsg = resJson.error?.message || "Error al subir el archivo.";
+          throw new Error(errMsg);
+        }
+
+        const data = resJson.result?.data;
+        if (!data || !data.document) {
+          throw new Error("Respuesta de servidor inválida.");
+        }
+
+        // Set success states
+        setUploadProgress(prev => ({ ...prev, [fieldName]: 100 }));
+        setUploadStatus(prev => ({ ...prev, [fieldName]: "success" }));
+        setFormData(prev => ({ ...prev, [fieldName]: data.document.name }));
+        setErrors(prev => {
+          const copy = { ...prev };
+          delete copy[fieldName];
+          return copy;
+        });
+        triggerSaveIndicator();
+
+      } catch (error: any) {
+        clearInterval(progressInterval);
+        console.error("[Juridica Page] Error uploading file:", error);
+        setUploadStatus(prev => ({ ...prev, [fieldName]: "idle" }));
+        setUploadProgress(prev => ({ ...prev, [fieldName]: 0 }));
+        setErrors(prev => ({ ...prev, [fieldName]: error.message || "Fallo en la carga del archivo" }));
+        alert(error.message || "Fallo al subir el archivo.");
+      }
+    };
+    reader.onerror = () => {
+      clearInterval(progressInterval);
+      setUploadStatus(prev => ({ ...prev, [fieldName]: "idle" }));
+      setUploadProgress(prev => ({ ...prev, [fieldName]: 0 }));
+      alert("Error al leer el archivo local.");
+    };
   };
 
-  const handleRemoveFile = (fieldName: keyof FormState) => {
-    setFormData(prev => ({ ...prev, [fieldName]: "" }));
-    setUploadStatus(prev => ({ ...prev, [fieldName]: "idle" }));
-    setUploadProgress(prev => ({ ...prev, [fieldName]: 0 }));
-    triggerSaveIndicator();
+  const handleRemoveFile = async (fieldName: keyof FormState) => {
+    const fileName = formData[fieldName];
+    if (!fileName) return;
+
+    if (confirm("¿Estás seguro de que deseas eliminar este documento cargado?")) {
+      try {
+        setUploadStatus(prev => ({ ...prev, [fieldName]: "uploading" }));
+        setUploadProgress(prev => ({ ...prev, [fieldName]: 50 }));
+
+        const response = await fetch("/api/trpc/documents.deleteDocument", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${draftToken}`,
+          },
+          body: JSON.stringify({
+            draftId: draftToken,
+            fieldName: fieldName,
+          }),
+        });
+
+        if (!response.ok) {
+          const resJson = await response.json();
+          throw new Error(resJson.error?.message || "Error al eliminar el archivo.");
+        }
+
+        // Reset states on success
+        setFormData(prev => ({ ...prev, [fieldName]: "" }));
+        setUploadStatus(prev => ({ ...prev, [fieldName]: "idle" }));
+        setUploadProgress(prev => ({ ...prev, [fieldName]: 0 }));
+        triggerSaveIndicator();
+
+      } catch (error: any) {
+        console.error("[Juridica Page] Error deleting file:", error);
+        setUploadStatus(prev => ({ ...prev, [fieldName]: "success" }));
+        setUploadProgress(prev => ({ ...prev, [fieldName]: 100 }));
+        alert(error.message || "Fallo al eliminar el archivo.");
+      }
+    }
   };
 
   const handleClearDraft = async () => {
@@ -665,7 +752,7 @@ export default function PersonaJuridicaPage() {
                   formData={formData}
                   uploadStatus={uploadStatus}
                   uploadProgress={uploadProgress}
-                  onFileUploadSimulated={handleFileUploadSimulated}
+                  onFileUpload={handleFileUpload}
                   onRemoveFile={handleRemoveFile}
                   onInputChange={handleInputChange}
                   errors={errors}

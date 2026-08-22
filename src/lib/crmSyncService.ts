@@ -131,6 +131,23 @@ export async function syncFormToCrm(formId: string) {
     });
 
     console.log(`[CRM Sync Success] Formulario ${formId} sincronizado con éxito en Zoho CRM.`);
+
+    // Log success note in Zoho CRM
+    try {
+      await zoho.service.createNote(
+        crmContactId,
+        "Formulario Completado",
+        `El cliente completó y envió el formulario de Debida Diligencia.\n\n` +
+        `Referencia del Formulario: ${formId}\n` +
+        `Proyecto: ${form.projectName || "General UDG"}\n` +
+        `Actor: Cliente (Portal)\n` +
+        `Timestamp: ${new Date().toLocaleString()}\n` +
+        `Resultado de Sincronización: Éxito (Sincronizado correctamente en CRM)`
+      );
+    } catch (noteErr) {
+      console.error(`[CRM Sync Warning] Error al registrar nota de éxito en Zoho CRM para el formulario ${formId}:`, noteErr);
+    }
+
     return { success: true };
 
   } catch (error: any) {
@@ -147,6 +164,25 @@ export async function syncFormToCrm(formId: string) {
       });
     } catch (dbErr) {
       console.error("[CRM Sync Error] No se pudo guardar el error en la tabla CrmSync:", dbErr);
+    }
+
+    // Log sync failure note in Zoho CRM if the CRM contact ID is resolved
+    try {
+      const crmContactId = form?.crmContact?.crmId;
+      if (crmContactId) {
+        await zoho.service.createNote(
+          crmContactId,
+          "Intento de Sincronización de Formulario Fallido",
+          `El cliente completó el formulario de Debida Diligencia, pero falló la sincronización con el CRM.\n\n` +
+          `Referencia del Formulario: ${formId}\n` +
+          `Proyecto: ${form?.projectName || "General UDG"}\n` +
+          `Actor: Sistema de Sincronización\n` +
+          `Timestamp: ${new Date().toLocaleString()}\n` +
+          `Resultado de Sincronización: Fallido - ${errorMsg}`
+        );
+      }
+    } catch (noteErr) {
+      console.error(`[CRM Sync Warning] Error al registrar nota de fallo en Zoho CRM para el formulario ${formId}:`, noteErr);
     }
 
     await logAuditEvent({

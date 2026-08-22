@@ -125,15 +125,16 @@ model Form {
 
 // 4. Token
 model Token {
-  id           String     @id @default(uuid())
-  token        String     @unique
-  type         TokenType
-  crmContactId String
-  crmContact   CrmContact @relation(fields: [crmContactId], references: [id], onDelete: Cascade)
-  used         Boolean    @default(false)
-  expiresAt    DateTime
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  id              String     @id @default(uuid())
+  token           String     @unique
+  type            TokenType
+  crmContactId    String
+  crmContact      CrmContact @relation(fields: [crmContactId], references: [id], onDelete: Cascade)
+  used            Boolean    @default(false)
+  expirationNoted Boolean    @default(false)
+  expiresAt       DateTime
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
 
   @@index([token])
   @@index([crmContactId])
@@ -168,6 +169,7 @@ model Document {
   name         String
   fileType     String
   url          String         @db.Text // URL en almacenamiento/WorkDrive
+  zohoFileId   String?        @db.Text // Identificador de archivo en Zoho WorkDrive
   status       DocumentStatus @default(PENDING)
   comments     String?        @db.Text
   createdAt    DateTime       @default(now())

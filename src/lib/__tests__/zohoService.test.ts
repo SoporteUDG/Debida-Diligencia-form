@@ -134,14 +134,13 @@ describe("ZohoService Unit Tests", () => {
 
       const payload = mapFormToCrmPayload("NATURAL", naturalForm);
       
-      expect(payload["Due_Diligence_Status"]).toBe("Completado");
-      expect(payload["Project_Interest"]).toBe("Proyecto Marina");
-      expect(payload["First_Name"]).toBe("Lucas");
-      expect(payload["Last_Name"]).toBe("Silva");
+      expect(payload["Estado"]).toBe("Completado");
+      expect(payload["Proyecto"]).toBe("Proyecto Marina");
+      expect(payload["Name"]).toBe("Lucas Silva");
       expect(payload["Email"]).toBe("lucas@gmail.com");
-      expect(payload["Mobile"]).toBe("50761112222");
-      expect(payload["Identificacion"]).toBe("8-999-9999");
-      expect(payload["Profession"]).toBe("Ingeniero");
+      expect(payload["Tel_fono"]).toBe("50761112222");
+      expect(payload["RUC_NIT"]).toBe("8-999-9999");
+      expect(payload["Actividad_Principal"]).toBe("Ingeniero");
     });
 
     it("should map juridical form to CRM payload correctly", () => {
@@ -149,19 +148,14 @@ describe("ZohoService Unit Tests", () => {
         nombreProyecto: "Proyecto Pacific",
         razonSocial: "Desarrollo Global S.A.",
         numeroDocumento: "123456-9-2026",
-        rlNombre: "Andrés Delgado",
-        contactoNombre: "Marta",
-        contactoApellido: "Pineda",
       };
 
       const payload = mapFormToCrmPayload("JURIDICA", juridicaForm);
 
-      expect(payload["Due_Diligence_Status"]).toBe("Completado");
-      expect(payload["Company"]).toBe("Desarrollo Global S.A.");
-      expect(payload["RUC"]).toBe("123456-9-2026");
-      expect(payload["Representante_Legal"]).toBe("Andrés Delgado");
-      expect(payload["First_Name"]).toBe("Marta");
-      expect(payload["Last_Name"]).toBe("Pineda");
+      expect(payload["Estado"]).toBe("Completado");
+      expect(payload["Name"]).toBe("Desarrollo Global S.A.");
+      expect(payload["Raz_n_social"]).toBe("Desarrollo Global S.A.");
+      expect(payload["RUC_NIT"]).toBe("123456-9-2026");
     });
   });
 

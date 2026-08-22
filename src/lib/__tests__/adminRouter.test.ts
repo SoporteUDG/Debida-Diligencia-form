@@ -12,6 +12,7 @@ vi.mock("../zohoService", () => {
         updateContact: vi.fn(),
         searchContacts: vi.fn(),
         updateClientFormLink: vi.fn(),
+        createNote: vi.fn(),
       }
     },
     mergeCrmAndDraft: vi.fn((crm, draft) => ({ ...crm, ...draft })),
@@ -180,6 +181,57 @@ describe("Admin Router tRPC Procedures", () => {
     expect(zoho.service.updateClientFormLink).toHaveBeenCalled();
   });
 
+  it("should generate client link via generateClientLink mutation with Debida_Diligencia module", async () => {
+    // 1. Mock zoho.service.getContact
+    vi.mocked(zoho.service.getContact).mockResolvedValue({
+      firstName: "Jane",
+      lastName: "Doe",
+      email: "jane.doe@example.com",
+      celular: "50766667777",
+      type: "JURIDICA",
+      nombreProyecto: "Santa Maria Tower",
+      module: "Debida_Diligencia"
+    });
+
+    vi.mocked(zoho.service.updateClientFormLink).mockResolvedValue({ success: true });
+
+    // 2. Mock prisma upserts and creates
+    const mockPrisma = {
+      crmContact: {
+        upsert: vi.fn().mockResolvedValue({ id: "contact-uuid-789", crmId: "crm-debida-id" })
+      },
+      draft: {
+        create: vi.fn().mockResolvedValue({ id: "draft-uuid-abc", token: "mock-token-uuid" })
+      }
+    };
+
+    const caller = appRouter.createCaller({
+      prisma: mockPrisma as any,
+      req: {
+        headers: new Map([["x-admin-token", "admin-secret-dev"]])
+      } as any,
+      ip: "127.0.0.1",
+      userAgent: "vitest"
+    });
+
+    const result = await caller.generateClientLink({
+      crmId: "crm-debida-id",
+      clientType: "JURIDICA",
+      projectName: "Santa Maria Tower",
+      advisorName: "Adviser John",
+      module: "Debida_Diligencia"
+    });
+
+    expect(result).toBeDefined();
+    expect(result.success).toBe(true);
+    expect(result.clientUrl).toContain("token=mock-token-uuid.mock-signature");
+
+    expect(zoho.service.getContact).toHaveBeenCalledWith("crm-debida-id");
+    expect(mockPrisma.crmContact.upsert).toHaveBeenCalled();
+    expect(mockPrisma.draft.create).toHaveBeenCalled();
+    expect(zoho.service.updateClientFormLink).toHaveBeenCalledWith("crm-debida-id", "Debida_Diligencia", expect.any(String));
+  });
+
   it("should update conclusions via updateConclusions procedure", async () => {
     const mockPrisma = {
       form: {
@@ -303,5 +355,55 @@ describe("Admin Router tRPC Procedures", () => {
     expect(mockPrisma.token.findUnique).toHaveBeenCalled();
     expect(mockPrisma.crmContact.findUnique).toHaveBeenCalled();
     expect(zoho.service.updateClientFormLink).toHaveBeenCalled();
+  });
+
+  it("should approve a form and create a Zoho note via approveForm mutation", async () => {
+    vi.mocked(zoho.service.createNote).mockResolvedValue({ success: true, noteId: "note-123" });
+
+    const mockPrisma = {
+      form: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: "form-uuid",
+          status: "SUBMITTED",
+          clientName: "Juan Perez",
+          projectName: "Proyecto Terrazas",
+          crmContact: {
+            crmId: "crm-contact-id"
+          }
+        }),
+        update: vi.fn().mockResolvedValue({
+          id: "form-uuid",
+          status: "APPROVED"
+        })
+      },
+      auditLog: {
+        create: vi.fn().mockResolvedValue({})
+      }
+    };
+
+    const caller = appRouter.createCaller({
+      prisma: mockPrisma as any,
+      req: {
+        headers: new Map([["x-admin-token", "admin-secret-dev"]])
+      } as any,
+      ip: "127.0.0.1",
+      userAgent: "vitest"
+    });
+
+    const result = await caller.approveForm({
+      formId: "123e4567-e89b-12d3-a456-426614174000",
+    });
+
+    expect(result).toBeDefined();
+    expect(result.success).toBe(true);
+    expect(result.form?.status).toBe("APPROVED");
+
+    expect(mockPrisma.form.findUnique).toHaveBeenCalled();
+    expect(mockPrisma.form.update).toHaveBeenCalledWith({
+      where: { id: "123e4567-e89b-12d3-a456-426614174000" },
+      data: expect.objectContaining({ status: "APPROVED" })
+    });
+    expect(zoho.service.createNote).toHaveBeenCalled();
+    expect(mockPrisma.auditLog.create).toHaveBeenCalled();
   });
 });

@@ -6,6 +6,7 @@ import {
   getOrCreateFolderStructure,
   uploadFileToWorkDrive,
   createShareLink,
+  deleteFileFromWorkDrive,
 } from "@/lib/workdriveService";
 import path from "path";
 import { logAuditEvent } from "@/lib/auditService";
@@ -213,6 +214,7 @@ export const documentsRouter = router({
               name: finalFileName,
               fileType: detected.mime,
               url: shareLinkUrl,
+              zohoFileId,
               status: "PENDING",
             },
           });
@@ -252,6 +254,100 @@ export const documentsRouter = router({
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message: `Error al subir documento en etapa [${currentStage}]: ${error.message || error}`,
+          cause: error,
+        });
+      }
+    }),
+
+  deleteDocument: tokenProcedure
+    .input(
+      z.object({
+        draftId: z.string().min(1, "draftId requerido"),
+        fieldName: z.string().min(1, "fieldName requerido"),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      try {
+        console.log(`[tRPC Delete] Solicitud para eliminar documento del campo "${input.fieldName}" en draft ${input.draftId}`);
+
+        // Find the draft to verify ownership
+        const draft = await ctx.prisma.draft.findUnique({
+          where: { token: input.draftId },
+        });
+
+        if (!draft) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "El borrador no existe o el token no es válido.",
+          });
+        }
+
+        // Find documents linked to this draft containing _fieldName_ in the file name
+        const documents = await ctx.prisma.document.findMany({
+          where: {
+            draftId: draft.id,
+            name: {
+              contains: `_${input.fieldName}_`,
+            },
+            deletedAt: null,
+          },
+        });
+
+        if (documents.length === 0) {
+          console.log(`[tRPC Delete] No se encontró ningún documento activo para el campo "${input.fieldName}"`);
+          return { success: true, message: "No documents to delete" };
+        }
+
+        const accessToken = await getAccessToken();
+
+        for (const doc of documents) {
+          if (doc.zohoFileId) {
+            try {
+              await deleteFileFromWorkDrive(doc.zohoFileId, accessToken);
+            } catch (err) {
+              console.error(`[tRPC Delete] Falló al eliminar archivo ${doc.zohoFileId} en WorkDrive:`, err);
+              // Continue deleting DB records even if WorkDrive deletion fails to prevent visual block
+            }
+          }
+
+          // Hard delete document record to avoid leftover references
+          await ctx.prisma.document.delete({
+            where: { id: doc.id },
+          });
+
+          // Log in audit trail
+          await logAuditEvent({
+            action: "DOCUMENT_DELETE",
+            entityName: "Document",
+            entityId: doc.id,
+            ipAddress: ctx.ip,
+            userAgent: ctx.userAgent,
+            details: {
+              fileName: doc.name,
+              fieldName: input.fieldName,
+              draftId: input.draftId,
+            },
+          });
+        }
+
+        // Also clean the fieldName in the draft's data JSON payload
+        const draftData = { ...(draft.data as any) || {} };
+        if (input.fieldName in draftData) {
+          draftData[input.fieldName] = "";
+          await ctx.prisma.draft.update({
+            where: { token: input.draftId },
+            data: {
+              data: draftData,
+            },
+          });
+        }
+
+        return { success: true };
+      } catch (error: any) {
+        console.error("[tRPC Delete] Falló al eliminar documento:", error);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: `Error al eliminar documento: ${error.message || error}`,
           cause: error,
         });
       }
