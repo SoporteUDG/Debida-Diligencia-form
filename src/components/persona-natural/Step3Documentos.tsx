@@ -124,17 +124,20 @@ export default function Step3Documentos({
         <div className="space-y-6">
           {renderUploadField(
             "idFile",
-            "Copia de Documento de Identidad Personal"
+            "Copia de Documento de Identidad Personal",
+            true
           )}
 
           {renderUploadField(
             "origenFondosFile",
-            "Origen de Fondo (Declaración de Renta, Carta de Trabajo, Ficha del Seguro Social, etc.)"
+            "Origen de Fondo (Declaración de Renta, Carta de Trabajo, Ficha del Seguro Social, etc.)",
+            false
           )}
 
           {renderUploadField(
             "proofAddressFile",
-            "Factura o Copia de un Servicio Público y/o Servicio de Utilidad (estado de cuenta de luz, agua, teléfono o celular)"
+            "Factura o Copia de un Servicio Público y/o Servicio de Utilidad (estado de cuenta de luz, agua, teléfono o celular)",
+            false
           )}
         </div>
 
@@ -176,7 +179,8 @@ export default function Step3Documentos({
           <div className="pt-2">
             {renderUploadField(
               "otrosAdjuntosFile",
-              "Otros Adjuntos"
+              "Otros Adjuntos",
+              false
             )}
           </div>
 

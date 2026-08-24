@@ -217,11 +217,11 @@ export const naturalStep3Schema = z.object({
 
 export const naturalStep4Schema = z.object({
   idFile: requiredString("Copia de ID"),
-  proofAddressFile: requiredString("Prueba de Dirección / Domicilio"),
-  origenFondosFile: requiredString("Origen de Fondos"),
+  proofAddressFile: optionalString,
+  origenFondosFile: optionalString,
   hasEstadoCuenta: z.boolean().default(false),
   hasCertificacionBancaria: z.boolean().default(false),
-  otrosAdjuntosFile: requiredString("Otros Adjuntos"),
+  otrosAdjuntosFile: optionalString,
 });
 
 export const naturalStep5Schema = z.object({
@@ -422,11 +422,11 @@ export const juridicaStep3Schema = z.object({
 export const juridicaStep4Schema = z.object({
   avisoOperacionesFile: requiredString("Copia de Certificado de Aviso de Operaciones"),
   copiaIdFile: requiredString("Copia de Cédula o Pasaporte"),
-  origenFondosFile: requiredString("Origen de Fondos"),
-  pactoSocialFile: requiredString("Copia de Pacto Social"),
-  serviciosPublicosFile: requiredString("Factura de Servicios Públicos"),
-  certBancariaFile: requiredString("Certificación Bancaria"),
-  certRegistroFile: requiredString("Certificado de Registro Público"),
+  origenFondosFile: optionalString,
+  pactoSocialFile: optionalString,
+  serviciosPublicosFile: optionalString,
+  certBancariaFile: optionalString,
+  certRegistroFile: optionalString,
   
   checkedCopiaId: z.boolean().default(false),
   checkedOrigenFondos: z.boolean().default(false),

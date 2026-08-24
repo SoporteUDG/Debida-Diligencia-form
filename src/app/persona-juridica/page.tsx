@@ -93,6 +93,7 @@ export default function PersonaJuridicaPage() {
   const [submissionId, setSubmissionId] = useState("");
   const [submissionDate, setSubmissionDate] = useState("");
   const [submittedDocuments, setSubmittedDocuments] = useState<any[]>([]);
+  const [pendingOptionalFields, setPendingOptionalFields] = useState<{ key: string; label: string; step: number }[] | null>(null);
   
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -557,6 +558,63 @@ export default function PersonaJuridicaPage() {
       return;
     }
 
+
+    // Check for empty optional fields to present warning
+    const optionalFieldsToCheck = [
+      { key: "formaContacto", label: "Forma de Contacto", step: 1 },
+      { key: "tipoSociedad", label: "Tipo de Sociedad", step: 1 },
+      { key: "tipoCliente", label: "Tipo de Cliente", step: 1 },
+      { key: "actividadPrincipal", label: "Actividad Principal de la Empresa", step: 1 },
+      { key: "numeroIdTributaria", label: "NIF / ID Tributaria de la Empresa", step: 1 },
+      { key: "paisTributacion", label: "País de Tributación", step: 1 },
+      { key: "paisOpera", label: "País de Operaciones", step: 1 },
+      { key: "paisInscripcion", label: "País de Inscripción", step: 1 },
+      { key: "empresaCiudad", label: "Ciudad de la Empresa", step: 1 },
+      { key: "empresaProvincia", label: "Provincia de la Empresa", step: 1 },
+      { key: "empresaPais", label: "País de la Empresa", step: 1 },
+      { key: "empresaTelefono", label: "Teléfono Fijo de la Empresa", step: 1 },
+      { key: "empresaCelular", label: "Celular de la Empresa", step: 1 },
+      { key: "empresaEmail", label: "Email de la Empresa", step: 1 },
+      { key: "rlActividadEconomica", label: "Actividad Económica del Representante Legal", step: 2 },
+      { key: "rlDireccion", label: "Dirección del Representante Legal", step: 2 },
+      { key: "rlPaisResidencia", label: "País de Residencia del Representante Legal", step: 2 },
+      { key: "rlTelefono", label: "Teléfono del Representante Legal", step: 2 },
+      { key: "actividadComercial", label: "Descripción de Actividad Comercial", step: 3 },
+      { key: "origenFondos", label: "Origen de Fondos de la Empresa", step: 3 },
+      { key: "destinoFondos", label: "Destino de Fondos de la Empresa", step: 3 },
+      { key: "volumenVentas", label: "Volumen Estimado de Ventas", step: 3 },
+      { key: "bancoReferencia", label: "Banco de Referencia", step: 3 },
+      { key: "origenFondosFile", label: "Documento: Origen de Fondos", step: 4 },
+      { key: "pactoSocialFile", label: "Documento: Copia de Pacto Social", step: 4 },
+      { key: "serviciosPublicosFile", label: "Documento: Factura de Servicios Públicos", step: 4 },
+      { key: "certBancariaFile", label: "Documento: Certificación Bancaria", step: 4 },
+      { key: "certRegistroFile", label: "Documento: Certificado de Registro Público", step: 4 }
+    ];
+
+    if (formData.esPep === "Sí") {
+      optionalFieldsToCheck.push(
+        { key: "pepNombre", label: "PEP: Nombre Completo", step: 3 },
+        { key: "pepCargo", label: "PEP: Cargo", step: 3 },
+        { key: "pepInstitucion", label: "PEP: Institución", step: 3 },
+        { key: "pepRelacion", label: "PEP: Relación/Parentesco", step: 3 }
+      );
+    }
+
+    const emptyOptionals = optionalFieldsToCheck.filter(field => {
+      const val = formData[field.key as keyof FormState];
+      return !val || (typeof val === "string" && val.trim() === "");
+    });
+
+    if (emptyOptionals.length > 0) {
+      setPendingOptionalFields(emptyOptionals);
+      return;
+    }
+
+    await executeSubmission();
+  };
+
+  const executeSubmission = async () => {
+    setPendingOptionalFields(null);
     setIsSubmitting(true);
 
     const newId = "JUR-" + Math.floor(100000 + Math.random() * 900000);
@@ -923,6 +981,81 @@ export default function PersonaJuridicaPage() {
                 className="bg-[#c8a788] hover:bg-[#b08e6f] text-[#002b49] text-xs font-bold px-6 py-3 rounded-lg transition tracking-wider uppercase shadow-md select-none cursor-pointer"
               >
                 Entendido, Completar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {pendingOptionalFields && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fadeIn animate-duration-200">
+          <div className="bg-[#081b2a] border border-[#c8a788]/30 rounded-2xl max-w-lg w-full max-h-[85vh] flex flex-col shadow-2xl overflow-hidden font-sans">
+            {/* Header */}
+            <div className="px-6 py-4 bg-gradient-to-r from-[#0b243b] to-[#081b2a] border-b border-[#c8a788]/20 flex justify-between items-center">
+              <h3 className="text-sm font-semibold tracking-wider text-[#c8a788] uppercase">
+                Información Pendiente (Opcional)
+              </h3>
+              <button 
+                onClick={() => setPendingOptionalFields(null)}
+                className="text-zinc-400 hover:text-white transition cursor-pointer select-none text-lg"
+              >
+                ✕
+              </button>
+            </div>
+            
+            {/* Body */}
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+              <p className="text-xs text-zinc-300 leading-relaxed">
+                Hemos detectado que algunos campos opcionales han quedado vacíos. Aunque **no son obligatorios** para enviar su expediente hoy, recuerde que deberá suministrar esta información más adelante.
+              </p>
+              
+              {/* Render grouped optional fields */}
+              {[1, 2, 3, 4].map(stepNum => {
+                const stepItems = pendingOptionalFields.filter(f => f.step === stepNum);
+                if (stepItems.length === 0) return null;
+                return (
+                  <div key={stepNum} className="bg-[#002b49]/40 border border-[#c8a788]/10 rounded-xl p-4 space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-[11px] font-bold tracking-wider text-[#c8a788] uppercase">
+                        Paso {stepNum}: {getStepName(stepNum)}
+                      </span>
+                      <button
+                        onClick={() => {
+                          setCurrentStep(stepNum);
+                          setPendingOptionalFields(null);
+                        }}
+                        className="text-[10px] font-semibold text-[#c8a788] hover:underline cursor-pointer"
+                      >
+                        Ir a este paso →
+                      </button>
+                    </div>
+                    <ul className="list-disc pl-5 space-y-1">
+                      {stepItems.map((item, idx) => (
+                        <li key={idx} className="text-xs text-zinc-400">
+                          {item.label}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                );
+              })}
+            </div>
+            
+            {/* Footer */}
+            <div className="px-6 py-4 bg-[#05131f] border-t border-[#c8a788]/10 flex gap-4 justify-end">
+              <button
+                onClick={() => setPendingOptionalFields(null)}
+                className="border border-zinc-500 hover:border-zinc-400 text-zinc-300 hover:text-white text-xs font-bold px-4 py-2.5 rounded-lg transition tracking-wider uppercase select-none cursor-pointer"
+              >
+                Completar datos
+              </button>
+              <button
+                disabled={isSubmitting}
+                onClick={() => {
+                  executeSubmission();
+                }}
+                className="bg-[#c8a788] hover:bg-[#b08e6f] text-[#002b49] text-xs font-bold px-4 py-2.5 rounded-lg transition tracking-wider uppercase shadow-md select-none cursor-pointer disabled:opacity-50"
+              >
+                {isSubmitting ? "Enviando..." : "Enviar de todos modos"}
               </button>
             </div>
           </div>

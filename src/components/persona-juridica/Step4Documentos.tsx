@@ -39,31 +39,31 @@ export default function Step4Documentos({
       field: "origenFondosFile" as keyof FormState,
       checkboxField: "checkedOrigenFondos" as keyof FormState,
       title: "Origen de Fondos (declaración de renta, estados financieros, etc.)",
-      required: true,
+      required: false,
     },
     {
       field: "serviciosPublicosFile" as keyof FormState,
       checkboxField: "checkedServiciosPublicos" as keyof FormState,
       title: "Factura de Servicios Público",
-      required: true,
+      required: false,
     },
     {
       field: "pactoSocialFile" as keyof FormState,
       checkboxField: "checkedPactoSocial" as keyof FormState,
       title: "Copia de Pacto Social y sus Adendas",
-      required: true,
+      required: false,
     },
     {
       field: "certBancariaFile" as keyof FormState,
       checkboxField: "checkedCertBancaria" as keyof FormState,
       title: "Certificación bancaria que incluya las cifras promedio de la cuenta",
-      required: true,
+      required: false,
     },
     {
       field: "certRegistroFile" as keyof FormState,
       checkboxField: "checkedCertRegistro" as keyof FormState,
       title: "Certificado de Registro Público",
-      required: true,
+      required: false,
     },
   ];
 
