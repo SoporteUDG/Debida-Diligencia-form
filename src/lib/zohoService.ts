@@ -629,7 +629,14 @@ export const zoho = {
         }
 
         if (expiresAt !== undefined) {
-          recordUpdate.Vigencia_del_enlace = expiresAt.toISOString();
+          const pad = (num: number) => String(num).padStart(2, "0");
+          const year = expiresAt.getUTCFullYear();
+          const month = pad(expiresAt.getUTCMonth() + 1);
+          const day = pad(expiresAt.getUTCDate());
+          const hours = pad(expiresAt.getUTCHours());
+          const minutes = pad(expiresAt.getUTCMinutes());
+          const seconds = pad(expiresAt.getUTCSeconds());
+          recordUpdate.Vigencia_del_enlace = `${year}-${month}-${day}T${hours}:${minutes}:${seconds}+00:00`;
         }
 
         if (linkStatus !== undefined) {
