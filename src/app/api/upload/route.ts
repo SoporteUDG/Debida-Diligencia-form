@@ -9,10 +9,7 @@ const MAX_SIZE = 10 * 1024 * 1024; // 10 MB
 
 const MIME_EXT_MAP: Record<string, string[]> = {
   "application/pdf": ["pdf"],
-  "image/png": ["png"],
   "image/jpeg": ["jpg", "jpeg"],
-  "image/tiff": ["tiff", "tif"],
-  "image/heic": ["heic", "heif"],
 };
 
 function detectMimeType(buffer: Buffer): { mime: string; ext: string } | null {
@@ -82,11 +79,11 @@ export async function POST(request: NextRequest) {
 
     // 2. MIME/Magic bytes verification
     const detected = detectMimeType(buffer);
-    if (!detected) {
+    if (!detected || !MIME_EXT_MAP[detected.mime]) {
       return NextResponse.json(
         { 
           success: false, 
-          error: "Tipo de archivo no permitido. Solo se admiten archivos PDF, PNG, JPG, JPEG, TIFF y HEIC." 
+          error: "Tipo de archivo no permitido. Solo se admiten archivos PDF y JPG/JPEG." 
         },
         { status: 400 }
       );

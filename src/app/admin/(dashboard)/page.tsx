@@ -37,6 +37,7 @@ interface Submission {
   submittedAt: string | null;
   status: string;
   data: any;
+  documents?: any[];
 }
 
 export default function AdminDashboard() {
@@ -495,7 +496,7 @@ export default function AdminDashboard() {
     const dateStr = sub.submittedAt 
       ? new Date(sub.submittedAt).toLocaleDateString()
       : new Date().toLocaleDateString();
-    generatePDF(sub.type, sub.data, sub.id, dateStr);
+    generatePDF(sub.type, sub.data, sub.id, dateStr, sub.documents);
   };
 
   // Filtrado y Búsqueda

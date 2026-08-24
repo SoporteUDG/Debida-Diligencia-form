@@ -1,11 +1,25 @@
 import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas";
 
+const loadPdfLib = (): Promise<void> => {
+  return new Promise((resolve) => {
+    if ((window as any).PDFLib) {
+      resolve();
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = "https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js";
+    script.onload = () => resolve();
+    document.body.appendChild(script);
+  });
+};
+
 export async function generatePDF(
   type: "natural" | "juridica",
   data: any,
   id: string,
-  dateStr: string
+  dateStr: string,
+  documents?: any[]
 ) {
   const isNatural = type === "natural";
   const clientName = isNatural 
@@ -22,6 +36,319 @@ export async function generatePDF(
   element.style.backgroundColor = "#ffffff";
   element.style.color = "#1f2937";
   element.style.fontFamily = "sans-serif";
+
+  // Generate detailed sections based on client type
+  let contentHtml = "";
+
+  if (isNatural) {
+    contentHtml = `
+      <!-- Section 1: General Info -->
+      <div style="margin-bottom: 20px;">
+        <h3 style="color: #002b49; font-size: 11px; font-weight: bold; text-transform: uppercase; border-bottom: 1px solid #e5e7eb; padding-bottom: 4px; margin-bottom: 8px;">
+          1. Información del Solicitante
+        </h3>
+        <table style="width: 100%; border-collapse: collapse; font-size: 9px; line-height: 1.6;">
+          <tr>
+            <td style="width: 25%; font-weight: bold; color: #4b5563; padding: 4px 0;">Nombre Completo:</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.firstName || ""} ${data.lastName || ""}</td>
+            <td style="width: 25%; font-weight: bold; color: #4b5563; padding: 4px 0;">Nacionalidad:</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.nationality || "-"}</td>
+          </tr>
+          <tr>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Identificación:</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.tipoIdentificacion || "Cédula"}: ${data.idNumber || "-"}</td>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Otra Nacionalidad:</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.otraNacionalidad || "Ninguna"}</td>
+          </tr>
+          <tr>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Fecha Nacimiento:</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.fechaNacimiento || "-"}</td>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">País Residencia Fiscal:</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.paisResidenciaFiscal || "-"}</td>
+          </tr>
+          <tr>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">NIF / ID Tributaria:</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.idTributaria || "-"}</td>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Correo Electrónico:</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.email || "-"}</td>
+          </tr>
+          <tr>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Teléfono / Celular:</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.telefono || ""} / ${data.celular || ""}</td>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Profesión / Ocupación:</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.profession || "-"}</td>
+          </tr>
+          <tr>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Patrono / Empleador:</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.employer || "-"}</td>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Cargo Desempeñado:</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.cargoDesempena || "-"}</td>
+          </tr>
+          <tr>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Dirección Laboral:</td>
+            <td colspan="3" style="color: #1f2937; padding: 4px 0;">${data.direccionLaboral || "-"}</td>
+          </tr>
+          <tr>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Dirección Residencial:</td>
+            <td colspan="3" style="color: #1f2937; padding: 4px 0;">${data.direccionResidencial || "-"}, ${data.ciudad || ""}, ${data.provincia || ""}, ${data.paisResidencial || ""}</td>
+          </tr>
+        </table>
+      </div>
+
+      <!-- Section 2: Financial Info & PEP -->
+      <div style="margin-bottom: 20px;">
+        <h3 style="color: #002b49; font-size: 11px; font-weight: bold; text-transform: uppercase; border-bottom: 1px solid #e5e7eb; padding-bottom: 4px; margin-bottom: 8px;">
+          2. Perfil Financiero y Origen de Fondos
+        </h3>
+        <table style="width: 100%; border-collapse: collapse; font-size: 9px; line-height: 1.6;">
+          <tr>
+            <td style="width: 25%; font-weight: bold; color: #4b5563; padding: 4px 0;">Ingresos Mensuales Promedio:</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.ingresosMensuales || "-"}</td>
+            <td style="width: 25%; font-weight: bold; color: #4b5563; padding: 4px 0;">Fuente de Fondos:</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.fuenteFondosInmueble || "-"}</td>
+          </tr>
+          <tr>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Monto Servicios Anuales:</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.montoServiciosAnuales || "-"}</td>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Destino de Fondos:</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.destinoInmueble || "Adquisición de Inmueble"}</td>
+          </tr>
+          <tr>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">¿Persona PEP? (Expuesta Políticamente):</td>
+            <td style="color: #1f2937; padding: 4px 0; font-weight: bold;">${data.esPep || "No"}</td>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">¿Adquiere a Nombre de Tercero?:</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.adquiereNombreTercero || "No"}</td>
+          </tr>
+          ${data.esPep === "Sí" ? `
+          <tr>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Detalles PEP:</td>
+            <td colspan="3" style="color: #1f2937; padding: 4px 0;">
+              <strong>Nombre:</strong> ${data.pepNombre || "-"} | 
+              <strong>Cargo:</strong> ${data.pepCargo || "-"} | 
+              <strong>Institución:</strong> ${data.pepInstitucion || "-"} | 
+              <strong>Relación:</strong> ${data.pepRelacion || "-"}
+            </td>
+          </tr>
+          ` : ""}
+          <tr>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Actividad Económica Principal:</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.actEconPrincipal || "-"}</td>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">% Dedicación:</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.pctDedicacionPrincipal || "100"}%</td>
+          </tr>
+          <tr>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Jurisdicción Principal:</td>
+            <td colspan="3" style="color: #1f2937; padding: 4px 0;">${data.jurisdiccionPrincipal || "-"}</td>
+          </tr>
+        </table>
+      </div>
+    `;
+  } else {
+    // Corporativa/Jurídica
+    contentHtml = `
+      <!-- Section 1: Empresa -->
+      <div style="margin-bottom: 20px;">
+        <h3 style="color: #002b49; font-size: 11px; font-weight: bold; text-transform: uppercase; border-bottom: 1px solid #e5e7eb; padding-bottom: 4px; margin-bottom: 8px;">
+          1. Información de la Empresa / Sociedad
+        </h3>
+        <table style="width: 100%; border-collapse: collapse; font-size: 9px; line-height: 1.6;">
+          <tr>
+            <td style="width: 25%; font-weight: bold; color: #4b5563; padding: 4px 0;">Razón Social:</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.razonSocial || "-"}</td>
+            <td style="width: 25%; font-weight: bold; color: #4b5563; padding: 4px 0;">R.U.C. / Registro:</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.ruc || "-"}</td>
+          </tr>
+          <tr>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Fecha Constitución:</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.fechaConstitucion || "-"}</td>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">País de Inscripción:</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.paisInscripcion || "-"}</td>
+          </tr>
+          <tr>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">País donde Opera:</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.paisOpera || "-"}</td>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Tipo de Sociedad:</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.tipoSociedad || "-"}</td>
+          </tr>
+          <tr>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Tipo de Cliente:</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.tipoCliente || "-"}</td>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Actividad Principal:</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.actividadPrincipal || "-"} (${data.porcentajeActividad || "100"}%)</td>
+          </tr>
+          <tr>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">País Tributación:</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.paisTributacion || "-"}</td>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">NIF / ID Tributaria:</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.numeroIdTributaria || "-"}</td>
+          </tr>
+          <tr>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Teléfono Oficina:</td>
+            <td style="color: #1f2937; padding: 4px 0;">(${data.empresaTelefonoCodigo || ""}) ${data.empresaTelefono || ""}</td>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Celular Contacto:</td>
+            <td style="color: #1f2937; padding: 4px 0;">(${data.empresaCelularCodigo || ""}) ${data.empresaCelular || ""}</td>
+          </tr>
+          <tr>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Correo Empresa:</td>
+            <td colspan="3" style="color: #1f2937; padding: 4px 0;">${data.empresaEmail || "-"}</td>
+          </tr>
+          <tr>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Dirección Oficina (Física):</td>
+            <td colspan="3" style="color: #1f2937; padding: 4px 0;">${data.empresaDireccion || "-"}, ${data.empresaCiudad || ""}, ${data.empresaProvincia || ""}, ${data.empresaPais || ""}</td>
+          </tr>
+        </table>
+      </div>
+
+      <!-- Section 2: Representante Legal -->
+      <div style="margin-bottom: 20px;">
+        <h3 style="color: #002b49; font-size: 11px; font-weight: bold; text-transform: uppercase; border-bottom: 1px solid #e5e7eb; padding-bottom: 4px; margin-bottom: 8px;">
+          2. Información del Representante Legal (RL)
+        </h3>
+        <table style="width: 100%; border-collapse: collapse; font-size: 9px; line-height: 1.6;">
+          <tr>
+            <td style="width: 25%; font-weight: bold; color: #4b5563; padding: 4px 0;">Nombre Completo RL:</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.rlNombre || "-"}</td>
+            <td style="width: 25%; font-weight: bold; color: #4b5563; padding: 4px 0;">Identificación RL:</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.rlNoIdentificacion || "-"}</td>
+          </tr>
+          <tr>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Nacionalidad RL:</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.rlNacionalidad || "-"}</td>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Fecha Nacimiento RL:</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.rlFechaNacimiento || "-"}</td>
+          </tr>
+          <tr>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Profesión RL:</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.rlProfesionOcupacion || "-"}</td>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Actividad Económica RL:</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.rlActividadEconomica || "-"}</td>
+          </tr>
+          <tr>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Teléfono RL:</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.rlTelefono || "-"}</td>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">País Residencia RL:</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.rlPaisResidencia || "-"}</td>
+          </tr>
+          <tr>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Dirección RL:</td>
+            <td colspan="3" style="color: #1f2937; padding: 4px 0;">${data.rlDireccion || "-"}</td>
+          </tr>
+          <tr>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Propósito de la Relación:</td>
+            <td colspan="3" style="color: #1f2937; padding: 4px 0;">${data.rlObjetoInvestigacion || "-"}</td>
+          </tr>
+        </table>
+      </div>
+
+      <!-- Section 3: Junta Directiva -->
+      <div style="margin-bottom: 20px;">
+        <h3 style="color: #002b49; font-size: 11px; font-weight: bold; text-transform: uppercase; border-bottom: 1px solid #e5e7eb; padding-bottom: 4px; margin-bottom: 8px;">
+          3. Gobierno Corporativo / Junta Directiva
+        </h3>
+        <table style="width: 100%; border-collapse: collapse; font-size: 8px; line-height: 1.5;">
+          <thead>
+            <tr style="background-color: #f3f4f6; border-bottom: 1px solid #e5e7eb;">
+              <th style="padding: 4px; text-align: left; font-weight: bold; color: #4b5563; width: 15%;">Cargo</th>
+              <th style="padding: 4px; text-align: left; font-weight: bold; color: #4b5563; width: 25%;">Nombre y Apellidos</th>
+              <th style="padding: 4px; text-align: left; font-weight: bold; color: #4b5563; width: 15%;">Identificación</th>
+              <th style="padding: 4px; text-align: left; font-weight: bold; color: #4b5563; width: 15%;">Nacionalidad</th>
+              <th style="padding: 4px; text-align: left; font-weight: bold; color: #4b5563; width: 30%;">Dirección</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${data.gjcMembers && data.gjcMembers.length > 0 ? data.gjcMembers.map((m: any) => `
+              <tr style="border-bottom: 1px solid #e5e7eb;">
+                <td style="padding: 4px; font-weight: bold;">${m.cargo || "-"}</td>
+                <td style="padding: 4px;">${m.nombre || ""} ${m.apellidos || ""}</td>
+                <td style="padding: 4px;">${m.nroId || "-"}</td>
+                <td style="padding: 4px;">${m.nacionalidad || "-"}</td>
+                <td style="padding: 4px;">${m.direccion || "-"}</td>
+              </tr>
+            `).join("") : `
+              <tr>
+                <td colspan="5" style="padding: 8px; text-align: center; color: #9ca3af; font-style: italic;">Ningún miembro registrado en la Junta Directiva.</td>
+              </tr>
+            `}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Section 4: Beneficiarios Finales -->
+      <div style="margin-bottom: 20px;">
+        <h3 style="color: #002b49; font-size: 11px; font-weight: bold; text-transform: uppercase; border-bottom: 1px solid #e5e7eb; padding-bottom: 4px; margin-bottom: 8px;">
+          4. Beneficiarios Finales (>10% Participación)
+        </h3>
+        <table style="width: 100%; border-collapse: collapse; font-size: 8px; line-height: 1.5;">
+          <thead>
+            <tr style="background-color: #f3f4f6; border-bottom: 1px solid #e5e7eb;">
+              <th style="padding: 4px; text-align: left; font-weight: bold; color: #4b5563; width: 35%;">Nombre Completo</th>
+              <th style="padding: 4px; text-align: left; font-weight: bold; color: #4b5563; width: 20%;">Identificación</th>
+              <th style="padding: 4px; text-align: left; font-weight: bold; color: #4b5563; width: 15%;">% Participación</th>
+              <th style="padding: 4px; text-align: left; font-weight: bold; color: #4b5563; width: 30%;">Dirección</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${data.bfMembers && data.bfMembers.length > 0 ? data.bfMembers.map((m: any) => `
+              <tr style="border-bottom: 1px solid #e5e7eb;">
+                <td style="padding: 4px; font-weight: bold;">${m.nombreCompleto || "-"}</td>
+                <td style="padding: 4px;">${m.noIdentificacion || "-"}</td>
+                <td style="padding: 4px;">${m.porcentajeParticipacion || m.porcentaje || "-"}%</td>
+                <td style="padding: 4px;">${m.direccion || "-"}</td>
+              </tr>
+            `).join("") : `
+              <tr>
+                <td colspan="4" style="padding: 8px; text-align: center; color: #9ca3af; font-style: italic;">Ningún beneficiario final registrado.</td>
+              </tr>
+            `}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Section 5: Perfil Financiero Empresa -->
+      <div style="margin-bottom: 20px;">
+        <h3 style="color: #002b49; font-size: 11px; font-weight: bold; text-transform: uppercase; border-bottom: 1px solid #e5e7eb; padding-bottom: 4px; margin-bottom: 8px;">
+          5. Perfil Financiero y de Cumplimiento
+        </h3>
+        <table style="width: 100%; border-collapse: collapse; font-size: 9px; line-height: 1.6;">
+          <tr>
+            <td style="width: 25%; font-weight: bold; color: #4b5563; padding: 4px 0;">Ingresos Mensuales Promedio:</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.ingresosMensuales || "-"}</td>
+            <td style="width: 25%; font-weight: bold; color: #4b5563; padding: 4px 0;">Volumen Ventas Anual:</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.volumenVentas || "-"}</td>
+          </tr>
+          <tr>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Banco de Referencia:</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.bancoReferencia || "-"}</td>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Monto Servicios Anuales:</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.montoServiciosAnuales || "-"}</td>
+          </tr>
+          <tr>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Fuente de Fondos:</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.origenFondos || "-"}</td>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Destino de Fondos:</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.destinoFondos || "-"}</td>
+          </tr>
+          <tr>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">¿Persona PEP? (Junta/Propietarios):</td>
+            <td style="color: #1f2937; padding: 4px 0; font-weight: bold;">${data.esPep || "No"}</td>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Actividad Comercial:</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.actividadComercial || "-"}</td>
+          </tr>
+          ${data.esPep === "Sí" ? `
+          <tr>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Detalles PEP:</td>
+            <td colspan="3" style="color: #1f2937; padding: 4px 0;">
+              <strong>Nombre:</strong> ${data.pepNombre || "-"} | 
+              <strong>Cargo:</strong> ${data.pepCargo || "-"} | 
+              <strong>Institución:</strong> ${data.pepInstitucion || "-"} | 
+              <strong>Relación:</strong> ${data.pepRelacion || "-"}
+            </td>
+          </tr>
+          ` : ""}
+        </table>
+      </div>
+    `;
+  }
 
   element.innerHTML = `
     <!-- Header -->
@@ -60,99 +387,13 @@ export async function generatePDF(
       </table>
     </div>
 
-    <!-- Section 1: General Info -->
-    <div style="margin-bottom: 20px;">
-      <h3 style="color: #002b49; font-size: 11px; font-weight: bold; text-transform: uppercase; border-bottom: 1px solid #e5e7eb; padding-bottom: 4px; margin-bottom: 8px;">
-        1. Información del Solicitante
-      </h3>
-      <table style="width: 100%; border-collapse: collapse; font-size: 9px; line-height: 1.5;">
-        ${isNatural ? `
-          <tr>
-            <td style="width: 25%; font-weight: bold; color: #4b5563; padding: 4px 0;">Nombre Completo:</td>
-            <td style="color: #1f2937; padding: 4px 0;">${data.firstName || ""} ${data.lastName || ""}</td>
-            <td style="width: 25%; font-weight: bold; color: #4b5563; padding: 4px 0;">Nacionalidad:</td>
-            <td style="color: #1f2937; padding: 4px 0;">${data.nationality || "-"}</td>
-          </tr>
-          <tr>
-            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Identificación:</td>
-            <td style="color: #1f2937; padding: 4px 0;">${data.tipoIdentificacion || "Cédula"}: ${data.idNumber || "-"}</td>
-            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Fecha Nacimiento:</td>
-            <td style="color: #1f2937; padding: 4px 0;">${data.fechaNacimiento || "-"}</td>
-          </tr>
-          <tr>
-            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Correo Electrónico:</td>
-            <td style="color: #1f2937; padding: 4px 0;">${data.email || "-"}</td>
-            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Teléfono / Celular:</td>
-            <td style="color: #1f2937; padding: 4px 0;">${data.telefono || ""} / ${data.celular || ""}</td>
-          </tr>
-          <tr>
-            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Profesión / Ocupación:</td>
-            <td style="color: #1f2937; padding: 4px 0;">${data.profession || "-"}</td>
-            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Patrono / Empleador:</td>
-            <td style="color: #1f2937; padding: 4px 0;">${data.employer || "-"}</td>
-          </tr>
-          <tr>
-            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Dirección Residencial:</td>
-            <td colspan="3" style="color: #1f2937; padding: 4px 0;">${data.direccionResidencial || "-"}, ${data.ciudad || ""}, ${data.paisResidencial || ""}</td>
-          </tr>
-        ` : `
-          <tr>
-            <td style="width: 25%; font-weight: bold; color: #4b5563; padding: 4px 0;">Razón Social:</td>
-            <td style="color: #1f2937; padding: 4px 0;">${data.razonSocial || "-"}</td>
-            <td style="width: 25%; font-weight: bold; color: #4b5563; padding: 4px 0;">R.U.C. / Registro:</td>
-            <td style="color: #1f2937; padding: 4px 0;">${data.ruc || "-"}</td>
-          </tr>
-          <tr>
-            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Fecha Constitución:</td>
-            <td style="color: #1f2937; padding: 4px 0;">${data.fechaConstitucion || "-"}</td>
-            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">País Registro:</td>
-            <td style="color: #1f2937; padding: 4px 0;">${data.paisConstitucion || "-"}</td>
-          </tr>
-          <tr>
-            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Representante Legal:</td>
-            <td style="color: #1f2937; padding: 4px 0;">${data.rlNombreCompleto || "-"}</td>
-            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Cédula Rep. Legal:</td>
-            <td style="color: #1f2937; padding: 4px 0;">${data.rlNroId || "-"}</td>
-          </tr>
-          <tr>
-            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Dirección Oficina:</td>
-            <td colspan="3" style="color: #1f2937; padding: 4px 0;">${data.direccionFisica || "-"}</td>
-          </tr>
-        `}
-      </table>
-    </div>
+    <!-- Dynamic Sections based on Client Type -->
+    ${contentHtml}
 
-    <!-- Section 2: Financial Info -->
+    <!-- Section 6: Documents Attached -->
     <div style="margin-bottom: 20px;">
       <h3 style="color: #002b49; font-size: 11px; font-weight: bold; text-transform: uppercase; border-bottom: 1px solid #e5e7eb; padding-bottom: 4px; margin-bottom: 8px;">
-        2. Perfil Financiero y Origen de Fondos
-      </h3>
-      <table style="width: 100%; border-collapse: collapse; font-size: 9px; line-height: 1.5;">
-        <tr>
-          <td style="width: 25%; font-weight: bold; color: #4b5563; padding: 4px 0;">Ingresos Mensuales Promedio:</td>
-          <td style="color: #1f2937; padding: 4px 0;">${data.ingresosMensuales || "-"}</td>
-          <td style="width: 25%; font-weight: bold; color: #4b5563; padding: 4px 0;">Fuente de Fondos:</td>
-          <td style="color: #1f2937; padding: 4px 0;">${data.fuenteFondosInmueble || "-"}</td>
-        </tr>
-        <tr>
-          <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Monto Servicios Anuales:</td>
-          <td style="color: #1f2937; padding: 4px 0;">${data.montoServiciosAnuales || "-"}</td>
-          <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Destino de Fondos:</td>
-          <td style="color: #1f2937; padding: 4px 0;">${data.destinoInmueble || "Adquisición de Inmueble"}</td>
-        </tr>
-        <tr>
-          <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">¿Persona PEP? (Expuesta Políticamente):</td>
-          <td style="color: #1f2937; padding: 4px 0; font-weight: bold;">${data.esPep || "No"}</td>
-          <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">¿Adquiere a Nombre de Tercero?:</td>
-          <td style="color: #1f2937; padding: 4px 0;">${data.adquiereNombreTercero || "No"}</td>
-        </tr>
-      </table>
-    </div>
-
-    <!-- Section 3: Documents Attached -->
-    <div style="margin-bottom: 20px;">
-      <h3 style="color: #002b49; font-size: 11px; font-weight: bold; text-transform: uppercase; border-bottom: 1px solid #e5e7eb; padding-bottom: 4px; margin-bottom: 8px;">
-        3. Documentos Adjuntados y Verificados
+        Documentos Adjuntados y Verificados
       </h3>
       <table style="width: 100%; border-collapse: collapse; font-size: 9px; line-height: 1.6;">
         <thead>
@@ -195,22 +436,27 @@ export async function generatePDF(
               <td style="padding: 4px; text-align: center; font-weight: bold; color: ${data.serviciosPublicosFile ? "#059669" : "#dc2626"};">${data.serviciosPublicosFile ? "SÍ" : "NO"}</td>
               <td style="padding: 4px; color: #6b7280; font-size: 8px;">${data.serviciosPublicosFile || "-"}</td>
             </tr>
+            <tr style="border-bottom: 1px solid #e5e7eb;">
+              <td style="padding: 4px;">Certificación de Cuenta Bancaria o Referencia</td>
+              <td style="padding: 4px; text-align: center; font-weight: bold; color: ${data.certBancariaFile ? "#059669" : "#dc2626"};">${data.certBancariaFile ? "SÍ" : "NO"}</td>
+              <td style="padding: 4px; color: #6b7280; font-size: 8px;">${data.certBancariaFile || "-"}</td>
+            </tr>
           `}
         </tbody>
       </table>
     </div>
 
-    <!-- Section 4: Cumplimiento y Notas -->
+    <!-- Section 7: Cumplimiento y Notas -->
     <div style="border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; background-color: #fafafa; margin-bottom: 20px;">
       <h3 style="color: #002b49; font-size: 10px; font-weight: bold; text-transform: uppercase; margin-top: 0; margin-bottom: 6px; border-bottom: 1px solid #e5e7eb; padding-bottom: 4px;">
-        4. Conclusiones de Cumplimiento (Solo Oficial de Cumplimiento)
+        Conclusiones de Cumplimiento (Solo Oficial de Cumplimiento)
       </h3>
       <p style="font-size: 9px; color: #374151; margin: 0; padding: 4px; background-color: #ffffff; border: 1px dashed #d1d5db; border-radius: 4px; min-height: 40px;">
         ${data.conclusionesVerificacion || "Registro formalizado y archivado satisfactoriamente por el oficial de cumplimiento."}
       </p>
     </div>
 
-    <!-- Section 5: Signature -->
+    <!-- Section 8: Signature -->
     <div style="border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; page-break-inside: avoid;">
       <h3 style="color: #002b49; font-size: 10px; font-weight: bold; text-transform: uppercase; margin-top: 0; margin-bottom: 8px; border-bottom: 1px solid #e5e7eb; padding-bottom: 4px;">
         Declaración Jurada y Firma Electrónica
@@ -252,6 +498,8 @@ export async function generatePDF(
 
   document.body.appendChild(element);
 
+  const typePrefix = isNatural ? "Natural" : "Juridica";
+
   try {
     const canvas = await html2canvas(element, {
       scale: 2,
@@ -283,7 +531,82 @@ export async function generatePDF(
       heightLeft -= pageHeight;
     }
 
-    const typePrefix = isNatural ? "Natural" : "Juridica";
+    // Merge attachments if provided
+    if (documents && documents.length > 0) {
+      const activeDocuments = documents.filter(doc => doc.zohoFileId && doc.status !== "DELETED");
+      
+      if (activeDocuments.length > 0) {
+        console.log(`[PDF Generator] Preparando para combinar ${activeDocuments.length} anexos...`);
+        await loadPdfLib();
+        const { PDFDocument } = (window as any).PDFLib;
+        
+        const mainPdfArrayBuffer = pdf.output("arraybuffer");
+        const mergedPdf = await PDFDocument.load(mainPdfArrayBuffer);
+        
+        // Retrieve draft uuid token or admin cookie context implicitly
+        const draftToken = localStorage.getItem("udg_draft_token") || "";
+
+        for (const doc of activeDocuments) {
+          try {
+            console.log(`[PDF Generator] Cargando anexo: ${doc.name} (ID: ${doc.zohoFileId})`);
+            const proxyUrl = `/api/documents/download?fileId=${doc.zohoFileId}&token=${draftToken}`;
+            const fileRes = await fetch(proxyUrl);
+            
+            if (!fileRes.ok) {
+              console.warn(`[PDF Generator] No se pudo descargar anexo "${doc.name}":`, fileRes.statusText);
+              continue;
+            }
+            
+            const fileBytes = await fileRes.arrayBuffer();
+            const lowerName = doc.name.toLowerCase();
+            
+            if (lowerName.endsWith(".pdf") || doc.fileType === "application/pdf") {
+              const attachmentPdf = await PDFDocument.load(fileBytes);
+              const copiedPages = await mergedPdf.copyPages(attachmentPdf, attachmentPdf.getPageIndices());
+              copiedPages.forEach((page: any) => mergedPdf.addPage(page));
+              console.log(`[PDF Generator] PDF combinado: ${doc.name}`);
+            } else if (
+              lowerName.endsWith(".jpg") || 
+              lowerName.endsWith(".jpeg") || 
+              doc.fileType === "image/jpeg"
+            ) {
+              const image = await mergedPdf.embedJpg(fileBytes);
+              const page = mergedPdf.addPage();
+              const { width, height } = page.getSize();
+              
+              // Scale image to fit within A4 limits with margins
+              const scale = Math.min((width - 40) / image.width, (height - 40) / image.height);
+              const x = (width - image.width * scale) / 2;
+              const y = (height - image.height * scale) / 2;
+              
+              page.drawImage(image, {
+                x,
+                y,
+                width: image.width * scale,
+                height: image.height * scale,
+              });
+              console.log(`[PDF Generator] Imagen combinada: ${doc.name}`);
+            }
+          } catch (docErr) {
+            console.error(`[PDF Generator Error] Falló al combinar anexo "${doc.name}":`, docErr);
+          }
+        }
+        
+        const mergedPdfBytes = await mergedPdf.save();
+        const blob = new Blob([mergedPdfBytes], { type: "application/pdf" });
+        const blobUrl = URL.createObjectURL(blob);
+        
+        const link = document.createElement("a");
+        link.href = blobUrl;
+        link.download = `Expediente_UDG_${typePrefix}_${id}.pdf`;
+        link.click();
+        
+        console.log(`[PDF Generator] Descarga del expediente combinado iniciada.`);
+        return;
+      }
+    }
+
+    // Default download fallback (only main form PDF)
     pdf.save(`Expediente_UDG_${typePrefix}_${id}.pdf`);
   } catch (error) {
     console.error("Error generating PDF:", error);

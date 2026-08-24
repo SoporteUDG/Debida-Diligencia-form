@@ -24,10 +24,7 @@ type UploadStage =
 
 const MIME_EXT_MAP: Record<string, string[]> = {
   "application/pdf": ["pdf"],
-  "image/png": ["png"],
   "image/jpeg": ["jpg", "jpeg"],
-  "image/tiff": ["tiff", "tif"],
-  "image/heic": ["heic", "heif"],
 };
 
 function detectMimeType(buffer: Buffer): { mime: string; ext: string } | null {
@@ -124,9 +121,9 @@ export const documentsRouter = router({
 
         // Verify magic bytes consistency
         const detected = detectMimeType(fileBuffer);
-        if (!detected) {
+        if (!detected || !MIME_EXT_MAP[detected.mime]) {
           throw new Error(
-            "Tipo de archivo no permitido. Solo se admiten archivos PDF, PNG, JPG, JPEG, TIFF y HEIC."
+            "Tipo de archivo no permitido. Solo se admiten archivos PDF y JPG/JPEG."
           );
         }
 
@@ -349,6 +346,38 @@ export const documentsRouter = router({
           code: "INTERNAL_SERVER_ERROR",
           message: `Error al eliminar documento: ${error.message || error}`,
           cause: error,
+        });
+      }
+    }),
+
+  getDraftDocuments: tokenProcedure
+    .input(
+      z.object({
+        draftId: z.string().min(1, "draftId requerido"),
+      })
+    )
+    .query(async ({ input, ctx }) => {
+      try {
+        const draft = await ctx.prisma.draft.findUnique({
+          where: { token: ctx.client!.tokenUuid as string },
+        });
+        if (!draft) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Borrador no encontrado",
+          });
+        }
+        const documents = await ctx.prisma.document.findMany({
+          where: {
+            draftId: draft.id,
+            deletedAt: null,
+          },
+        });
+        return { success: true, documents };
+      } catch (error: any) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: `Error al obtener documentos: ${error.message}`,
         });
       }
     }),

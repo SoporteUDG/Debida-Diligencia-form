@@ -198,7 +198,7 @@ export default function Step4Documentos({
                       Choose File
                       <input 
                         type="file" 
-                        accept=".pdf,.jpg,.jpeg,.png,.heic,.tiff,.tif"
+                        accept=".pdf,.jpg,.jpeg"
                         className="hidden" 
                         onChange={(e) => {
                           const file = e.target.files?.[0];

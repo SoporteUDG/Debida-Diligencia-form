@@ -91,6 +91,7 @@ export default function PersonaNaturalPage() {
   const [submittedData, setSubmittedData] = useState<FormState | null>(null);
   const [submissionId, setSubmissionId] = useState("");
   const [submissionDate, setSubmissionDate] = useState("");
+  const [submittedDocuments, setSubmittedDocuments] = useState<any[]>([]);
   
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -448,6 +449,23 @@ export default function PersonaNaturalPage() {
     const dateNow = new Date();
 
     try {
+      // Fetch documents list for PDF merging before submitting and clearing tokens
+      try {
+        const docsResponse = await fetch("/api/trpc/documents.getDraftDocuments", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${draftToken}`,
+          },
+          body: JSON.stringify({ draftId: draftToken }),
+        });
+        const docsResJson = await docsResponse.json();
+        const docsList = docsResJson.result?.data?.documents || [];
+        setSubmittedDocuments(docsList);
+      } catch (docsErr) {
+        console.error("Error fetching documents before submit:", docsErr);
+      }
+
       const response = await fetch("/api/trpc/formDraft.submitForm", {
         method: "POST",
         headers: {
@@ -584,7 +602,7 @@ export default function PersonaNaturalPage() {
                 type="button"
                 onClick={() => {
                   if (submittedData) {
-                    generatePDF("natural", submittedData, submissionId, new Date().toLocaleDateString());
+                    generatePDF("natural", submittedData, submissionId, new Date().toLocaleDateString(), submittedDocuments);
                   }
                 }}
                 className="bg-gradient-to-r from-[#c8a788] to-yellow-600 hover:shadow-lg hover:shadow-[#c8a788]/20 text-zinc-950 px-6 py-3 rounded-xl text-xs font-bold uppercase tracking-wider transition cursor-pointer active:scale-95 flex items-center justify-center gap-2"
