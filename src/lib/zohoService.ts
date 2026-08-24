@@ -39,8 +39,18 @@ export interface MappedCrmData {
   contactoApellido?: string;
   contactoEmail?: string;
   contactoTelefono?: string;
+  
+  // Representative legal fields
   rlNombre?: string;
   rlNoIdentificacion?: string;
+  rlTelefono?: string;
+  rlNacionalidad?: string;
+  rlFechaNacimiento?: string;
+  rlDireccion?: string;
+  rlPaisResidencia?: string;
+  rlProfesionOcupacion?: string;
+  rlActividadEconomica?: string;
+  
   module?: "Contacts" | "Leads" | "Debida_Diligencia";
 }
 
@@ -83,7 +93,7 @@ export function mapCrmRecord(record: any, moduleType: "Contacts" | "Leads"): Map
   if (type === "NATURAL") {
     const firstName = findValue(record, ["First_Name", "Nombre", "Nombres", "FirstName"]);
     const lastName = findValue(record, ["Last_Name", "Apellido", "Apellidos", "LastName"]);
-    const idNumber = findValue(record, ["Identificacion", "Cedula", "Cédula", "N_Identificacion", "RUC", "Ruc"]);
+    const idNumber = findValue(record, ["Identificacion", "Cedula", "Cédula", "N_Identificacion", "RUC", "Ruc", "C_dula", "C_dula_de_Identidad_Personal", "C_dula_o_Pasaporte", "C_I_P_Pasaporte", "RUC_NIT"]);
 
     return {
       type,
@@ -113,6 +123,11 @@ export function mapCrmRecord(record: any, moduleType: "Contacts" | "Leads"): Map
       "Cédula",
       "RUC_Razon_Social",
       "Número_de_RUC",
+      "C_dula",
+      "C_dula_de_Identidad_Personal",
+      "C_dula_o_Pasaporte",
+      "C_I_P_Pasaporte",
+      "RUC_NIT",
     ]);
 
     // Split representative names or find representative fields
@@ -121,13 +136,23 @@ export function mapCrmRecord(record: any, moduleType: "Contacts" | "Leads"): Map
       "rlNombre",
       "Nombre_Representante",
       "Legal_Representative",
+      "Nombre_y_Apellido",
     ]);
 
     const rlNoIdentificacion = findValue(record, [
       "Cedula_Representante",
       "rlNoIdentificacion",
       "ID_Representante",
+      "RL_No_Identificaci_n",
     ]);
+
+    const rlTelefono = findValue(record, ["RL_Tel_fono", "rlTelefono"]);
+    const rlNacionalidad = findValue(record, ["RL_Nacionalidad", "rlNacionalidad"]);
+    const rlFechaNacimiento = findValue(record, ["aaa", "rlFechaNacimiento"]);
+    const rlDireccion = findValue(record, ["RL_Direcci_n", "rlDireccion"]);
+    const rlPaisResidencia = findValue(record, ["RL_Pa_s_de_Residencia", "rlPaisResidencia"]);
+    const rlProfesionOcupacion = findValue(record, ["RL_Profesi_n_Ocupaci_n", "rlProfesionOcupacion"]);
+    const rlActividadEconomica = findValue(record, ["RL_Actividad_Econ_mica", "rlActividadEconomica"]);
 
     // Use contact name as form contact person
     const contactFirstName = findValue(record, ["First_Name", "Nombre", "Nombres", "FirstName"]);
@@ -144,6 +169,13 @@ export function mapCrmRecord(record: any, moduleType: "Contacts" | "Leads"): Map
       contactoTelefono: phone,
       rlNombre,
       rlNoIdentificacion,
+      rlTelefono,
+      rlNacionalidad,
+      rlFechaNacimiento,
+      rlDireccion,
+      rlPaisResidencia,
+      rlProfesionOcupacion,
+      rlActividadEconomica,
       module: moduleType,
     };
   }

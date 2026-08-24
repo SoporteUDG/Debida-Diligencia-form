@@ -55,6 +55,13 @@ describe("ZohoService Unit Tests", () => {
         contactoTelefono: "5073004000",
         rlNombre: "Jorge Ramírez",
         rlNoIdentificacion: "8-111-1111",
+        rlTelefono: "",
+        rlNacionalidad: "",
+        rlFechaNacimiento: "",
+        rlDireccion: "",
+        rlPaisResidencia: "",
+        rlProfesionOcupacion: "",
+        rlActividadEconomica: "",
         module: "Leads",
       });
     });

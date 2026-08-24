@@ -26,6 +26,48 @@ import {
 
 import { useAutosave } from "@/hooks/useAutosave";
 
+const getStepForField = (field: string): number => {
+  const step1Fields = ["nombreProyecto", "formaContacto", "razonSocial", "tipoSociedad", "tipoCliente", "tipoDocumentoIdentidad", "actividadPrincipal", "numeroDocumento", "numeroIdTributaria", "paisTributacion", "porcentajeActividad", "fechaConstitucion", "paisOpera", "paisInscripcion", "fechaNacimiento", "contactoNombre", "contactoApellido", "contactoId", "contactoTelefono", "contactoEmail", "empresaDireccion", "empresaCiudad", "empresaProvincia", "empresaPais", "empresaTelefonoCodigo", "empresaTelefono", "empresaCelularCodigo", "empresaCelular", "empresaEmail"];
+  const step2Fields = ["rlNombre", "rlFechaNacimiento", "rlNacionalidad", "rlNoIdentificacion", "rlProfesionOcupacion", "rlActividadEconomica", "rlDireccion", "rlPaisResidencia", "rlTelefono", "rlObjetoInvestigacion", "gjcMembers"];
+  const step3Fields = ["bfMembers", "ingresosMensuales", "medioPago", "fuenteFondosInmueble", "montoServiciosAnuales", "esPep", "pepNombre", "pepCargo", "pepInstitucion", "pepRelacion", "actividadComercial", "origenFondos", "destinoFondos", "volumenVentas", "bancoReferencia"];
+  const step4Fields = ["avisoOperacionesFile", "copiaIdFile", "origenFondosFile", "pactoSocialFile", "serviciosPublicosFile", "certBancariaFile", "certRegistroFile"];
+  const step5Fields = ["termsAccepted", "signerName", "signatureDate", "firmaImage"];
+
+  if (step1Fields.some(f => field.startsWith(f))) return 1;
+  if (step2Fields.some(f => field.startsWith(f))) return 2;
+  if (step3Fields.some(f => field.startsWith(f))) return 3;
+  if (step4Fields.some(f => field.startsWith(f))) return 4;
+  if (step5Fields.some(f => field.startsWith(f))) return 5;
+  return 1;
+};
+
+const getStepName = (step: number): string => {
+  switch (step) {
+    case 1: return "Datos de la Empresa";
+    case 2: return "Representación y Junta";
+    case 3: return "Beneficiarios y Finanzas";
+    case 4: return "Documentos Adjuntos";
+    case 5: return "Firma y Declaración";
+    default: return "Datos";
+  }
+};
+
+interface ValidationSummaryItem {
+  step: number;
+  message: string;
+}
+
+const groupByStep = (items: ValidationSummaryItem[]) => {
+  const groups: Record<number, ValidationSummaryItem[]> = {};
+  items.forEach(item => {
+    if (!groups[item.step]) {
+      groups[item.step] = [];
+    }
+    groups[item.step].push(item);
+  });
+  return groups;
+};
+
 const normalizeFormData = (dbData: any): FormState => {
   const normalized = { ...INITIAL_FORM_STATE, ...dbData };
   for (const key of Object.keys(normalized)) {
@@ -53,6 +95,7 @@ export default function PersonaJuridicaPage() {
   
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [validationSummary, setValidationSummary] = useState<{ step: number; message: string }[] | null>(null);
 
   useEffect(() => {
     setIsMounted(true);
@@ -494,12 +537,22 @@ export default function PersonaJuridicaPage() {
     const fullValidation = juridicaFormSchema.safeParse(formData);
     if (!fullValidation.success) {
       const allErrors: Record<string, string> = {};
+      const summaryItems: { step: number; message: string }[] = [];
+
       fullValidation.error.issues.forEach(err => {
         const path = err.path.join(".");
         allErrors[path] = err.message;
+        
+        const fieldName = err.path[0] as string;
+        const stepNum = getStepForField(fieldName);
+        summaryItems.push({
+          step: stepNum,
+          message: err.message,
+        });
       });
+
       setErrors(allErrors);
-      alert("Por favor corrija los errores en el formulario antes de continuar.");
+      setValidationSummary(summaryItems);
       return;
     }
 
@@ -794,6 +847,69 @@ export default function PersonaJuridicaPage() {
           </p>
         </div>
       </footer>
+      {/* Premium Validation Summary Modal */}
+      {validationSummary && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fadeIn animate-duration-200">
+          <div className="bg-[#081b2a] border border-[#c8a788]/30 rounded-2xl max-w-lg w-full max-h-[85vh] flex flex-col shadow-2xl overflow-hidden font-sans">
+            {/* Header */}
+            <div className="px-6 py-4 bg-gradient-to-r from-[#0b243b] to-[#081b2a] border-b border-[#c8a788]/20 flex justify-between items-center">
+              <h3 className="text-sm font-semibold tracking-wider text-[#c8a788] uppercase">
+                Requisitos Pendientes
+              </h3>
+              <button 
+                onClick={() => setValidationSummary(null)}
+                className="text-zinc-400 hover:text-white transition cursor-pointer select-none text-lg"
+              >
+                ✕
+              </button>
+            </div>
+            
+            {/* Body */}
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+              <p className="text-xs text-zinc-300">
+                Por favor complete la siguiente información y documentos obligatorios antes de enviar su expediente:
+              </p>
+              
+              {/* Render grouped errors */}
+              {Object.entries(groupByStep(validationSummary)).map(([stepNum, items]) => (
+                <div key={stepNum} className="bg-[#002b49]/40 border border-[#c8a788]/10 rounded-xl p-4 space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[11px] font-bold tracking-wider text-[#c8a788] uppercase">
+                      Paso {stepNum}: {getStepName(parseInt(stepNum))}
+                    </span>
+                    <button
+                      onClick={() => {
+                        setCurrentStep(parseInt(stepNum));
+                        setValidationSummary(null);
+                      }}
+                      className="text-[10px] font-semibold text-[#c8a788] hover:underline cursor-pointer"
+                    >
+                      Ir a este paso →
+                    </button>
+                  </div>
+                  <ul className="list-disc pl-5 space-y-1">
+                    {items.map((item, idx) => (
+                      <li key={idx} className="text-xs text-zinc-300">
+                        {item.message}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+            
+            {/* Footer */}
+            <div className="px-6 py-4 bg-[#05131f] border-t border-[#c8a788]/10 flex justify-end">
+              <button
+                onClick={() => setValidationSummary(null)}
+                className="bg-[#c8a788] hover:bg-[#b08e6f] text-[#002b49] text-xs font-bold px-6 py-3 rounded-lg transition tracking-wider uppercase shadow-md select-none cursor-pointer"
+              >
+                Entendido, Completar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
