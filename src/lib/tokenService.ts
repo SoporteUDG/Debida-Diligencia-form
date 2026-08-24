@@ -183,8 +183,18 @@ async function checkDbTokenValidity(dbToken: any, uuid: string) {
           `Timestamp: ${new Date().toLocaleString()}\n` +
           `Resultado de Sincronización: Formulario expirado sin responder`
         );
+
+        // Update link status in Zoho CRM to "Expirado / Revocado"
+        const contact = await prisma.crmContact.findUnique({
+          where: { id: dbToken.crmContactId },
+        });
+        if (contact && contact.crmId) {
+          const crmData = await zoho.service.getContact(contact.crmId);
+          const resolvedModule = crmData.module || "Contacts";
+          await zoho.service.updateClientFormLink(contact.crmId, resolvedModule, undefined, undefined, "Expirado / Revocado");
+        }
       } catch (err) {
-        console.error("[TokenService] Error writing token expiration note to Zoho CRM:", err);
+        console.error("[TokenService] Error writing token expiration info to Zoho CRM:", err);
       }
     }
 
@@ -249,6 +259,20 @@ export async function reactivateToken(
         newExpiresAt,
       },
     });
+
+    // Sync reactivation status and expiration back to Zoho CRM
+    try {
+      const contact = await prisma.crmContact.findUnique({
+        where: { id: dbToken.crmContactId },
+      });
+      if (contact && contact.crmId) {
+        const crmData = await zoho.service.getContact(contact.crmId);
+        const resolvedModule = crmData.module || "Contacts";
+        await zoho.service.updateClientFormLink(contact.crmId, resolvedModule, undefined, newExpiresAt, "Activo");
+      }
+    } catch (crmErr) {
+      console.error("[TokenService] Falló sincronización de reactivación en Zoho CRM:", crmErr);
+    }
 
     return {
       success: true,

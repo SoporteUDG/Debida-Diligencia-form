@@ -21,6 +21,9 @@ vi.mock("../prisma", () => {
       auditLog: {
         create: vi.fn().mockResolvedValue({} as any),
       },
+      crmContact: {
+        findUnique: vi.fn(),
+      },
     },
   };
 });

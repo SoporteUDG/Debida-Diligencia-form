@@ -229,7 +229,7 @@ describe("Admin Router tRPC Procedures", () => {
     expect(zoho.service.getContact).toHaveBeenCalledWith("crm-debida-id");
     expect(mockPrisma.crmContact.upsert).toHaveBeenCalled();
     expect(mockPrisma.draft.create).toHaveBeenCalled();
-    expect(zoho.service.updateClientFormLink).toHaveBeenCalledWith("crm-debida-id", "Debida_Diligencia", expect.any(String));
+    expect(zoho.service.updateClientFormLink).toHaveBeenCalledWith("crm-debida-id", "Debida_Diligencia", expect.any(String), expect.any(Date), "Activo");
   });
 
   it("should update conclusions via updateConclusions procedure", async () => {

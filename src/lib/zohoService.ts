@@ -593,7 +593,9 @@ export const zoho = {
     updateClientFormLink: async (
       crmId: string,
       module: "Contacts" | "Leads" | "Debida_Diligencia",
-      formLink: string
+      formLink?: string,
+      expiresAt?: Date,
+      linkStatus?: string
     ): Promise<{ success: boolean; error?: string }> => {
       const clientId = process.env.ZOHO_CLIENT_ID;
       const clientSecret = process.env.ZOHO_CLIENT_SECRET;
@@ -608,22 +610,34 @@ export const zoho = {
         refreshToken === "placeholder_refresh_token";
 
       if (isPlaceholder || crmId.startsWith("mock-") || crmId === "simulated-crm-contact-id") {
-        console.log(`[Zoho Service] Simulación: Enlace "${formLink}" actualizado en CRM para el registro ${crmId}.`);
+        console.log(`[Zoho Service] Simulación: Enlace "${formLink}" (Vigencia: ${expiresAt?.toISOString()}, Estado: ${linkStatus}) actualizado en CRM para el registro ${crmId}.`);
         return { success: true };
       }
 
       return executeWithRetry(async (accessToken) => {
         const crmBaseUrl = process.env.ZOHO_CRM_BASE_URL || "https://www.zohoapis.com/crm/v2";
+        
+        const recordUpdate: any = {
+          id: crmId
+        };
+
+        if (formLink !== undefined) {
+          recordUpdate.Client_Form_Link = formLink;
+          recordUpdate.Enlace_Formulario = formLink;
+          recordUpdate.Enlace_Debida_Diligencia = formLink;
+          recordUpdate.Enlace_de_Formulario = formLink;
+        }
+
+        if (expiresAt !== undefined) {
+          recordUpdate.Vigencia_del_enlace = expiresAt.toISOString();
+        }
+
+        if (linkStatus !== undefined) {
+          recordUpdate.Estado_del_enlace = linkStatus;
+        }
+
         const payload = {
-          data: [
-            {
-              id: crmId,
-              Client_Form_Link: formLink,
-              Enlace_Formulario: formLink,
-              Enlace_Debida_Diligencia: formLink,
-              Enlace_de_Formulario: formLink,
-            }
-          ]
+          data: [recordUpdate]
         };
 
         const response = await fetch(`${crmBaseUrl}/${module}/${crmId}`, {
@@ -732,6 +746,7 @@ export function mapFormToCrmPayload(clientType: "NATURAL" | "JURIDICA", formData
     "Estado": "Completado",
     "Fecha_de_Ingreso": new Date().toISOString().split("T")[0],
     "Tipo_de_Persona": clientType === "NATURAL" ? "Persona Natural" : "Persona Jurídica",
+    "Estado_del_enlace": "Expirado / Revocado",
   };
 
   // Mapear Proyecto si está definido

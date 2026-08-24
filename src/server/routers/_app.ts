@@ -375,8 +375,11 @@ export const appRouter = router({
           const crmData = await zoho.service.getContact(crmContact.crmId);
           const resolvedModule = crmData.module || "Contacts";
 
+          const expiresAt = new Date();
+          expiresAt.setDate(expiresAt.getDate() + input.expiresInDays);
+
           // Sync the new link back to Zoho CRM
-          await zoho.service.updateClientFormLink(crmContact.crmId, resolvedModule, clientUrl);
+          await zoho.service.updateClientFormLink(crmContact.crmId, resolvedModule, clientUrl, expiresAt, "Activo");
         } catch (err) {
           console.error(`[regenerateClientLink CRM Error] Falló actualización de enlace en Zoho para ${crmContact.crmId}:`, err);
         }
@@ -801,8 +804,11 @@ export const appRouter = router({
       const formPath = isNatural ? "persona-natural" : "persona-juridica";
       const clientUrl = `${appUrl}/${formPath}?token=${signedToken}`;
 
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 30);
+
       // 9. Update Zoho CRM asynchronously in background
-      zoho.service.updateClientFormLink(input.crmId, input.module, clientUrl).catch((err) => {
+      zoho.service.updateClientFormLink(input.crmId, input.module, clientUrl, expiresAt, "Activo").catch((err) => {
         console.error(`[generateClientLink CRM Warning] Falló actualización de enlace en Zoho para ${input.crmId}:`, err);
       });
 
