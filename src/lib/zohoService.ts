@@ -650,7 +650,8 @@ export const zoho = {
         });
 
         if (response.ok) {
-          console.log(`[Zoho Service] Enlace de formulario actualizado en Zoho CRM (${module}) para ID ${crmId}.`);
+          const resJson = await response.json();
+          console.log(`[Zoho Service] Enlace actualizado. Respuesta de Zoho:`, JSON.stringify(resJson));
           return { success: true };
         }
 
