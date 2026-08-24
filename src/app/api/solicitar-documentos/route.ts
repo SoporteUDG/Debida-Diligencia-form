@@ -127,7 +127,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    const isNatural = contact.type === "NATURAL";
+    const isNatural = draft ? draft.type === "NATURAL" : true;
     const formPath = isNatural ? "persona-natural" : "persona-juridica";
     const host = request.headers.get("host") || "localhost:3000";
     const protocol = request.headers.get("x-forwarded-proto") || "http";
