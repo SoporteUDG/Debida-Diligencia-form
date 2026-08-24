@@ -4,13 +4,29 @@ import { reactivateToken } from "@/lib/tokenService";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  console.log(`[API Reactivar] GET recibido. Headers:`, Object.fromEntries(request.headers.entries()));
   return NextResponse.json({ message: "El endpoint de reactivación está activo y listo." });
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    const contentType = request.headers.get("content-type") || "";
+    console.log(`[API Reactivar] POST recibido. Content-Type: ${contentType}`);
+    
+    let body: any = {};
+    if (contentType.includes("application/json")) {
+      body = await request.json();
+    } else {
+      const text = await request.text();
+      console.log(`[API Reactivar] POST body no es JSON (texto): ${text}`);
+      try {
+        body = JSON.parse(text);
+      } catch (e) {
+        // Ignorar
+      }
+    }
+    
     const { recordId } = body;
 
     if (!recordId) {
