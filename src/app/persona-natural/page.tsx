@@ -30,17 +30,17 @@ import {
 import { useAutosave } from "@/hooks/useAutosave";
 
 const getStepForField = (field: string): number => {
-  const step1Fields = ["nombreProyecto", "formaContacto", "firstName", "lastName", "paisNacimiento", "paisResidenciaFiscal", "idTributaria", "nationality", "tipoIdentificacion", "otraNacionalidad", "idNumber", "estatusMigratorio", "fechaNacimiento"];
-  const step2Fields = ["direccionResidencial", "ciudad", "provinciaEstado", "paisResidencial", "email", "telefonoCodigo", "telefono", "celularCodigo", "celular", "profession", "profesionOtros", "paisActividadLaboral", "employer", "actividadLaboral", "actividadLaboralOtros", "direccionLaboral", "cargoDesempena", "actEconPrincipal", "pctDedicacionPrincipal", "jurisdiccionPrincipal", "actEconSecundaria", "pctDedicacionSecundaria", "jurisdiccionSecundaria"];
-  const step3Fields = ["ingresosMensuales", "medioPago", "fuenteFondosInmueble", "montoServiciosAnuales", "adquiereNombreTercero", "destinoInmueble", "esPep", "pepNombre", "pepCargo", "pepInstitucion", "pepRelacion"];
-  const step4Fields = ["idFile", "proofAddressFile", "origenFondosFile", "hasEstadoCuenta", "hasCertificacionBancaria", "otrosAdjuntosFile"];
-  const step5Fields = ["termsAccepted", "signerName", "signatureDate", "firmaImage"];
+  const step1Fields = [
+    "nombreProyecto", "formaContacto", "firstName", "lastName", "paisNacimiento", "paisResidenciaFiscal", "idTributaria", "nationality", "tipoIdentificacion", "otraNacionalidad", "idNumber", "estatusMigratorio", "fechaNacimiento",
+    "direccionResidencial", "ciudad", "provinciaEstado", "paisResidencial", "email", "telefonoCodigo", "telefono", "celularCodigo", "celular", "profession", "profesionOtros", "paisActividadLaboral", "employer", "actividadLaboral", "actividadLaboralOtros", "direccionLaboral", "cargoDesempena", "actEconPrincipal", "pctDedicacionPrincipal", "jurisdiccionPrincipal", "actEconSecundaria", "pctDedicacionSecundaria", "jurisdiccionSecundaria",
+    "ingresosMensuales", "medioPago", "fuenteFondosInmueble", "montoServiciosAnuales", "adquiereNombreTercero", "destinoInmueble", "esPep", "pepNombre", "pepCargo", "pepInstitucion", "pepRelacion"
+  ];
+  const step2Fields = ["idFile", "proofAddressFile", "origenFondosFile", "hasEstadoCuenta", "hasCertificacionBancaria", "otrosAdjuntosFile"];
+  const step3Fields = ["termsAccepted", "signerName", "signatureDate", "firmaImage"];
 
   if (step1Fields.includes(field)) return 1;
   if (step2Fields.includes(field)) return 2;
   if (step3Fields.includes(field)) return 3;
-  if (step4Fields.includes(field)) return 4;
-  if (step5Fields.includes(field)) return 5;
   return 1;
 };
 
@@ -366,8 +366,6 @@ export default function PersonaNaturalPage() {
     if (step === 1) schema = naturalStep1Schema;
     else if (step === 2) schema = naturalStep2Schema;
     else if (step === 3) schema = naturalStep3Schema;
-    else if (step === 4) schema = naturalStep4Schema;
-    else if (step === 5) schema = naturalStep5Schema;
     else return false;
 
     return schema.safeParse(formData).success;
@@ -379,8 +377,6 @@ export default function PersonaNaturalPage() {
     if (step === 1) schema = naturalStep1Schema;
     else if (step === 2) schema = naturalStep2Schema;
     else if (step === 3) schema = naturalStep3Schema;
-    else if (step === 4) schema = naturalStep4Schema;
-    else if (step === 5) schema = naturalStep5Schema;
     else return true;
 
     const validation = schema.safeParse(formData);
@@ -414,7 +410,7 @@ export default function PersonaNaturalPage() {
   };
 
   const handleSubmit = async () => {
-    const isFinalValid = validateStep(5);
+    const isFinalValid = validateStep(3);
     if (!isFinalValid) {
       setTimeout(() => {
         const firstError = document.querySelector(".text-red-500");
@@ -455,24 +451,24 @@ export default function PersonaNaturalPage() {
       { key: "idTributaria", label: "NIF / ID Tributaria", step: 1 },
       { key: "otraNacionalidad", label: "Otra Nacionalidad", step: 1 },
       { key: "estatusMigratorio", label: "Estatus Migratorio", step: 1 },
-      { key: "ciudad", label: "Ciudad", step: 2 },
-      { key: "provinciaEstado", label: "Provincia/Estado", step: 2 },
-      { key: "telefono", label: "Teléfono Fijo", step: 2 },
-      { key: "direccionLaboral", label: "Dirección Laboral", step: 2 },
-      { key: "cargoDesempena", label: "Cargo Desempeñado", step: 2 },
-      { key: "actEconPrincipal", label: "Actividad Económica Principal", step: 2 },
-      { key: "actEconSecundaria", label: "Actividad Económica Secundaria", step: 2 },
-      { key: "origenFondosFile", label: "Documento: Origen de Fondos", step: 4 },
-      { key: "proofAddressFile", label: "Documento: Factura de Servicios Públicos", step: 4 },
-      { key: "otrosAdjuntosFile", label: "Documento: Otros Adjuntos", step: 4 }
+      { key: "ciudad", label: "Ciudad", step: 1 },
+      { key: "provinciaEstado", label: "Provincia/Estado", step: 1 },
+      { key: "telefono", label: "Teléfono Fijo", step: 1 },
+      { key: "direccionLaboral", label: "Dirección Laboral", step: 1 },
+      { key: "cargoDesempena", label: "Cargo Desempeñado", step: 1 },
+      { key: "actEconPrincipal", label: "Actividad Económica Principal", step: 1 },
+      { key: "actEconSecundaria", label: "Actividad Económica Secundaria", step: 1 },
+      { key: "origenFondosFile", label: "Documento: Origen de Fondos", step: 2 },
+      { key: "proofAddressFile", label: "Documento: Factura de Servicios Públicos", step: 2 },
+      { key: "otrosAdjuntosFile", label: "Documento: Otros Adjuntos", step: 2 }
     ];
 
     if (formData.esPep === "Sí") {
       optionalFieldsToCheck.push(
-        { key: "pepNombre", label: "PEP: Nombre Completo", step: 3 },
-        { key: "pepCargo", label: "PEP: Cargo", step: 3 },
-        { key: "pepInstitucion", label: "PEP: Institución", step: 3 },
-        { key: "pepRelacion", label: "PEP: Relación/Parentesco", step: 3 }
+        { key: "pepNombre", label: "PEP: Nombre Completo", step: 1 },
+        { key: "pepCargo", label: "PEP: Cargo", step: 1 },
+        { key: "pepInstitucion", label: "PEP: Institución", step: 1 },
+        { key: "pepRelacion", label: "PEP: Relación/Parentesco", step: 1 }
       );
     }
 
@@ -721,32 +717,45 @@ export default function PersonaNaturalPage() {
             {/* Main Form Fields Container */}
             <div className="space-y-8">
               {currentStep === 1 && (
-                <Step1DatosPersonales 
-                  formData={formData}
-                  onInputChange={handleInputChange}
-                  onSearchableSelectChange={handleSearchableSelectChange}
-                  errors={errors}
-                />
+                <div className="space-y-12">
+                  <div className="bg-white/5 p-6 rounded-3xl border border-zinc-800 space-y-4">
+                    <h2 className="text-[#c8a788] text-sm font-bold uppercase tracking-wider border-b border-zinc-850 pb-2">
+                      I. Datos Personales
+                    </h2>
+                    <Step1DatosPersonales 
+                      formData={formData}
+                      onInputChange={handleInputChange}
+                      onSearchableSelectChange={handleSearchableSelectChange}
+                      errors={errors}
+                    />
+                  </div>
+                  
+                  <div className="bg-white/5 p-6 rounded-3xl border border-zinc-800 space-y-4">
+                    <h2 className="text-[#c8a788] text-sm font-bold uppercase tracking-wider border-b border-zinc-850 pb-2">
+                      II. Ubicación y Datos Laborales
+                    </h2>
+                    <Step2PerfilFinanciero 
+                      formData={formData}
+                      onInputChange={handleInputChange}
+                      onSearchableSelectChange={handleSearchableSelectChange}
+                      errors={errors}
+                    />
+                  </div>
+
+                  <div className="bg-white/5 p-6 rounded-3xl border border-zinc-800 space-y-4">
+                    <h2 className="text-[#c8a788] text-sm font-bold uppercase tracking-wider border-b border-zinc-850 pb-2">
+                      III. Perfil Financiero y PEP
+                    </h2>
+                    <Step3PerfilFinanciero 
+                      formData={formData}
+                      onInputChange={handleInputChange}
+                      errors={errors}
+                    />
+                  </div>
+                </div>
               )}
 
               {currentStep === 2 && (
-                <Step2PerfilFinanciero 
-                  formData={formData}
-                  onInputChange={handleInputChange}
-                  onSearchableSelectChange={handleSearchableSelectChange}
-                  errors={errors}
-                />
-              )}
-
-              {currentStep === 3 && (
-                <Step3PerfilFinanciero 
-                  formData={formData}
-                  onInputChange={handleInputChange}
-                  errors={errors}
-                />
-              )}
-
-              {currentStep === 4 && (
                 <Step3Documentos 
                   formData={formData}
                   uploadStatus={uploadStatus}
@@ -758,7 +767,7 @@ export default function PersonaNaturalPage() {
                 />
               )}
 
-              {currentStep === 5 && (
+              {currentStep === 3 && (
                 <Step4FirmaDeclaracion 
                   formData={formData}
                   onInputChange={handleInputChange}

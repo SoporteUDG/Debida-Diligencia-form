@@ -30,17 +30,17 @@ import {
 import { useAutosave } from "@/hooks/useAutosave";
 
 const getStepForField = (field: string): number => {
-  const step1Fields = ["nombreProyecto", "formaContacto", "razonSocial", "tipoSociedad", "tipoCliente", "tipoDocumentoIdentidad", "actividadPrincipal", "numeroDocumento", "numeroIdTributaria", "paisTributacion", "porcentajeActividad", "fechaConstitucion", "paisOpera", "paisInscripcion", "fechaNacimiento", "contactoNombre", "contactoApellido", "contactoId", "contactoTelefono", "contactoEmail", "empresaDireccion", "empresaCiudad", "empresaProvincia", "empresaPais", "empresaTelefonoCodigo", "empresaTelefono", "empresaCelularCodigo", "empresaCelular", "empresaEmail"];
-  const step2Fields = ["rlNombre", "rlFechaNacimiento", "rlNacionalidad", "rlNoIdentificacion", "rlProfesionOcupacion", "rlActividadEconomica", "rlDireccion", "rlPaisResidencia", "rlTelefono", "rlObjetoInvestigacion", "gjcMembers"];
-  const step3Fields = ["bfMembers", "ingresosMensuales", "medioPago", "fuenteFondosInmueble", "montoServiciosAnuales", "esPep", "pepNombre", "pepCargo", "pepInstitucion", "pepRelacion", "actividadComercial", "origenFondos", "destinoFondos", "volumenVentas", "bancoReferencia"];
-  const step4Fields = ["avisoOperacionesFile", "copiaIdFile", "origenFondosFile", "pactoSocialFile", "serviciosPublicosFile", "certBancariaFile", "certRegistroFile"];
-  const step5Fields = ["termsAccepted", "signerName", "signatureDate", "firmaImage"];
+  const step1Fields = [
+    "nombreProyecto", "formaContacto", "razonSocial", "tipoSociedad", "tipoCliente", "tipoDocumentoIdentidad", "actividadPrincipal", "numeroDocumento", "numeroIdTributaria", "paisTributacion", "porcentajeActividad", "fechaConstitucion", "paisOpera", "paisInscripcion", "fechaNacimiento", "contactoNombre", "contactoApellido", "contactoId", "contactoTelefono", "contactoEmail", "empresaDireccion", "empresaCiudad", "empresaProvincia", "empresaPais", "empresaTelefonoCodigo", "empresaTelefono", "empresaCelularCodigo", "empresaCelular", "empresaEmail",
+    "rlNombre", "rlFechaNacimiento", "rlNacionalidad", "rlNoIdentificacion", "rlProfesionOcupacion", "rlActividadEconomica", "rlDireccion", "rlPaisResidencia", "rlTelefono", "rlObjetoInvestigacion", "gjcMembers",
+    "bfMembers", "ingresosMensuales", "medioPago", "fuenteFondosInmueble", "montoServiciosAnuales", "esPep", "pepNombre", "pepCargo", "pepInstitucion", "pepRelacion", "actividadComercial", "origenFondos", "destinoFondos", "volumenVentas", "bancoReferencia"
+  ];
+  const step2Fields = ["avisoOperacionesFile", "copiaIdFile", "origenFondosFile", "pactoSocialFile", "serviciosPublicosFile", "certBancariaFile", "certRegistroFile"];
+  const step3Fields = ["termsAccepted", "signerName", "signatureDate", "firmaImage"];
 
   if (step1Fields.some(f => field.startsWith(f))) return 1;
   if (step2Fields.some(f => field.startsWith(f))) return 2;
   if (step3Fields.some(f => field.startsWith(f))) return 3;
-  if (step4Fields.some(f => field.startsWith(f))) return 4;
-  if (step5Fields.some(f => field.startsWith(f))) return 5;
   return 1;
 };
 
@@ -480,8 +480,6 @@ export default function PersonaJuridicaPage() {
     if (step === 1) schema = juridicaStep1Schema;
     else if (step === 2) schema = juridicaStep2Schema;
     else if (step === 3) schema = juridicaStep3Schema;
-    else if (step === 4) schema = juridicaStep4Schema;
-    else if (step === 5) schema = juridicaStep5Schema;
     else return false;
 
     return schema.safeParse(formData).success;
@@ -493,8 +491,6 @@ export default function PersonaJuridicaPage() {
     if (step === 1) schema = juridicaStep1Schema;
     else if (step === 2) schema = juridicaStep2Schema;
     else if (step === 3) schema = juridicaStep3Schema;
-    else if (step === 4) schema = juridicaStep4Schema;
-    else if (step === 5) schema = juridicaStep5Schema;
     else return true;
 
     const validation = schema.safeParse(formData);
@@ -528,7 +524,7 @@ export default function PersonaJuridicaPage() {
   };
 
   const handleSubmit = async () => {
-    const isFinalValid = validateStep(5);
+    const isFinalValid = validateStep(3);
     if (!isFinalValid) {
       setTimeout(() => {
         const firstError = document.querySelector(".text-red-500");
@@ -578,28 +574,28 @@ export default function PersonaJuridicaPage() {
       { key: "empresaTelefono", label: "Teléfono Fijo de la Empresa", step: 1 },
       { key: "empresaCelular", label: "Celular de la Empresa", step: 1 },
       { key: "empresaEmail", label: "Email de la Empresa", step: 1 },
-      { key: "rlActividadEconomica", label: "Actividad Económica del Representante Legal", step: 2 },
-      { key: "rlDireccion", label: "Dirección del Representante Legal", step: 2 },
-      { key: "rlPaisResidencia", label: "País de Residencia del Representante Legal", step: 2 },
-      { key: "rlTelefono", label: "Teléfono del Representante Legal", step: 2 },
-      { key: "actividadComercial", label: "Descripción de Actividad Comercial", step: 3 },
-      { key: "origenFondos", label: "Origen de Fondos de la Empresa", step: 3 },
-      { key: "destinoFondos", label: "Destino de Fondos de la Empresa", step: 3 },
-      { key: "volumenVentas", label: "Volumen Estimado de Ventas", step: 3 },
-      { key: "bancoReferencia", label: "Banco de Referencia", step: 3 },
-      { key: "origenFondosFile", label: "Documento: Origen de Fondos", step: 4 },
-      { key: "pactoSocialFile", label: "Documento: Copia de Pacto Social", step: 4 },
-      { key: "serviciosPublicosFile", label: "Documento: Factura de Servicios Públicos", step: 4 },
-      { key: "certBancariaFile", label: "Documento: Certificación Bancaria", step: 4 },
-      { key: "certRegistroFile", label: "Documento: Certificado de Registro Público", step: 4 }
+      { key: "rlActividadEconomica", label: "Actividad Económica del Representante Legal", step: 1 },
+      { key: "rlDireccion", label: "Dirección del Representante Legal", step: 1 },
+      { key: "rlPaisResidencia", label: "País de Residencia del Representante Legal", step: 1 },
+      { key: "rlTelefono", label: "Teléfono del Representante Legal", step: 1 },
+      { key: "actividadComercial", label: "Descripción de Actividad Comercial", step: 1 },
+      { key: "origenFondos", label: "Origen de Fondos de la Empresa", step: 1 },
+      { key: "destinoFondos", label: "Destino de Fondos de la Empresa", step: 1 },
+      { key: "volumenVentas", label: "Volumen Estimado de Ventas", step: 1 },
+      { key: "bancoReferencia", label: "Banco de Referencia", step: 1 },
+      { key: "origenFondosFile", label: "Documento: Origen de Fondos", step: 2 },
+      { key: "pactoSocialFile", label: "Documento: Copia de Pacto Social", step: 2 },
+      { key: "serviciosPublicosFile", label: "Documento: Factura de Servicios Públicos", step: 2 },
+      { key: "certBancariaFile", label: "Documento: Certificación Bancaria", step: 2 },
+      { key: "certRegistroFile", label: "Documento: Certificado de Registro Público", step: 2 }
     ];
 
     if (formData.esPep === "Sí") {
       optionalFieldsToCheck.push(
-        { key: "pepNombre", label: "PEP: Nombre Completo", step: 3 },
-        { key: "pepCargo", label: "PEP: Cargo", step: 3 },
-        { key: "pepInstitucion", label: "PEP: Institución", step: 3 },
-        { key: "pepRelacion", label: "PEP: Relación/Parentesco", step: 3 }
+        { key: "pepNombre", label: "PEP: Nombre Completo", step: 1 },
+        { key: "pepCargo", label: "PEP: Cargo", step: 1 },
+        { key: "pepInstitucion", label: "PEP: Institución", step: 1 },
+        { key: "pepRelacion", label: "PEP: Relación/Parentesco", step: 1 }
       );
     }
 
@@ -848,38 +844,51 @@ export default function PersonaJuridicaPage() {
             {/* Main Form Fields Container */}
             <div className="space-y-8">
               {currentStep === 1 && (
-                <Step1Identificacion 
-                  formData={formData}
-                  onInputChange={handleInputChange}
-                  onSearchableSelectChange={handleSearchableSelectChange}
-                  errors={errors}
-                />
+                <div className="space-y-12">
+                  <div className="bg-white/5 p-6 rounded-3xl border border-zinc-800 space-y-4">
+                    <h2 className="text-[#c8a788] text-sm font-bold uppercase tracking-wider border-b border-zinc-850 pb-2">
+                      I. Identificación de la Empresa
+                    </h2>
+                    <Step1Identificacion 
+                      formData={formData}
+                      onInputChange={handleInputChange}
+                      onSearchableSelectChange={handleSearchableSelectChange}
+                      errors={errors}
+                    />
+                  </div>
+
+                  <div className="bg-white/5 p-6 rounded-3xl border border-zinc-800 space-y-4">
+                    <h2 className="text-[#c8a788] text-sm font-bold uppercase tracking-wider border-b border-zinc-850 pb-2">
+                      II. Representante Legal y Gobierno Corporativo
+                    </h2>
+                    <Step2GobiernoRL 
+                      formData={formData}
+                      onInputChange={handleInputChange}
+                      onSearchableSelectChange={handleSearchableSelectChange}
+                      onAddGjcMember={handleAddGjcMember}
+                      onRemoveGjcMember={handleRemoveGjcMember}
+                      onGjcMemberChange={handleGjcMemberChange}
+                      errors={errors}
+                    />
+                  </div>
+
+                  <div className="bg-white/5 p-6 rounded-3xl border border-zinc-800 space-y-4">
+                    <h2 className="text-[#c8a788] text-sm font-bold uppercase tracking-wider border-b border-zinc-850 pb-2">
+                      III. Beneficiarios Finales y Perfil Financiero
+                    </h2>
+                    <Step3Finanzas 
+                      formData={formData}
+                      onInputChange={handleInputChange}
+                      onAddBfMember={handleAddBfMember}
+                      onRemoveBfMember={handleRemoveBfMember}
+                      onBfMemberChange={handleBfMemberChange}
+                      errors={errors}
+                    />
+                  </div>
+                </div>
               )}
 
               {currentStep === 2 && (
-                <Step2GobiernoRL 
-                  formData={formData}
-                  onInputChange={handleInputChange}
-                  onSearchableSelectChange={handleSearchableSelectChange}
-                  onAddGjcMember={handleAddGjcMember}
-                  onRemoveGjcMember={handleRemoveGjcMember}
-                  onGjcMemberChange={handleGjcMemberChange}
-                  errors={errors}
-                />
-              )}
-
-              {currentStep === 3 && (
-                <Step3Finanzas 
-                  formData={formData}
-                  onInputChange={handleInputChange}
-                  onAddBfMember={handleAddBfMember}
-                  onRemoveBfMember={handleRemoveBfMember}
-                  onBfMemberChange={handleBfMemberChange}
-                  errors={errors}
-                />
-              )}
-
-              {currentStep === 4 && (
                 <Step4Documentos 
                   formData={formData}
                   uploadStatus={uploadStatus}
@@ -891,7 +900,7 @@ export default function PersonaJuridicaPage() {
                 />
               )}
 
-              {currentStep === 5 && (
+              {currentStep === 3 && (
                 <Step5Declaracion 
                   formData={formData}
                   onInputChange={handleInputChange}
