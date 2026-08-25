@@ -8,10 +8,9 @@ RUN npm install -g pnpm@latest
 WORKDIR /app
 
 # Copiar archivos de dependencias
-COPY package.json pnpm-lock.yaml* ./
+COPY package.json pnpm-lock.yaml* .npmrc ./
 
 # Instalar dependencias
-RUN pnpm config set only-built-dependencies-compat true
 RUN pnpm install --no-frozen-lockfile
 
 # Copiar el resto del código de la aplicación
