@@ -5,14 +5,17 @@ import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useEffect, useState } from "react";
 import { BfMember, FormState, GjcMember, INITIAL_FORM_STATE } from "@/types/persona-juridica";
 
+import dynamic from "next/dynamic";
 import Header from "@/components/persona-juridica/Header";
 import PoliciesScreen from "@/components/persona-juridica/PoliciesScreen";
 import FormStepper from "@/components/persona-juridica/FormStepper";
-import Step1Identificacion from "@/components/persona-juridica/Step1Identificacion";
-import Step2GobiernoRL from "@/components/persona-juridica/Step2GobiernoRL";
-import Step3Finanzas from "@/components/persona-juridica/Step3Finanzas";
-import Step4Documentos from "@/components/persona-juridica/Step4Documentos";
-import Step5Declaracion from "@/components/persona-juridica/Step5Declaracion";
+
+const Step1Identificacion = dynamic(() => import("@/components/persona-juridica/Step1Identificacion"), { ssr: false });
+const Step2GobiernoRL = dynamic(() => import("@/components/persona-juridica/Step2GobiernoRL"), { ssr: false });
+const Step3Finanzas = dynamic(() => import("@/components/persona-juridica/Step3Finanzas"), { ssr: false });
+const Step4Documentos = dynamic(() => import("@/components/persona-juridica/Step4Documentos"), { ssr: false });
+const Step5Declaracion = dynamic(() => import("@/components/persona-juridica/Step5Declaracion"), { ssr: false });
+
 import NavigationButtons from "@/components/persona-juridica/NavigationButtons";
 import { generatePDF } from "@/lib/pdfGenerator";
 import { 

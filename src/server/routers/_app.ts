@@ -7,6 +7,7 @@ import { syncFormToCrm } from "@/lib/crmSyncService";
 import { TRPCError } from "@trpc/server";
 import { logAuditEvent, computeDiff, sanitizeDetails } from "@/lib/auditService";
 import { zoho, mergeCrmAndDraft } from "@/lib/zohoService";
+import { sanitizeInput } from "@/lib/sanitizer";
 
 /**
  * Passive scanning function to identify expired tokens, mark them as noted in the DB,
@@ -609,7 +610,7 @@ export const appRouter = router({
       const updated = await ctx.prisma.form.update({
         where: { id: input.formId },
         data: {
-          conclusionesVerificacion: input.conclusiones,
+          conclusionesVerificacion: sanitizeInput(input.conclusiones),
         },
       });
       return updated;
@@ -850,7 +851,10 @@ export const appRouter = router({
       // 3. Perform final validation based on type
       const isNatural = draft.type === "NATURAL";
       const schema = isNatural ? naturalFormSchema : juridicaFormSchema;
-      const validation = schema.safeParse(draftData);
+      
+      // Sanitizar recursivamente los inputs contra inyecciones XSS antes de validar y guardar
+      const sanitizedDraftData = sanitizeInput(draftData);
+      const validation = schema.safeParse(sanitizedDraftData);
 
       if (!validation.success) {
         throw new TRPCError({

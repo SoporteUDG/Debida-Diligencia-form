@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { logAuditEvent, computeDiff } from "@/lib/auditService";
+import { sanitizeInput } from "@/lib/sanitizer";
 
 export const dynamic = "force-dynamic";
 
@@ -30,18 +31,20 @@ export async function POST(request: NextRequest) {
       where: { token },
     });
 
+    const sanitizedData = sanitizeInput(data || {});
+
     // Upsert the draft in the database
     const draft = await prisma.draft.upsert({
       where: { token },
       update: {
-        data: data || {},
+        data: sanitizedData,
         step: step || 1,
         updatedAt: new Date(),
       },
       create: {
         token,
         type: formType,
-        data: data || {},
+        data: sanitizedData,
         step: step || 1,
       },
     });

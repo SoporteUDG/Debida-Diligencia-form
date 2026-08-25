@@ -5,14 +5,17 @@ import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useEffect, useState } from "react";
 import { FormState, INITIAL_FORM_STATE } from "@/types/persona-natural";
 
+import dynamic from "next/dynamic";
 import Header from "@/components/persona-natural/Header";
 import PoliciesScreen from "@/components/persona-natural/PoliciesScreen";
 import FormStepper from "@/components/persona-natural/FormStepper";
-import Step1DatosPersonales from "@/components/persona-natural/Step1DatosPersonales";
-import Step2PerfilFinanciero from "@/components/persona-natural/Step2PerfilFinanciero";
-import Step3PerfilFinanciero from "@/components/persona-natural/Step3PerfilFinanciero";
-import Step3Documentos from "@/components/persona-natural/Step3Documentos";
-import Step4FirmaDeclaracion from "@/components/persona-natural/Step4FirmaDeclaracion";
+
+const Step1DatosPersonales = dynamic(() => import("@/components/persona-natural/Step1DatosPersonales"), { ssr: false });
+const Step2PerfilFinanciero = dynamic(() => import("@/components/persona-natural/Step2PerfilFinanciero"), { ssr: false });
+const Step3PerfilFinanciero = dynamic(() => import("@/components/persona-natural/Step3PerfilFinanciero"), { ssr: false });
+const Step3Documentos = dynamic(() => import("@/components/persona-natural/Step3Documentos"), { ssr: false });
+const Step4FirmaDeclaracion = dynamic(() => import("@/components/persona-natural/Step4FirmaDeclaracion"), { ssr: false });
+
 import NavigationButtons from "@/components/persona-natural/NavigationButtons";
 import { generatePDF } from "@/lib/pdfGenerator";
 import { 

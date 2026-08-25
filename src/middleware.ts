@@ -1,6 +1,26 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
+// In-memory rate limiting map cache
+const ipCache = new Map<string, { count: number; resetTime: number }>();
+const WINDOW_MS = 60 * 1000; // 1 minute window
+
+function isRateLimited(ip: string, limit: number, windowMs: number): boolean {
+  const now = Date.now();
+  const clientData = ipCache.get(ip);
+  if (!clientData) {
+    ipCache.set(ip, { count: 1, resetTime: now + windowMs });
+    return false;
+  }
+  if (now > clientData.resetTime) {
+    clientData.count = 1;
+    clientData.resetTime = now + windowMs;
+    return false;
+  }
+  clientData.count++;
+  return clientData.count > limit;
+}
+
 /**
  * Converts a hex string into a Uint8Array.
  */
@@ -60,6 +80,27 @@ async function verifySessionToken(token: string): Promise<boolean> {
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // Rate Limiter for API calls
+  if (pathname.startsWith("/api")) {
+    const ip = request.headers.get("x-forwarded-for")?.split(",")[0] || request.headers.get("x-real-ip") || (request as any).ip || "127.0.0.1";
+    const isLoginOrSubmit = pathname.includes("login") || pathname.includes("submit") || pathname.includes("upload");
+    const limit = isLoginOrSubmit ? 20 : 100; // Stricter limit of 20 req/min for login/submit/upload
+    
+    if (isRateLimited(ip, limit, WINDOW_MS)) {
+      console.warn(`[Middleware Security] Rate limit excedido para IP: ${ip} en la ruta: ${pathname}`);
+      return new NextResponse(
+        JSON.stringify({ success: false, error: "Demasiadas peticiones. Por favor intente más tarde (Límite excedido)." }),
+        {
+          status: 429,
+          headers: {
+            "Content-Type": "application/json; charset=utf-8",
+            "Retry-After": "60",
+          },
+        }
+      );
+    }
+  }
 
   // Protect all /admin routes (except /admin/login)
   if (pathname.startsWith("/admin") && pathname !== "/admin/login") {
