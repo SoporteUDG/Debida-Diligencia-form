@@ -40,5 +40,16 @@
   },
   "prisma": {
     "seed": "npx tsx prisma/seed.ts"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@prisma/engines",
+      "@prisma/client",
+      "bcrypt",
+      "core-js",
+      "prisma",
+      "sharp",
+      "unrs-resolver"
+    ]
   }
 }
