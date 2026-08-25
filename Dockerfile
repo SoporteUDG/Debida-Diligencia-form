@@ -3,7 +3,7 @@ FROM node:22-slim AS base
 
 # Instalar openssl (requerido por Prisma) y pnpm
 RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
-RUN npm install -g pnpm@latest
+RUN npm install -g pnpm@9
 
 WORKDIR /app
 
@@ -26,7 +26,7 @@ RUN pnpm run build
 FROM node:22-slim AS runner
 
 RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
-RUN npm install -g pnpm@latest
+RUN npm install -g pnpm@9
 
 WORKDIR /app
 
