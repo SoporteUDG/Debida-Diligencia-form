@@ -45,7 +45,7 @@ export default function NavigationButtons({
           Atrás
         </button>
 
-        {currentStep < 5 ? (
+        {currentStep < 3 ? (
           <button
             type="button"
             onClick={onNextStep}

@@ -10,11 +10,9 @@ interface FormStepperProps {
 
 export default function FormStepper({ currentStep, onStepClick, isStepValid }: FormStepperProps) {
   const steps = [
-    { num: 1, label: "Datos Personales", icon: User },
-    { num: 2, label: "Jurisdicción", icon: MapPin },
-    { num: 3, label: "Perfil Financiero", icon: Coins },
-    { num: 4, label: "Documentos", icon: UploadCloud },
-    { num: 5, label: "Declaración", icon: PenTool },
+    { num: 1, label: "Datos Generales", icon: User },
+    { num: 2, label: "Documentos", icon: UploadCloud },
+    { num: 3, label: "Declaración", icon: PenTool },
   ];
 
   return (
@@ -24,7 +22,7 @@ export default function FormStepper({ currentStep, onStepClick, isStepValid }: F
         <div className="absolute top-1/2 left-0 right-0 h-[1px] bg-zinc-800 -translate-y-1/2 z-0"></div>
         <div 
           className="absolute top-1/2 left-0 h-[1px] bg-[#c8a788] -translate-y-1/2 transition-all duration-500 ease-out z-0"
-          style={{ width: `${((currentStep - 1) / 4) * 100}%` }}
+          style={{ width: `${((currentStep - 1) / 2) * 100}%` }}
         ></div>
 
         {steps.map((step) => {

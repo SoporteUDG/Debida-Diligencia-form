@@ -99,9 +99,9 @@ const percentageValidator = (fieldName: string, isRequired = false) => {
 // ==========================================
 
 export const naturalStep1Schema = z.object({
+  // Datos Generales
   nombreProyecto: requiredString("Nombre del Proyecto"),
   formaContacto: optionalString,
-  
   firstName: requiredString("Nombre"),
   lastName: requiredString("Apellido(s)"),
   paisNacimiento: requiredString("País de Nacimiento"),
@@ -113,9 +113,8 @@ export const naturalStep1Schema = z.object({
   idNumber: requiredString("N° de Identificación"),
   estatusMigratorio: optionalString,
   fechaNacimiento: adultBirthdateValidator("Fecha de Nacimiento"),
-});
 
-export const naturalStep2Schema = z.object({
+  // Ubicación y Datos Laborales
   direccionResidencial: requiredString("Dirección residencial"),
   ciudad: optionalString,
   provinciaEstado: optionalString,
@@ -141,6 +140,19 @@ export const naturalStep2Schema = z.object({
   actEconSecundaria: optionalString,
   pctDedicacionSecundaria: percentageValidator("Porcentaje de Dedicación Secundaria"),
   jurisdiccionSecundaria: optionalString,
+
+  // Perfil Financiero y PEP
+  ingresosMensuales: requiredString("Ingresos Mensuales"),
+  medioPago: requiredString("Medio de Pago"),
+  fuenteFondosInmueble: requiredString("Fuente de Fondos"),
+  montoServiciosAnuales: requiredString("Monto de Servicios Anuales"),
+  adquiereNombreTercero: requiredString("Adquisición a nombre de terceros"),
+  destinoInmueble: requiredString("Destino del Inmueble"),
+  esPep: requiredString("Persona Expuesta Políticamente (PEP)"),
+  pepNombre: optionalString,
+  pepCargo: optionalString,
+  pepInstitucion: optionalString,
+  pepRelacion: optionalString,
 }).superRefine((data, ctx) => {
   // Conditional: profession === "Otros"
   if (data.profession === "Otros" && (!data.profesionOtros || data.profesionOtros.trim() === "")) {
@@ -168,21 +180,7 @@ export const naturalStep2Schema = z.object({
       path: ["pctDedicacionSecundaria"],
     });
   }
-});
-
-export const naturalStep3Schema = z.object({
-  ingresosMensuales: requiredString("Ingresos Mensuales"),
-  medioPago: requiredString("Medio de Pago"),
-  fuenteFondosInmueble: requiredString("Fuente de Fondos"),
-  montoServiciosAnuales: requiredString("Monto de Servicios Anuales"),
-  adquiereNombreTercero: requiredString("Adquisición a nombre de terceros"),
-  destinoInmueble: requiredString("Destino del Inmueble"),
-  esPep: requiredString("Persona Expuesta Políticamente (PEP)"),
-  pepNombre: optionalString,
-  pepCargo: optionalString,
-  pepInstitucion: optionalString,
-  pepRelacion: optionalString,
-}).superRefine((data, ctx) => {
+  // Conditional PEP fields
   if (data.esPep === "Sí") {
     if (!data.pepNombre || data.pepNombre.trim() === "") {
       ctx.addIssue({
@@ -215,7 +213,8 @@ export const naturalStep3Schema = z.object({
   }
 });
 
-export const naturalStep4Schema = z.object({
+// Paso 2: Documentos (Anterior Paso 4)
+export const naturalStep2Schema = z.object({
   idFile: requiredString("Copia de ID"),
   proofAddressFile: optionalString,
   origenFondosFile: optionalString,
@@ -224,23 +223,26 @@ export const naturalStep4Schema = z.object({
   otrosAdjuntosFile: optionalString,
 });
 
-export const naturalStep5Schema = z.object({
+// Paso 3: Declaración y Firma (Anterior Paso 5)
+export const naturalStep3Schema = z.object({
   termsAccepted: z.boolean().refine(val => val === true, "Debe aceptar los términos y condiciones de la declaración jurada"),
   signerName: requiredString("Nombre del Firmante"),
   signatureDate: pastOrTodayDateValidator("Fecha de Firma"),
   firmaImage: requiredString("Firma Digital (Imagen de la firma)"),
 });
 
+// Placeholder step schemas for compatibility with unused imports if any
+export const naturalStep4Schema = z.object({});
+export const naturalStep5Schema = z.object({});
+
 // Final Combined Schema for Natural Person
 export const naturalFormSchema = z.object({
   ...naturalStep1Schema.shape,
   ...naturalStep2Schema.shape,
   ...naturalStep3Schema.shape,
-  ...naturalStep4Schema.shape,
-  ...naturalStep5Schema.shape,
   conclusionesVerificacion: optionalString,
 }).superRefine((data, ctx) => {
-  // Apply the same conditional refinements from step 2
+  // Apply the same conditional refinements
   if (data.profession === "Otros" && (!data.profesionOtros || data.profesionOtros.trim() === "")) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
@@ -271,10 +273,45 @@ export const naturalFormSchema = z.object({
 // PERSONA JURÍDICA SCHEMAS BY STEP
 // ==========================================
 
+// GjcMember Schema (Junta Directiva)
+export const gjcMemberSchema = z.object({
+  id: z.string(),
+  cargo: requiredString("Cargo de Miembro GJC"),
+  nombre: requiredString("Nombre de Miembro GJC"),
+  apellidos: requiredString("Apellidos de Miembro GJC"),
+  nacionalidad: requiredString("Nacionalidad de Miembro GJC"),
+  fechaNacimiento: adultBirthdateValidator("Fecha de Nacimiento de Miembro GJC"),
+  nroId: requiredString("No. de Identificación de Miembro GJC"),
+  direccion: requiredString("Dirección de Miembro GJC"),
+});
+
+// Helper for required percentage in dynamic bfMemberSchema
+function requiredPercentageStringValidator(fieldName: string) {
+  return z.string({ message: `${fieldName} es requerido` })
+    .min(1, `${fieldName} es requerido`)
+    .refine(val => {
+      const num = parseFloat(val);
+      return !isNaN(num) && num > 0 && num <= 100;
+    }, `${fieldName} debe estar entre 0.01 y 100%`);
+}
+
+// BfMember Schema (Beneficiario Final)
+export const bfMemberSchema = z.object({
+  id: z.string(),
+  nombreCompleto: requiredString("Nombre Completo de Beneficiario Final"),
+  noIdentificacion: requiredString("No. Identificación de Beneficiario Final"),
+  nacionalidad: requiredString("Nacionalidad de Beneficiario Final"),
+  fechaAdquisicion: pastOrTodayDateValidator("Fecha de Adquisición de BF"),
+  porcentajeParticipacion: requiredPercentageStringValidator("Porcentaje de Participación de BF"),
+  paisNacimiento: requiredString("País de Nacimiento de Beneficiario Final"),
+  direccion: requiredString("Dirección de Beneficiario Final"),
+});
+
+// Paso 1: Datos de la Empresa, Gobierno y Finanzas (Unifica antiguos pasos 1, 2 y 3)
 export const juridicaStep1Schema = z.object({
+  // Identificación
   nombreProyecto: requiredString("Nombre del Proyecto"),
   formaContacto: optionalString,
-
   razonSocial: requiredString("Razón Social"),
   tipoSociedad: optionalString,
   tipoCliente: optionalString,
@@ -306,21 +343,8 @@ export const juridicaStep1Schema = z.object({
   empresaCelularCodigo: z.string().default("+507"),
   empresaCelular: optionalPhoneValidator,
   empresaEmail: optionalEmailValidator,
-});
 
-// GjcMember Schema (Junta Directiva)
-export const gjcMemberSchema = z.object({
-  id: z.string(),
-  cargo: requiredString("Cargo de Miembro GJC"),
-  nombre: requiredString("Nombre de Miembro GJC"),
-  apellidos: requiredString("Apellidos de Miembro GJC"),
-  nacionalidad: requiredString("Nacionalidad de Miembro GJC"),
-  fechaNacimiento: adultBirthdateValidator("Fecha de Nacimiento de Miembro GJC"),
-  nroId: requiredString("No. de Identificación de Miembro GJC"),
-  direccion: requiredString("Dirección de Miembro GJC"),
-});
-
-export const juridicaStep2Schema = z.object({
+  // Gobierno y RL
   rlNombre: requiredString("Nombre y Apellido de Representante Legal"),
   rlFechaNacimiento: adultBirthdateValidator("Fecha de Nacimiento de Representante Legal"),
   rlNacionalidad: requiredString("Nacionalidad de Representante Legal"),
@@ -332,31 +356,8 @@ export const juridicaStep2Schema = z.object({
   rlTelefono: optionalPhoneValidator,
   rlObjetoInvestigacion: requiredString("Pregunta Legal AML"),
   gjcMembers: z.array(gjcMemberSchema).min(1, "Debe agregar al menos un (1) miembro de Gobierno Corporativo / Junta Directiva"),
-});
 
-// Helper for required percentage in dynamic bfMemberSchema
-function requiredPercentageStringValidator(fieldName: string) {
-  return z.string({ message: `${fieldName} es requerido` })
-    .min(1, `${fieldName} es requerido`)
-    .refine(val => {
-      const num = parseFloat(val);
-      return !isNaN(num) && num > 0 && num <= 100;
-    }, `${fieldName} debe estar entre 0.01 y 100%`);
-}
-
-// BfMember Schema (Beneficiario Final)
-export const bfMemberSchema = z.object({
-  id: z.string(),
-  nombreCompleto: requiredString("Nombre Completo de Beneficiario Final"),
-  noIdentificacion: requiredString("No. Identificación de Beneficiario Final"),
-  nacionalidad: requiredString("Nacionalidad de Beneficiario Final"),
-  fechaAdquisicion: pastOrTodayDateValidator("Fecha de Adquisición de BF"),
-  porcentajeParticipacion: requiredPercentageStringValidator("Porcentaje de Participación de BF"),
-  paisNacimiento: requiredString("País de Nacimiento de Beneficiario Final"),
-  direccion: requiredString("Dirección de Beneficiario Final"),
-});
-
-export const juridicaStep3Schema = z.object({
+  // Beneficiarios Finales y Finanzas
   bfMembers: z.array(bfMemberSchema).min(1, "Debe registrar al menos un (1) Beneficiario Final"),
   ingresosMensuales: requiredString("Ingresos Mensuales"),
   medioPago: requiredString("Medio de Pago"),
@@ -419,7 +420,8 @@ export const juridicaStep3Schema = z.object({
   }
 });
 
-export const juridicaStep4Schema = z.object({
+// Paso 2: Documentos (Anterior Paso 4)
+export const juridicaStep2Schema = z.object({
   avisoOperacionesFile: requiredString("Copia de Certificado de Aviso de Operaciones"),
   copiaIdFile: requiredString("Copia de Cédula o Pasaporte"),
   origenFondosFile: optionalString,
@@ -437,7 +439,8 @@ export const juridicaStep4Schema = z.object({
   checkedCertRegistro: z.boolean().default(false),
 });
 
-export const juridicaStep5Schema = z.object({
+// Paso 3: Declaración y Firma (Anterior Paso 5)
+export const juridicaStep3Schema = z.object({
   termsAccepted: z.boolean().refine(val => val === true, "Debe aceptar la declaración jurada"),
   signerName: requiredString("Nombre del Representante Legal o Firmante"),
   signatureDate: pastOrTodayDateValidator("Fecha de Firma"),
@@ -445,16 +448,18 @@ export const juridicaStep5Schema = z.object({
   crmid: optionalString,
 });
 
+// Placeholders for compatibility
+export const juridicaStep4Schema = z.object({});
+export const juridicaStep5Schema = z.object({});
+
 // Final Combined Schema for Juridical Person
 export const juridicaFormSchema = z.object({
   ...juridicaStep1Schema.shape,
   ...juridicaStep2Schema.shape,
   ...juridicaStep3Schema.shape,
-  ...juridicaStep4Schema.shape,
-  ...juridicaStep5Schema.shape,
   conclusionesVerificacion: optionalString,
 }).superRefine((data, ctx) => {
-  // Validate GjcMembers items (to match step 2)
+  // Validate GjcMembers items
   if (!data.gjcMembers || data.gjcMembers.length === 0) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
@@ -463,7 +468,7 @@ export const juridicaFormSchema = z.object({
     });
   }
 
-  // Validate BfMembers items (to match step 3)
+  // Validate BfMembers items
   if (!data.bfMembers || data.bfMembers.length === 0) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,

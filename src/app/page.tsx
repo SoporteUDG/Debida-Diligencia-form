@@ -57,6 +57,7 @@ export default function WelcomeHub() {
           {/* Card 1: Persona Natural */}
           <Link
             href="/persona-natural"
+            prefetch={false}
             className="group block bg-[#081827] border border-zinc-800/80 hover:border-[#c8a788]/40 rounded-2xl p-8 shadow-xl text-left transition-all duration-300 hover:shadow-2xl hover:shadow-[#c8a788]/5 hover:-translate-y-1 relative overflow-hidden cursor-pointer"
           >
             <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-[#c8a788]/10 to-transparent rounded-bl-full opacity-50 group-hover:scale-110 transition-transform"></div>
@@ -81,6 +82,7 @@ export default function WelcomeHub() {
           {/* Card 2: Persona Jurídica */}
           <Link
             href="/persona-juridica"
+            prefetch={false}
             className="group block bg-[#081827] border border-zinc-800/80 hover:border-[#c8a788]/40 rounded-2xl p-8 shadow-xl text-left transition-all duration-300 hover:shadow-2xl hover:shadow-[#c8a788]/5 hover:-translate-y-1 relative overflow-hidden cursor-pointer"
           >
             <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-[#c8a788]/10 to-transparent rounded-bl-full opacity-50 group-hover:scale-110 transition-transform"></div>
