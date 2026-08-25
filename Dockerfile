@@ -1,9 +1,9 @@
 # --- BUILD STAGE ---
 FROM node:22-slim AS base
 
-# Instalar openssl (requerido por Prisma) y pnpm v9
+# Instalar openssl (requerido por Prisma) y pnpm
 RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
-RUN npm install -g pnpm@9.15.4
+RUN npm install -g pnpm@latest
 
 WORKDIR /app
 
@@ -11,7 +11,7 @@ WORKDIR /app
 COPY package.json pnpm-lock.yaml* ./
 
 # Instalar dependencias
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --no-frozen-lockfile
 
 # Copiar el resto del código de la aplicación
 COPY . .
@@ -26,7 +26,7 @@ RUN pnpm run build
 FROM node:22-slim AS runner
 
 RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
-RUN npm install -g pnpm@9.15.4
+RUN npm install -g pnpm@latest
 
 WORKDIR /app
 
