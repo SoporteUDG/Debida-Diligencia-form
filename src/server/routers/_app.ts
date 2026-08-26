@@ -262,7 +262,7 @@ export const appRouter = router({
           token: ctx.client!.tokenUuid as string,
           type: ctx.client!.type as any,
           data: mergedData,
-          step: 1,
+          step: 0,
           crmContactId: ctx.client!.crmContactId || null,
         },
       });
@@ -766,6 +766,13 @@ export const appRouter = router({
         lastName: lastName,
         email: email,
         celular: phone,
+        idNumber: crmData.idNumber || crmData.contactoId || "",
+        // Specific fields for Persona Jurídica Contact Person:
+        contactoNombre: crmData.contactoNombre || firstName,
+        contactoApellido: crmData.contactoApellido || lastName,
+        contactoEmail: crmData.contactoEmail || email,
+        contactoTelefono: crmData.contactoTelefono || phone,
+        contactoId: crmData.contactoId || crmData.idNumber || "",
         razonSocial: crmData.razonSocial || "",
         numeroDocumento: crmData.numeroDocumento || "",
       };
@@ -776,7 +783,7 @@ export const appRouter = router({
           token: tokenUuid,
           type: input.clientType as any,
           crmContactId: localContact.id,
-          step: 1,
+          step: 0,
           data: initialPayload,
         },
       });

@@ -53,6 +53,7 @@ describe("ZohoService Unit Tests", () => {
         contactoApellido: "Ramírez",
         contactoEmail: "jorge.ramirez@example.com",
         contactoTelefono: "5073004000",
+        contactoId: "",
         rlNombre: "Jorge Ramírez",
         rlNoIdentificacion: "8-111-1111",
         rlTelefono: "",

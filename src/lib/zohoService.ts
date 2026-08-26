@@ -39,6 +39,7 @@ export interface MappedCrmData {
   contactoApellido?: string;
   contactoEmail?: string;
   contactoTelefono?: string;
+  contactoId?: string;
   
   // Representative legal fields
   rlNombre?: string;
@@ -154,9 +155,19 @@ export function mapCrmRecord(record: any, moduleType: "Contacts" | "Leads"): Map
     const rlProfesionOcupacion = findValue(record, ["RL_Profesi_n_Ocupaci_n", "rlProfesionOcupacion"]);
     const rlActividadEconomica = findValue(record, ["RL_Actividad_Econ_mica", "rlActividadEconomica"]);
 
-    // Use contact name as form contact person
+    // Use contact name and ID as form contact person
     const contactFirstName = findValue(record, ["First_Name", "Nombre", "Nombres", "FirstName"]);
     const contactLastName = findValue(record, ["Last_Name", "Apellido", "Apellidos", "LastName"]);
+    const contactoId = findValue(record, [
+      "Identificacion",
+      "Cedula",
+      "Cédula",
+      "N_Identificacion",
+      "C_dula",
+      "C_dula_de_Identidad_Personal",
+      "C_dula_o_Pasaporte",
+      "C_I_P_Pasaporte",
+    ]);
 
     return {
       type,
@@ -167,6 +178,7 @@ export function mapCrmRecord(record: any, moduleType: "Contacts" | "Leads"): Map
       contactoApellido: contactLastName || "Comercial",
       contactoEmail: email,
       contactoTelefono: phone,
+      contactoId: contactoId,
       rlNombre,
       rlNoIdentificacion,
       rlTelefono,
