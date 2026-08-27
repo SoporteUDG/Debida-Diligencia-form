@@ -610,7 +610,7 @@ export default function PersonaNaturalPage() {
                 Expediente Enviado
               </h2>
               <p className="text-xs text-zinc-500 max-w-md mx-auto leading-relaxed">
-                Tu registro de Debida Diligencia ha sido formalizado y guardado con éxito. Un oficial de cumplimiento revisará tu documentación a la brevedad.
+                Tu formulario de Debida Diligencia ha sido formalizado y guardado con éxito. Un oficial de cumplimiento revisará tu documentación a la brevedad.
               </p>
             </div>
 

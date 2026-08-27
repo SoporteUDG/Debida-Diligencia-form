@@ -44,7 +44,7 @@ export default function WelcomeHub() {
             <span>Servicios Legales & Cumplimiento</span>
           </div>
           <h1 className="text-4xl md:text-5xl font-serif font-light tracking-wide text-white mb-4">
-            Registro de Debida Diligencia
+            Formulario Debida Diligencia
           </h1>
           <p className="text-zinc-400 text-xs md:text-sm leading-relaxed">
             De conformidad con los estándares de prevención de blanqueo de capitales, rogamos a nuestros clientes completar el formulario correspondiente para formalizar el expediente de adquisición en UDG Group.
