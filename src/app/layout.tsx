@@ -16,8 +16,13 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Perfil de Cliente - Persona Jurídica | UDG",
+  title: "Formulario Debida Diligencia | UDG",
   description: "Formulario de Debida Diligencia para clientes de Urban Development Group",
+  icons: {
+    icon: "/UDG_LOGO.png",
+    shortcut: "/UDG_LOGO.png",
+    apple: "/UDG_LOGO.png",
+  },
 };
 
 export default function RootLayout({
