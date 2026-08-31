@@ -595,53 +595,47 @@ export default function PersonaNaturalPage() {
 
   if (isSubmitted) {
     return (
-      <div className="min-h-screen bg-[#002b49] text-white flex flex-col justify-between selection:bg-[#c8a788]/30 font-sans">
+      <div className="min-h-screen bg-[#052B48] text-white flex flex-col justify-between selection:bg-[#DAB38D]/30 font-sans">
         <Header isSaving={false} lastSaved={null} />
         <main className="flex-1 max-w-2xl w-full mx-auto px-6 py-16 flex flex-col justify-center">
-          <div className="bg-white rounded-3xl p-8 md:p-12 shadow-2xl border border-zinc-200 text-zinc-900 text-center space-y-6 animate-scaleIn">
-            <div className="mx-auto w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600">
-              <svg className="w-8 h-8" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24">
+          <div className="bg-[#faf9f6] rounded-3xl p-8 md:p-12 shadow-2xl border-t-4 border-[#DAB38D] text-zinc-900 text-center space-y-6 animate-scaleIn">
+            <div className="mx-auto w-16 h-16 bg-emerald-500 text-white rounded-full flex items-center justify-center shadow-md">
+              <svg className="w-9 h-9" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
               </svg>
             </div>
             
-            <div className="space-y-2">
-              <h2 className="text-2xl md:text-3xl font-serif font-light text-[#002b49] tracking-wide">
-                Expediente Enviado
+            <div className="space-y-3">
+              <h2 className="text-3xl md:text-4xl font-serif font-light text-[#052B48] tracking-wide">
+                Formulario Enviado
               </h2>
-              <p className="text-xs text-zinc-500 max-w-md mx-auto leading-relaxed">
-                Tu formulario de Debida Diligencia ha sido formalizado y guardado con éxito. Un oficial de cumplimiento revisará tu documentación a la brevedad.
+              <p className="text-xs md:text-sm text-zinc-600 max-w-lg mx-auto leading-relaxed">
+                Su formulario de Debida Diligencia para Persona Natural ha sido recibido y registrado exitosamente. Nuestro equipo de cumplimiento revisará la documentación a la brevedad posible y, de ser necesario, nos pondremos en contacto con usted para solicitar información complementaria.
               </p>
             </div>
 
-            <div className="bg-[#f4f6f8] border border-zinc-250 rounded-2xl p-6 text-left text-xs text-zinc-700 space-y-3 font-sans max-w-md mx-auto">
-              <div className="flex justify-between border-b border-zinc-200 pb-2">
-                <span className="font-semibold text-zinc-500">ID del Expediente:</span>
-                <span className="font-bold text-[#002b49]">{submissionId}</span>
+            <div className="bg-white border border-zinc-200 rounded-2xl p-6 text-left text-xs text-zinc-700 space-y-3.5 font-sans max-w-md mx-auto shadow-sm">
+              <div className="flex justify-between border-b border-zinc-150 pb-2.5">
+                <span className="font-medium text-zinc-500">ID del Expediente</span>
+                <span className="font-bold text-[#052B48] select-all font-mono">{submissionId}</span>
               </div>
-              <div className="flex justify-between border-b border-zinc-200 pb-2">
-                <span className="font-semibold text-zinc-500">Cliente:</span>
-                <span className="font-bold text-[#002b49]">
+              <div className="flex justify-between border-b border-zinc-150 pb-2.5">
+                <span className="font-medium text-zinc-500">Cliente</span>
+                <span className="font-bold text-[#052B48]">
                   {submittedData?.firstName} {submittedData?.lastName}
                 </span>
               </div>
-              <div className="flex justify-between border-b border-zinc-200 pb-2">
-                <span className="font-semibold text-zinc-500">Proyecto:</span>
-                <span className="font-bold text-[#002b49]">{submittedData?.nombreProyecto}</span>
-              </div>
-              <div className="flex justify-between border-b border-zinc-200 pb-2">
-                <span className="font-semibold text-zinc-500">Fecha de Envío:</span>
-                <span className="font-bold text-[#002b49]">{submissionDate}</span>
+              <div className="flex justify-between border-b border-zinc-150 pb-2.5">
+                <span className="font-medium text-zinc-500">Proyecto</span>
+                <span className="font-bold text-[#052B48]">{submittedData?.nombreProyecto || "UDG General"}</span>
               </div>
               <div className="flex justify-between">
-                <span className="font-semibold text-zinc-500">Estado de Envío:</span>
-                <span className="bg-emerald-100 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded text-[10px] font-bold">
-                  ENVIADO
-                </span>
+                <span className="font-medium text-zinc-500">Fecha de Envío</span>
+                <span className="font-bold text-[#052B48]">{submissionDate}</span>
               </div>
             </div>
 
-            <div className="pt-6 flex flex-col sm:flex-row gap-4 justify-center">
+            <div className="pt-4 flex flex-col sm:flex-row gap-4 justify-center">
               <button
                 type="button"
                 onClick={() => {
@@ -649,26 +643,19 @@ export default function PersonaNaturalPage() {
                     generatePDF("natural", submittedData, submissionId, new Date().toLocaleDateString(), submittedDocuments);
                   }
                 }}
-                className="bg-gradient-to-r from-[#c8a788] to-yellow-600 hover:shadow-lg hover:shadow-[#c8a788]/20 text-zinc-950 px-6 py-3 rounded-xl text-xs font-bold uppercase tracking-wider transition cursor-pointer active:scale-95 flex items-center justify-center gap-2"
+                className="bg-[#DAB38D] hover:bg-[#c9a27c] text-zinc-950 font-semibold px-8 py-3.5 rounded-xl shadow-lg transition-all duration-300 active:scale-[0.98] cursor-pointer text-sm font-sans flex items-center justify-center gap-2.5"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
-                Descargar Resumen PDF
+                Descargar Documento en PDF
               </button>
-
-              <Link
-                href="/"
-                className="border border-zinc-300 hover:border-zinc-400 text-zinc-650 hover:text-zinc-800 px-6 py-3 rounded-xl text-xs font-bold uppercase tracking-wider transition cursor-pointer flex items-center justify-center gap-2"
-              >
-                Volver al Hub UDG
-              </Link>
             </div>
           </div>
         </main>
-        <footer className="border-t border-zinc-900/60 bg-black/30 py-8 text-center text-xs text-zinc-500">
-          <p className="font-serif text-[11px] font-medium tracking-[0.1em] text-zinc-300">
-            URBAN DEVELOPMENT GROUP (UDG)
+        <footer className="border-t border-zinc-800/40 bg-black/30 py-6 text-center text-xs text-zinc-400">
+          <p className="font-sans text-[11px] font-normal tracking-wider text-zinc-400">
+            © {new Date().getFullYear()} UDG Group. Todos los derechos reservados de conformidad con la ley de protección de datos.
           </p>
         </footer>
       </div>
