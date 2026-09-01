@@ -173,7 +173,7 @@ export default function AdminLayoutClient({
               <div key={item.label} className="relative group">
                 <Link
                   href={item.disabled ? "#" : item.path}
-                  onClick={(e) => {
+                  onClick={(e: React.MouseEvent) => {
                     if (item.disabled) {
                       e.preventDefault();
                     }

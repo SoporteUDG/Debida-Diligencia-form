@@ -32,6 +32,7 @@ export interface FormState {
   tipoDocumentoIdentidad: string;
   actividadPrincipal: string;
   numeroDocumento: string;
+  fechaVencimientoId: string;
   numeroIdTributaria: string;
   paisTributacion: string;
   porcentajeActividad: string;
@@ -124,6 +125,7 @@ export const INITIAL_FORM_STATE: FormState = {
   tipoDocumentoIdentidad: "",
   actividadPrincipal: "",
   numeroDocumento: "",
+  fechaVencimientoId: "",
   numeroIdTributaria: "",
   paisTributacion: "",
   porcentajeActividad: "",

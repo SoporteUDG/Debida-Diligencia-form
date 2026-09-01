@@ -13,6 +13,7 @@ export interface FormState {
   tipoIdentificacion: string;
   otraNacionalidad: string;
   idNumber: string; // N° de Identificación
+  fechaVencimientoId: string;
   estatusMigratorio: string;
   fechaNacimiento: string;
 
@@ -89,6 +90,7 @@ export const INITIAL_FORM_STATE: FormState = {
   tipoIdentificacion: "",
   otraNacionalidad: "",
   idNumber: "",
+  fechaVencimientoId: "",
   estatusMigratorio: "",
   fechaNacimiento: "",
 
