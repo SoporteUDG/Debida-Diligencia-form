@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { 
@@ -25,8 +25,28 @@ import {
   Loader2,
   CalendarPlus,
   RefreshCw,
-  Bell
+  Bell,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  Filter,
+  Calendar,
+  UserCheck
 } from "lucide-react";
+import {
+  useReactTable,
+  getCoreRowModel,
+  getFilteredRowModel,
+  getSortedRowModel,
+  getPaginationRowModel,
+  flexRender,
+  ColumnDef,
+  SortingState,
+} from "@tanstack/react-table";
 import { generatePDF } from "@/lib/pdfGenerator";
 
 interface Submission {
@@ -517,6 +537,80 @@ export default function AdminDashboard() {
     }
   };
 
+  // Filter States
+  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [filterAdvisor, setFilterAdvisor] = useState<string>("all");
+  const [dateFrom, setDateFrom] = useState<string>("");
+  const [dateTo, setDateTo] = useState<string>("");
+
+  // TanStack Table State
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
+
+  // Dynamically extract unique advisors from submissions
+  const availableAdvisors = useMemo(() => {
+    const advisors = new Set<string>();
+    submissions.forEach(sub => {
+      const name = sub.data?.advisorName || sub.data?.asesor || sub.data?.vendedor;
+      if (name && typeof name === "string" && name.trim()) {
+        advisors.add(name.trim());
+      }
+    });
+    return Array.from(advisors);
+  }, [submissions]);
+
+  // Combined Multi-Criteria Filtering
+  const filteredSubmissions = useMemo(() => {
+    return submissions.filter(sub => {
+      // 1. Text Search (Client, Project, ID)
+      const matchesSearch =
+        !search ||
+        sub.clientName.toLowerCase().includes(search.toLowerCase()) ||
+        sub.projectName.toLowerCase().includes(search.toLowerCase()) ||
+        sub.id.toLowerCase().includes(search.toLowerCase());
+
+      // 2. Type Filter (all, natural, juridica)
+      const matchesType = filterType === "all" || sub.type === filterType;
+
+      // 3. Status Filter (all, BORRADOR, PENDIENTE, COMPLETADO, EXPIRADO, APROBADO)
+      const normStatus = (sub.status || "").toUpperCase();
+      let matchesStatus = true;
+      if (filterStatus !== "all") {
+        if (filterStatus === "BORRADOR") matchesStatus = normStatus.includes("DRAFT") || normStatus.includes("BORRADOR");
+        else if (filterStatus === "PENDIENTE") matchesStatus = normStatus.includes("PENDING") || normStatus.includes("PENDIENTE");
+        else if (filterStatus === "COMPLETADO") matchesStatus = normStatus.includes("SUBMITTED") || normStatus.includes("COMPLETADO") || normStatus.includes("ENVIADO");
+        else if (filterStatus === "EXPIRADO") matchesStatus = normStatus.includes("EXPIRED") || normStatus.includes("EXPIRADO");
+        else if (filterStatus === "APROBADO") matchesStatus = normStatus.includes("APPROVED") || normStatus.includes("APROBADO");
+      }
+
+      // 4. Advisor Filter
+      const advisor = sub.data?.advisorName || sub.data?.asesor || sub.data?.vendedor || "";
+      const matchesAdvisor = filterAdvisor === "all" || advisor === filterAdvisor;
+
+      // 5. Date Range Filter
+      let matchesDate = true;
+      if (dateFrom || dateTo) {
+        const subDate = sub.submittedAt ? new Date(sub.submittedAt) : null;
+        if (!subDate) {
+          matchesDate = false;
+        } else {
+          if (dateFrom) {
+            const from = new Date(dateFrom);
+            from.setHours(0, 0, 0, 0);
+            if (subDate < from) matchesDate = false;
+          }
+          if (dateTo) {
+            const to = new Date(dateTo);
+            to.setHours(23, 59, 59, 999);
+            if (subDate > to) matchesDate = false;
+          }
+        }
+      }
+
+      return matchesSearch && matchesType && matchesStatus && matchesAdvisor && matchesDate;
+    });
+  }, [submissions, search, filterType, filterStatus, filterAdvisor, dateFrom, dateTo]);
+
   const handleDownloadPDF = (sub: Submission, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     const dateStr = sub.submittedAt 
@@ -525,13 +619,205 @@ export default function AdminDashboard() {
     generatePDF(sub.type, sub.data, sub.id, dateStr, sub.documents);
   };
 
-  // Filtrado y Búsqueda
-  const filteredList = submissions.filter(sub => {
-    const matchesSearch = sub.clientName.toLowerCase().includes(search.toLowerCase()) || 
-                          sub.projectName.toLowerCase().includes(search.toLowerCase()) ||
-                          sub.id.toLowerCase().includes(search.toLowerCase());
-    const matchesType = filterType === "all" ? true : sub.type === filterType;
-    return matchesSearch && matchesType;
+  // TanStack Table Column Definitions
+  const columns = useMemo<ColumnDef<Submission>[]>(
+    () => [
+      {
+        accessorKey: "id",
+        header: ({ column }) => (
+          <button
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="flex items-center gap-1.5 hover:text-white transition font-semibold"
+          >
+            <span>ID</span>
+            {column.getIsSorted() === "asc" ? (
+              <ArrowUp className="w-3 h-3 text-[#c8a788]" />
+            ) : column.getIsSorted() === "desc" ? (
+              <ArrowDown className="w-3 h-3 text-[#c8a788]" />
+            ) : (
+              <ArrowUpDown className="w-3 h-3 text-zinc-500" />
+            )}
+          </button>
+        ),
+        cell: ({ row }) => (
+          <span className="font-mono font-bold text-zinc-200">{row.original.id}</span>
+        ),
+      },
+      {
+        accessorKey: "clientName",
+        header: ({ column }) => (
+          <button
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="flex items-center gap-1.5 hover:text-white transition font-semibold"
+          >
+            <span>Cliente / Razón Social</span>
+            {column.getIsSorted() === "asc" ? (
+              <ArrowUp className="w-3 h-3 text-[#c8a788]" />
+            ) : column.getIsSorted() === "desc" ? (
+              <ArrowDown className="w-3 h-3 text-[#c8a788]" />
+            ) : (
+              <ArrowUpDown className="w-3 h-3 text-zinc-500" />
+            )}
+          </button>
+        ),
+        cell: ({ row }) => (
+          <span className="font-medium text-white">{row.original.clientName}</span>
+        ),
+      },
+      {
+        accessorKey: "projectName",
+        header: ({ column }) => (
+          <button
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="flex items-center gap-1.5 hover:text-white transition font-semibold"
+          >
+            <span>Proyecto</span>
+            {column.getIsSorted() === "asc" ? (
+              <ArrowUp className="w-3 h-3 text-[#c8a788]" />
+            ) : column.getIsSorted() === "desc" ? (
+              <ArrowDown className="w-3 h-3 text-[#c8a788]" />
+            ) : (
+              <ArrowUpDown className="w-3 h-3 text-zinc-500" />
+            )}
+          </button>
+        ),
+        cell: ({ row }) => <span className="text-zinc-300">{row.original.projectName}</span>,
+      },
+      {
+        accessorKey: "type",
+        header: "Tipo",
+        cell: ({ row }) => (
+          <span
+            className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+              row.original.type === "natural"
+                ? "bg-blue-900/30 text-blue-300 border border-blue-800/40"
+                : "bg-purple-900/30 text-purple-300 border border-purple-800/40"
+            }`}
+          >
+            {row.original.type === "natural" ? <User className="w-3 h-3" /> : <Building2 className="w-3 h-3" />}
+            {row.original.type === "natural" ? "Persona" : "Empresa"}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "status",
+        header: ({ column }) => (
+          <button
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="flex items-center gap-1.5 hover:text-white transition font-semibold"
+          >
+            <span>Estado</span>
+            {column.getIsSorted() === "asc" ? (
+              <ArrowUp className="w-3 h-3 text-[#c8a788]" />
+            ) : column.getIsSorted() === "desc" ? (
+              <ArrowDown className="w-3 h-3 text-[#c8a788]" />
+            ) : (
+              <ArrowUpDown className="w-3 h-3 text-zinc-500" />
+            )}
+          </button>
+        ),
+        cell: ({ row }) => {
+          const st = (row.original.status || "").toUpperCase();
+          let label = "Pendiente";
+          let color = "bg-yellow-950/40 text-yellow-300 border-yellow-800/30";
+
+          if (st.includes("DRAFT") || st.includes("BORRADOR")) {
+            label = "Borrador";
+            color = "bg-amber-950/40 text-amber-300 border-amber-800/30";
+          } else if (st.includes("APPROVED") || st.includes("APROBADO")) {
+            label = "Aprobado";
+            color = "bg-emerald-950/40 text-emerald-300 border-emerald-900/30";
+          } else if (st.includes("EXPIRED") || st.includes("EXPIRADO")) {
+            label = "Expirado";
+            color = "bg-red-950/40 text-red-300 border-red-900/30";
+          } else if (st.includes("SUBMITTED") || st.includes("COMPLETADO") || st.includes("ENVIADO")) {
+            label = "Completado";
+            color = "bg-blue-950/40 text-blue-300 border-blue-900/30";
+          }
+
+          return (
+            <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${color}`}>
+              {label}
+            </span>
+          );
+        },
+      },
+      {
+        accessorKey: "submittedAt",
+        header: ({ column }) => (
+          <button
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="flex items-center gap-1.5 hover:text-white transition font-semibold"
+          >
+            <span>Fecha Envío</span>
+            {column.getIsSorted() === "asc" ? (
+              <ArrowUp className="w-3 h-3 text-[#c8a788]" />
+            ) : column.getIsSorted() === "desc" ? (
+              <ArrowDown className="w-3 h-3 text-[#c8a788]" />
+            ) : (
+              <ArrowUpDown className="w-3 h-3 text-zinc-500" />
+            )}
+          </button>
+        ),
+        cell: ({ row }) => (
+          <span className="text-zinc-400 font-mono">
+            {row.original.submittedAt
+              ? new Date(row.original.submittedAt).toLocaleDateString("es-PA")
+              : "-"}
+          </span>
+        ),
+      },
+      {
+        id: "actions",
+        header: () => <span className="text-center block">Acciones</span>,
+        cell: ({ row }) => (
+          <div className="flex items-center justify-center gap-2" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => {
+                setSelectedSub(row.original);
+                setModalTab("general");
+                setShowDetailModal(true);
+              }}
+              title="Inspeccionar"
+              className="p-1.5 rounded-lg bg-zinc-800/80 hover:bg-[#c8a788] hover:text-zinc-950 text-zinc-400 transition active:scale-90"
+            >
+              <Eye className="w-4 h-4" />
+            </button>
+            <button
+              onClick={(e) => handleDownloadPDF(row.original, e)}
+              title="Descargar PDF"
+              className="p-1.5 rounded-lg bg-zinc-800/80 hover:bg-[#c8a788] hover:text-zinc-950 text-zinc-400 transition active:scale-90"
+            >
+              <Download className="w-4 h-4" />
+            </button>
+            <button
+              onClick={(e) => handleDelete(row.original.id, e)}
+              title="Eliminar"
+              className="p-1.5 rounded-lg bg-zinc-800/80 hover:bg-red-600 hover:text-white text-zinc-400 transition active:scale-90"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
+        ),
+      },
+    ],
+    []
+  );
+
+  // TanStack Table Instance
+  const table = useReactTable({
+    data: filteredSubmissions,
+    columns,
+    state: {
+      sorting,
+      pagination,
+    },
+    onSortingChange: setSorting,
+    onPaginationChange: setPagination,
+    getCoreRowModel: getCoreRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
   });
 
   return (
@@ -548,13 +834,13 @@ export default function AdminDashboard() {
                 Expedientes Recibidos
               </h2>
               <p className="text-xs text-zinc-400 leading-relaxed">
-                Revisa la documentación, formula conclusiones y descarga reportes PDF firmados de forma segura.
+                Revisa la documentación, consulta estados, filtra y descarga reportes PDF firmados.
               </p>
             </div>
             
             <div className="flex flex-wrap items-center gap-3">
               <div className="text-xs text-[#c8a788] font-bold bg-[#c8a788]/10 px-3 py-2 rounded-xl border border-[#c8a788]/20 select-none">
-                Total: {filteredList.length} expediente(s)
+                Total: {filteredSubmissions.length} expediente(s)
               </div>
 
               <button
@@ -583,57 +869,111 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          {/* Filtros y Buscador */}
-          <div className="bg-[#002b49]/60 border border-zinc-800 rounded-2xl p-4 flex flex-col md:flex-row gap-4 items-center">
-            {/* Buscador */}
-            <div className="relative flex-1 w-full">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
-              <input
-                type="text"
-                placeholder="Buscar por cliente, proyecto o ID..."
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                className="w-full bg-[#001b2e] border border-zinc-700/60 rounded-xl pl-10 pr-4 py-2.5 text-xs text-zinc-200 focus:outline-none focus:border-[#c8a788] transition"
-              />
+          {/* Panel de Filtros Combinados Avanzados (TanStack Table) */}
+          <div className="bg-[#002b49]/60 border border-zinc-800 rounded-2xl p-4 space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-3">
+              
+              {/* Buscador */}
+              <div className="relative md:col-span-2 lg:col-span-2">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+                <input
+                  type="text"
+                  placeholder="Buscar por cliente, proyecto o ID..."
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  className="w-full bg-[#001b2e] border border-zinc-700/60 rounded-xl pl-10 pr-4 py-2.5 text-xs text-zinc-200 focus:outline-none focus:border-[#c8a788] transition"
+                />
+              </div>
+
+              {/* Filtro por Estado (5 Estados) */}
+              <div>
+                <select
+                  value={filterStatus}
+                  onChange={e => setFilterStatus(e.target.value)}
+                  className="w-full bg-[#001b2e] border border-zinc-700/60 rounded-xl px-3 py-2.5 text-xs text-zinc-200 focus:outline-none focus:border-[#c8a788] transition cursor-pointer"
+                >
+                  <option value="all">Todos los Estados</option>
+                  <option value="BORRADOR">🟡 Borrador</option>
+                  <option value="PENDIENTE">🔵 Pendiente</option>
+                  <option value="COMPLETADO">🟢 Completado</option>
+                  <option value="EXPIRADO">🔴 Expirado</option>
+                  <option value="APROBADO">⭐ Aprobado</option>
+                </select>
+              </div>
+
+              {/* Filtro por Tipo de Cliente */}
+              <div>
+                <select
+                  value={filterType}
+                  onChange={e => setFilterType(e.target.value as any)}
+                  className="w-full bg-[#001b2e] border border-zinc-700/60 rounded-xl px-3 py-2.5 text-xs text-zinc-200 focus:outline-none focus:border-[#c8a788] transition cursor-pointer"
+                >
+                  <option value="all">Todos los Tipos</option>
+                  <option value="natural">Persona Natural</option>
+                  <option value="juridica">Persona Jurídica</option>
+                </select>
+              </div>
+
+              {/* Filtro por Asesor */}
+              <div>
+                <select
+                  value={filterAdvisor}
+                  onChange={e => setFilterAdvisor(e.target.value)}
+                  className="w-full bg-[#001b2e] border border-zinc-700/60 rounded-xl px-3 py-2.5 text-xs text-zinc-200 focus:outline-none focus:border-[#c8a788] transition cursor-pointer"
+                >
+                  <option value="all">Todos los Asesores</option>
+                  {availableAdvisors.map(adv => (
+                    <option key={adv} value={adv}>{adv}</option>
+                  ))}
+                </select>
+              </div>
             </div>
 
-            {/* Tabs de Filtro */}
-            <div className="flex bg-[#001b2e] border border-zinc-700/60 rounded-xl p-1 w-full md:w-auto">
-              <button
-                onClick={() => setFilterType("all")}
-                className={`flex-1 md:flex-none px-4 py-1.5 rounded-lg text-xs font-medium tracking-wide transition cursor-pointer ${
-                  filterType === "all" 
-                    ? "bg-[#c8a788] text-zinc-950 font-semibold shadow-md" 
-                    : "text-zinc-400 hover:text-zinc-200"
-                }`}
-              >
-                Todos
-              </button>
-              <button
-                onClick={() => setFilterType("natural")}
-                className={`flex-1 md:flex-none px-4 py-1.5 rounded-lg text-xs font-medium tracking-wide transition cursor-pointer ${
-                  filterType === "natural" 
-                    ? "bg-[#c8a788] text-zinc-950 font-semibold shadow-md" 
-                    : "text-zinc-400 hover:text-zinc-200"
-                }`}
-              >
-                Naturales
-              </button>
-              <button
-                onClick={() => setFilterType("juridica")}
-                className={`flex-1 md:flex-none px-4 py-1.5 rounded-lg text-xs font-medium tracking-wide transition cursor-pointer ${
-                  filterType === "juridica" 
-                    ? "bg-[#c8a788] text-zinc-950 font-semibold shadow-md" 
-                    : "text-zinc-400 hover:text-zinc-200"
-                }`}
-              >
-                Jurídicos
-              </button>
+            {/* Rango de Fechas */}
+            <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-zinc-800/60 text-xs">
+              <div className="flex items-center gap-1.5 text-zinc-400 font-semibold">
+                <Calendar className="w-3.5 h-3.5 text-[#c8a788]" />
+                <span>Rango de Fechas:</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-zinc-500 uppercase">Desde</span>
+                <input
+                  type="date"
+                  value={dateFrom}
+                  onChange={e => setDateFrom(e.target.value)}
+                  className="bg-[#001b2e] border border-zinc-700/60 rounded-lg px-2.5 py-1.5 text-xs text-zinc-200 focus:outline-none focus:border-[#c8a788]"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-zinc-500 uppercase">Hasta</span>
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={e => setDateTo(e.target.value)}
+                  className="bg-[#001b2e] border border-zinc-700/60 rounded-lg px-2.5 py-1.5 text-xs text-zinc-200 focus:outline-none focus:border-[#c8a788]"
+                />
+              </div>
+
+              {(filterStatus !== "all" || filterType !== "all" || filterAdvisor !== "all" || search || dateFrom || dateTo) && (
+                <button
+                  onClick={() => {
+                    setSearch("");
+                    setFilterStatus("all");
+                    setFilterType("all");
+                    setFilterAdvisor("all");
+                    setDateFrom("");
+                    setDateTo("");
+                  }}
+                  className="text-xs text-[#c8a788] hover:underline font-semibold ml-auto cursor-pointer"
+                >
+                  Limpiar Filtros
+                </button>
+              )}
             </div>
           </div>
 
-          {/* Listado de Expedientes */}
-          {filteredList.length === 0 ? (
+          {/* Listado de Expedientes con TanStack Table */}
+          {filteredSubmissions.length === 0 ? (
             <div className="border border-dashed border-zinc-800 rounded-3xl p-12 text-center space-y-4">
               <div className="w-12 h-12 rounded-full bg-zinc-800/40 flex items-center justify-center mx-auto text-zinc-500">
                 <FileText className="w-6 h-6" />
@@ -641,106 +981,124 @@ export default function AdminDashboard() {
               <div className="space-y-1">
                 <h3 className="text-sm font-medium text-zinc-300">No hay expedientes</h3>
                 <p className="text-xs text-zinc-500 max-w-sm mx-auto leading-normal">
-                  No se encontraron registros que coincidan con la búsqueda o aún no se han enviado expedientes. Puedes cargar datos de demostración en el botón superior.
+                  No se encontraron registros que coincidan con los criterios seleccionados. Intenta ajustar los filtros.
                 </p>
               </div>
             </div>
           ) : (
-            <div className="bg-[#002b49]/30 border border-zinc-800 rounded-2xl overflow-hidden shadow-xl">
+            <div className="bg-[#002b49]/30 border border-zinc-800 rounded-2xl overflow-hidden shadow-xl flex flex-col">
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse text-xs">
                   <thead>
-                    <tr className="border-b border-zinc-800 text-zinc-400 uppercase tracking-wider text-[10px] bg-zinc-900/20">
-                      <th className="py-4 px-6 font-semibold">ID</th>
-                      <th className="py-4 px-6 font-semibold">Cliente / Razón Social</th>
-                      <th className="py-4 px-6 font-semibold">Proyecto</th>
-                      <th className="py-4 px-6 font-semibold">Tipo</th>
-                      <th className="py-4 px-6 font-semibold">Estado</th>
-                      <th className="py-4 px-6 font-semibold">Fecha Envío</th>
-                      <th className="py-4 px-6 font-semibold text-center">Acciones</th>
-                    </tr>
+                    {table.getHeaderGroups().map((headerGroup) => (
+                      <tr key={headerGroup.id} className="border-b border-zinc-800 text-zinc-400 uppercase tracking-wider text-[10px] bg-zinc-900/40">
+                        {headerGroup.headers.map((header) => (
+                          <th key={header.id} className="py-4 px-6 font-semibold select-none">
+                            {header.isPlaceholder
+                              ? null
+                              : flexRender(header.column.columnDef.header, header.getContext())}
+                          </th>
+                        ))}
+                      </tr>
+                    ))}
                   </thead>
                   <tbody className="divide-y divide-zinc-800/60">
-                    {filteredList.map(sub => {
-                      const isSelected = selectedSub?.id === sub.id;
+                    {table.getRowModel().rows.map((row) => {
+                      const isSelected = selectedSub?.id === row.original.id;
                       return (
                         <tr
-                          key={sub.id}
-                          onClick={() => handleSelect(sub)}
+                          key={row.id}
+                          onClick={() => handleSelect(row.original)}
                           className={`hover:bg-[#c8a788]/5 transition cursor-pointer ${
                             isSelected ? "bg-[#c8a788]/10" : ""
                           }`}
                         >
-                          <td className="py-4 px-6 font-mono font-bold text-zinc-200">
-                            {sub.id}
-                          </td>
-                          <td className="py-4 px-6 font-medium text-white">
-                            {sub.clientName}
-                          </td>
-                          <td className="py-4 px-6 text-zinc-300">
-                            {sub.projectName}
-                          </td>
-                          <td className="py-4 px-6">
-                            <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                              sub.type === "natural" 
-                                ? "bg-blue-900/30 text-blue-300 border border-blue-800/40" 
-                                : "bg-purple-900/30 text-purple-300 border border-purple-800/40"
-                            }`}>
-                              {sub.type === "natural" ? (
-                                <User className="w-3 h-3" />
-                              ) : (
-                                <Building2 className="w-3 h-3" />
-                              )}
-                              {sub.type === "natural" ? "Persona" : "Empresa"}
-                            </span>
-                          </td>
-                          <td className="py-4 px-6">
-                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                              sub.status === "DRAFT" || sub.status === "Pendiente"
-                                ? "bg-yellow-950/40 text-yellow-300 border border-yellow-800/30"
-                                : sub.status === "APPROVED" || sub.status === "Aprobado"
-                                  ? "bg-emerald-950/40 text-emerald-300 border border-emerald-900/30"
-                                  : "bg-blue-950/40 text-blue-300 border border-blue-900/30"
-                            }`}>
-                              {sub.status === "DRAFT" || sub.status === "Pendiente" ? "Pendiente" : "Enviado"}
-                            </span>
-                          </td>
-                          <td className="py-4 px-6 text-zinc-400">
-                            {sub.submittedAt ? new Date(sub.submittedAt).toLocaleString() : "Pendiente (No enviado)"}
-                          </td>
-                          <td className="py-4 px-6 text-center" onClick={e => e.stopPropagation()}>
-                            <div className="flex items-center justify-center gap-2">
-                              <button
-                                onClick={() => {
-                                  handleSelect(sub);
-                                  setShowDetailModal(true);
-                                }}
-                                title="Ver Detalles"
-                                className="p-1.5 rounded-lg bg-zinc-800/80 hover:bg-[#c8a788] hover:text-zinc-950 text-zinc-400 transition active:scale-90"
-                              >
-                                <Eye className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={(e) => handleDownloadPDF(sub, e)}
-                                title="Descargar Expediente PDF"
-                                className="p-1.5 rounded-lg bg-zinc-800/80 hover:bg-[#c8a788] hover:text-zinc-950 text-zinc-400 transition active:scale-90"
-                              >
-                                <Download className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={(e) => handleDelete(sub.id, e)}
-                                title="Eliminar"
-                                className="p-1.5 rounded-lg bg-zinc-800/80 hover:bg-red-600 hover:text-white text-zinc-400 transition active:scale-90"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </div>
-                          </td>
+                          {row.getVisibleCells().map((cell) => (
+                            <td key={cell.id} className="py-4 px-6">
+                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                            </td>
+                          ))}
                         </tr>
                       );
                     })}
                   </tbody>
                 </table>
+              </div>
+
+              {/* Barra de Paginación de TanStack Table */}
+              <div className="bg-[#001b2e] border-t border-zinc-800 px-6 py-3.5 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs">
+                <div className="flex items-center gap-2 text-zinc-400">
+                  <span>
+                    Mostrando <strong className="text-white">{table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1}</strong> a{" "}
+                    <strong className="text-white">
+                      {Math.min(
+                        (table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
+                        filteredSubmissions.length
+                      )}
+                    </strong>{" "}
+                    de <strong className="text-[#c8a788]">{filteredSubmissions.length}</strong> expedientes
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-4">
+                  {/* Selector de Filas por Página */}
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-zinc-400 text-[11px]">Filas:</span>
+                    <select
+                      value={table.getState().pagination.pageSize}
+                      onChange={(e) => table.setPageSize(Number(e.target.value))}
+                      className="bg-[#002b49] border border-zinc-700/60 rounded-lg px-2 py-1 text-xs text-zinc-200 focus:outline-none cursor-pointer"
+                    >
+                      {[10, 25, 50, 100].map((pageSize) => (
+                        <option key={pageSize} value={pageSize}>
+                          {pageSize}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Indicador de Página */}
+                  <span className="text-zinc-400">
+                    Página <strong className="text-white">{table.getState().pagination.pageIndex + 1}</strong> de{" "}
+                    <strong className="text-white">{table.getPageCount()}</strong>
+                  </span>
+
+                  {/* Botones de Navegación Paginada */}
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => table.setPageIndex(0)}
+                      disabled={!table.getCanPreviousPage()}
+                      className="p-1.5 rounded-lg bg-zinc-800 text-zinc-300 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-zinc-700 transition"
+                      title="Primera Página"
+                    >
+                      <ChevronsLeft className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => table.previousPage()}
+                      disabled={!table.getCanPreviousPage()}
+                      className="p-1.5 rounded-lg bg-zinc-800 text-zinc-300 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-zinc-700 transition"
+                      title="Página Anterior"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => table.nextPage()}
+                      disabled={!table.getCanNextPage()}
+                      className="p-1.5 rounded-lg bg-zinc-800 text-zinc-300 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-zinc-700 transition"
+                      title="Página Siguiente"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => table.setPageIndex(table.getPageCount() - 1)}
+                      disabled={!table.getCanNextPage()}
+                      className="p-1.5 rounded-lg bg-zinc-800 text-zinc-300 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-zinc-700 transition"
+                      title="Última Página"
+                    >
+                      <ChevronsRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           )}
