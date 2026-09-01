@@ -49,7 +49,9 @@ export default function AdminDashboard() {
   const [conclusiones, setConclusiones] = useState("");
   const [showSuccessToast, setShowSuccessToast] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
-  const [modalTab, setModalTab] = useState<"general" | "socios" | "origen" | "expediente" | "firma">("general");
+  const [modalTab, setModalTab] = useState<"general" | "socios" | "origen" | "expediente" | "cronologia" | "firma">("general");
+  const [auditLogs, setAuditLogs] = useState<any[]>([]);
+  const [isLoadingAudit, setIsLoadingAudit] = useState(false);
 
   // Link Generation States
   const [showLinkModal, setShowLinkModal] = useState(false);
@@ -109,6 +111,30 @@ export default function AdminDashboard() {
   useEffect(() => {
     fetchSubmissions();
   }, []);
+
+  // Cargar Cronología / Auditoría del Expediente
+  const fetchAuditLogs = async (formId: string) => {
+    setIsLoadingAudit(true);
+    try {
+      const res = await fetch(`/api/trpc/getAuditTrail?input=${encodeURIComponent(JSON.stringify({ formId }))}`);
+      if (res.ok) {
+        const json = await res.json();
+        if (json.result?.data) {
+          setAuditLogs(json.result.data);
+        }
+      }
+    } catch (err) {
+      console.error("[Admin] Error fetching audit trail:", err);
+    } finally {
+      setIsLoadingAudit(false);
+    }
+  };
+
+  useEffect(() => {
+    if (selectedSub?.id) {
+      fetchAuditLogs(selectedSub.id);
+    }
+  }, [selectedSub?.id]);
 
   const saveSubmissions = (newList: Submission[]) => {
     setSubmissions(newList);
@@ -1238,6 +1264,15 @@ export default function AdminDashboard() {
                 Documentos e Integraciones
               </button>
               <button
+                onClick={() => setModalTab("cronologia")}
+                className={`px-4 py-2 rounded-lg text-xs font-medium transition cursor-pointer flex items-center gap-1.5 ${
+                  modalTab === "cronologia" ? "bg-[#c8a788]/20 text-[#c8a788] font-bold" : "text-zinc-400 hover:text-zinc-200"
+                }`}
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                Cronología / Auditoría
+              </button>
+              <button
                 onClick={() => setModalTab("firma")}
                 className={`px-4 py-2 rounded-lg text-xs font-medium transition cursor-pointer ${
                   modalTab === "firma" ? "bg-[#c8a788]/20 text-[#c8a788] font-bold" : "text-zinc-400 hover:text-zinc-200"
@@ -1664,6 +1699,85 @@ export default function AdminDashboard() {
                       </div>
                     </div>
                   </div>
+                </div>
+              )}
+
+              {modalTab === "cronologia" && (
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+                    <div>
+                      <h3 className="text-sm font-bold text-white tracking-wide">
+                        Línea de Tiempo de Auditoría (Cronología)
+                      </h3>
+                      <p className="text-[11px] text-zinc-400">
+                        Historial cronológico de accesos, guardados, cargas de documentos, envíos y sincronizaciones con Zoho CRM.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => fetchAuditLogs(selectedSub.id)}
+                      className="px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${isLoadingAudit ? "animate-spin" : ""}`} />
+                      Actualizar
+                    </button>
+                  </div>
+
+                  {isLoadingAudit ? (
+                    <div className="p-8 text-center text-zinc-400 flex items-center justify-center gap-2">
+                      <Loader2 className="w-5 h-5 animate-spin text-[#c8a788]" />
+                      <span>Cargando cronología del expediente...</span>
+                    </div>
+                  ) : auditLogs.length === 0 ? (
+                    <div className="border border-dashed border-zinc-800 rounded-2xl p-8 text-center text-zinc-500 space-y-2">
+                      <RefreshCw className="w-8 h-8 mx-auto text-zinc-600" />
+                      <p className="text-xs text-zinc-400">No hay registros de auditoría almacenados aún para este expediente.</p>
+                      <p className="text-[10px] text-zinc-500">Los eventos se registrarán automáticamente con cada interacción del cliente.</p>
+                    </div>
+                  ) : (
+                    <div className="relative pl-6 space-y-5 before:absolute before:left-2.5 before:top-3 before:bottom-3 before:w-0.5 before:bg-zinc-800">
+                      {auditLogs.map((log: any, idx: number) => {
+                        const isSubmit = log.action === "FORM_SUBMIT" || log.action === "FORM_APPROVED";
+                        const isDraft = log.action === "DRAFT_SAVE";
+                        
+                        let badgeColor = "bg-blue-900/30 text-blue-300 border-blue-800/40";
+                        if (isSubmit) badgeColor = "bg-emerald-900/30 text-emerald-300 border-emerald-800/40";
+                        if (isDraft) badgeColor = "bg-amber-900/30 text-amber-300 border-amber-800/40";
+                        if (log.action.includes("REJECT") || log.action.includes("EXPIRED")) badgeColor = "bg-red-900/30 text-red-300 border-red-800/40";
+
+                        return (
+                          <div key={log.id || idx} className="relative flex items-start gap-4 text-xs">
+                            <span className="absolute -left-6 top-1.5 w-3 h-3 rounded-full bg-[#c8a788] ring-4 ring-[#00223a]" />
+                            
+                            <div className="flex-1 bg-[#001b2e]/60 border border-zinc-800/80 p-4 rounded-xl space-y-2">
+                              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-800/60 pb-2">
+                                <div className="flex items-center gap-2">
+                                  <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${badgeColor}`}>
+                                    {log.action}
+                                  </span>
+                                  <span className="text-[10px] text-zinc-400 font-mono">
+                                    Actor: {log.actor}
+                                  </span>
+                                </div>
+                                <span className="text-[10px] text-[#c8a788] font-mono">
+                                  {new Date(log.timestamp).toLocaleString("es-PA", { dateStyle: "medium", timeStyle: "short" })}
+                                </span>
+                              </div>
+
+                              <p className="text-zinc-300 text-xs font-medium">
+                                Entidad: <span className="text-white">{log.entityName}</span> (ID: {log.entityId || "-"})
+                              </p>
+
+                              {log.details && (
+                                <div className="bg-zinc-950/40 p-2.5 rounded-lg border border-zinc-800/40 text-[11px] font-mono text-zinc-400 overflow-x-auto max-h-40">
+                                  <pre>{JSON.stringify(log.details, null, 2)}</pre>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               )}
 

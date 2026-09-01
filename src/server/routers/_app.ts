@@ -1029,6 +1029,36 @@ export const appRouter = router({
         submissionId: dbForm.id,
       };
     }),
+
+    // 12. Consultar Cronología / Audit Trail del Expediente
+    getAuditTrail: publicProcedure
+      .input(
+        z.object({
+          formId: z.string(),
+        })
+      )
+      .query(async ({ input, ctx }) => {
+        const logs = await ctx.prisma.auditLog.findMany({
+          where: {
+            OR: [
+              { entityId: input.formId },
+              { entityId: { contains: input.formId } },
+            ],
+          },
+          orderBy: { createdAt: "desc" },
+        });
+
+        return logs.map((log) => ({
+          id: log.id,
+          action: log.action,
+          entityName: log.entityName,
+          entityId: log.entityId,
+          actor: log.userId ? `Usuario (${log.userId})` : "Cliente / Sistema",
+          timestamp: log.createdAt.toISOString(),
+          ipAddress: log.ipAddress || "-",
+          details: log.details,
+        }));
+      }),
   }),
 });
 
