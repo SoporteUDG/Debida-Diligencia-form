@@ -94,6 +94,21 @@ const percentageValidator = (fieldName: string, isRequired = false) => {
 };
 
 
+// Expiration Date Validator (Identification Document must not be expired)
+const idExpirationDateValidator = (fieldName: string) =>
+  z.string()
+    .trim()
+    .optional()
+    .refine((val) => {
+      if (!val) return true;
+      const expDate = new Date(val);
+      if (isNaN(expDate.getTime())) return false;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      return expDate >= today;
+    }, `${fieldName} indica que el documento de identificación se encuentra VENCIDO. Por favor proporcione una identificación vigente.`);
+
+
 // ==========================================
 // PERSONA NATURAL SCHEMAS BY STEP
 // ==========================================
@@ -101,42 +116,43 @@ const percentageValidator = (fieldName: string, isRequired = false) => {
 export const naturalStep1Schema = z.object({
   // Datos Generales
   nombreProyecto: requiredString("Nombre del Proyecto"),
-  formaContacto: optionalString,
+  formaContacto: requiredString("Forma de Contacto"),
   firstName: requiredString("Nombre"),
   lastName: requiredString("Apellido(s)"),
   paisNacimiento: requiredString("País de Nacimiento"),
-  paisResidenciaFiscal: optionalString,
-  idTributaria: optionalString,
+  paisResidenciaFiscal: requiredString("País de Residencia Fiscal"),
+  idTributaria: requiredString("No. ID Tributaria"),
   nationality: requiredString("Nacionalidad"),
   tipoIdentificacion: requiredString("Tipo de Identificación"),
   otraNacionalidad: optionalString,
   idNumber: requiredString("N° de Identificación"),
-  estatusMigratorio: optionalString,
+  fechaVencimientoId: idExpirationDateValidator("Fecha de Vencimiento de Identificación"),
+  estatusMigratorio: requiredString("Estatus Migratorio"),
   fechaNacimiento: adultBirthdateValidator("Fecha de Nacimiento"),
 
   // Ubicación y Datos Laborales
   direccionResidencial: requiredString("Dirección residencial"),
-  ciudad: optionalString,
-  provinciaEstado: optionalString,
+  ciudad: requiredString("Ciudad"),
+  provinciaEstado: requiredString("Provincia / Estado"),
   paisResidencial: requiredString("País residencial"),
   email: emailValidator("E-mail"),
   telefonoCodigo: z.string().default("+507"),
-  telefono: optionalPhoneValidator,
+  telefono: phoneValidator("Teléfono"),
   celularCodigo: z.string().default("+507"),
   celular: phoneValidator("Celular"),
 
   profession: requiredString("Profesión u Oficio"),
   profesionOtros: optionalString,
-  paisActividadLaboral: optionalString,
+  paisActividadLaboral: requiredString("País de Actividad Laboral"),
   employer: requiredString("Nombre de Empresa Donde Labora"),
-  actividadLaboral: optionalString,
+  actividadLaboral: requiredString("Actividad Laboral"),
   actividadLaboralOtros: optionalString,
-  direccionLaboral: optionalString,
-  cargoDesempena: optionalString,
+  direccionLaboral: requiredString("Dirección Laboral"),
+  cargoDesempena: requiredString("Cargo que Desempeña"),
 
-  actEconPrincipal: optionalString,
-  pctDedicacionPrincipal: percentageValidator("Porcentaje de Dedicación Principal"),
-  jurisdiccionPrincipal: optionalString,
+  actEconPrincipal: requiredString("Actividad Económica Principal"),
+  pctDedicacionPrincipal: percentageValidator("Porcentaje de Dedicación Principal", true),
+  jurisdiccionPrincipal: requiredString("Jurisdicción Principal"),
   actEconSecundaria: optionalString,
   pctDedicacionSecundaria: percentageValidator("Porcentaje de Dedicación Secundaria"),
   jurisdiccionSecundaria: optionalString,
@@ -311,38 +327,39 @@ export const bfMemberSchema = z.object({
 export const juridicaStep1Schema = z.object({
   // Identificación
   nombreProyecto: requiredString("Nombre del Proyecto"),
-  formaContacto: optionalString,
+  formaContacto: requiredString("Forma de Contacto"),
   razonSocial: requiredString("Razón Social"),
-  tipoSociedad: optionalString,
-  tipoCliente: optionalString,
+  tipoSociedad: requiredString("Tipo de Sociedad"),
+  tipoCliente: requiredString("Tipo de Cliente"),
   tipoDocumentoIdentidad: requiredString("Tipo de Documento Identidad"),
-  actividadPrincipal: optionalString,
+  actividadPrincipal: requiredString("Actividad Principal"),
   numeroDocumento: requiredString("Número de Documento"),
-  numeroIdTributaria: optionalString,
-  paisTributacion: optionalString,
-  porcentajeActividad: percentageValidator("Porcentaje de Actividad Comercial"),
+  fechaVencimientoId: idExpirationDateValidator("Fecha de Vencimiento de Identificación"),
+  numeroIdTributaria: requiredString("No. ID Tributaria"),
+  paisTributacion: requiredString("País de Tributación"),
+  porcentajeActividad: percentageValidator("Porcentaje de Actividad Comercial", true),
   fechaConstitucion: pastOrTodayDateValidator("Fecha de Constitución"),
-  paisOpera: optionalString,
-  paisInscripcion: optionalString,
+  paisOpera: requiredString("País donde Opera"),
+  paisInscripcion: requiredString("País de Inscripción"),
   fechaNacimiento: pastOrTodayDateValidator("Fecha de Nacimiento (Registro)"),
 
   // Contact Person
   contactoNombre: requiredString("Nombre de Contacto"),
   contactoApellido: requiredString("Apellido de Contacto"),
   contactoId: requiredString("Identificación de Contacto"),
-  contactoTelefono: requiredString("Teléfono de Contacto"),
+  contactoTelefono: phoneValidator("Teléfono de Contacto"),
   contactoEmail: emailValidator("Email de Contacto"),
 
   // General Company Data
   empresaDireccion: requiredString("Dirección de la Empresa"),
-  empresaCiudad: optionalString,
-  empresaProvincia: optionalString,
-  empresaPais: optionalString,
+  empresaCiudad: requiredString("Ciudad de la Empresa"),
+  empresaProvincia: requiredString("Provincia de la Empresa"),
+  empresaPais: requiredString("País de la Empresa"),
   empresaTelefonoCodigo: z.string().default("+507"),
-  empresaTelefono: optionalPhoneValidator,
+  empresaTelefono: phoneValidator("Teléfono de la Empresa"),
   empresaCelularCodigo: z.string().default("+507"),
-  empresaCelular: optionalPhoneValidator,
-  empresaEmail: optionalEmailValidator,
+  empresaCelular: phoneValidator("Celular de la Empresa"),
+  empresaEmail: emailValidator("Email de la Empresa"),
 
   // Gobierno y RL
   rlNombre: requiredString("Nombre y Apellido de Representante Legal"),
@@ -350,10 +367,10 @@ export const juridicaStep1Schema = z.object({
   rlNacionalidad: requiredString("Nacionalidad de Representante Legal"),
   rlNoIdentificacion: requiredString("No. Identificación de Representante Legal"),
   rlProfesionOcupacion: requiredString("Profesión / Ocupación de Representante Legal"),
-  rlActividadEconomica: optionalString,
-  rlDireccion: optionalString,
-  rlPaisResidencia: optionalString,
-  rlTelefono: optionalPhoneValidator,
+  rlActividadEconomica: requiredString("Actividad Económica de Representante Legal"),
+  rlDireccion: requiredString("Dirección de Representante Legal"),
+  rlPaisResidencia: requiredString("País de Residencia de Representante Legal"),
+  rlTelefono: phoneValidator("Teléfono de Representante Legal"),
   rlObjetoInvestigacion: requiredString("Pregunta Legal AML"),
   gjcMembers: z.array(gjcMemberSchema).min(1, "Debe agregar al menos un (1) miembro de Gobierno Corporativo / Junta Directiva"),
 
@@ -368,11 +385,11 @@ export const juridicaStep1Schema = z.object({
   pepCargo: optionalString,
   pepInstitucion: optionalString,
   pepRelacion: optionalString,
-  actividadComercial: optionalString,
-  origenFondos: optionalString,
-  destinoFondos: optionalString,
-  volumenVentas: optionalString,
-  bancoReferencia: optionalString,
+  actividadComercial: requiredString("Actividad Comercial"),
+  origenFondos: requiredString("Origen de Fondos"),
+  destinoFondos: requiredString("Destino de Fondos"),
+  volumenVentas: requiredString("Volumen de Ventas"),
+  bancoReferencia: requiredString("Banco de Referencia"),
 }).superRefine((data, ctx) => {
   // Validate that sum of BfMembers percentages is <= 100%
   const sumPct = data.bfMembers.reduce((sum, member) => {

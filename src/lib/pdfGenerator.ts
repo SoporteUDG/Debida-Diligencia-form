@@ -57,8 +57,8 @@ export async function generatePDF(
           <tr>
             <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Identificación:</td>
             <td style="color: #1f2937; padding: 4px 0;">${data.tipoIdentificacion || "Cédula"}: ${data.idNumber || "-"}</td>
-            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Otra Nacionalidad:</td>
-            <td style="color: #1f2937; padding: 4px 0;">${data.otraNacionalidad || "Ninguna"}</td>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Vencimiento ID:</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.fechaVencimientoId ? `${data.fechaVencimientoId} ${new Date(data.fechaVencimientoId) < new Date() ? "(⚠️ VENCIDO)" : ""}` : "No registrada"}</td>
           </tr>
           <tr>
             <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Fecha Nacimiento:</td>
@@ -209,13 +209,16 @@ export async function generatePDF(
             <td style="width: 25%; font-weight: bold; color: #4b5563; padding: 4px 0;">Nombre Completo RL:</td>
             <td style="color: #1f2937; padding: 4px 0;">${data.rlNombre || "-"}</td>
             <td style="width: 25%; font-weight: bold; color: #4b5563; padding: 4px 0;">Identificación RL:</td>
-            <td style="color: #1f2937; padding: 4px 0;">${data.rlNoIdentificacion || "-"}</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.rlNoIdentificacion || data.numeroDocumento || "-"}</td>
           </tr>
           <tr>
-            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Nacionalidad RL:</td>
-            <td style="color: #1f2937; padding: 4px 0;">${data.rlNacionalidad || "-"}</td>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Vencimiento ID:</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.fechaVencimientoId ? `${data.fechaVencimientoId} ${new Date(data.fechaVencimientoId) < new Date() ? "(⚠️ VENCIDO)" : ""}` : "No registrada"}</td>
+          <tr>
             <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Fecha Nacimiento RL:</td>
             <td style="color: #1f2937; padding: 4px 0;">${data.rlFechaNacimiento || "-"}</td>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Profesión RL:</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.rlProfesionOcupacion || "-"}</td>
           </tr>
           <tr>
             <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Profesión RL:</td>

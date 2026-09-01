@@ -222,6 +222,30 @@ export default function Step1Identificacion({
           </div>
 
           <div className="flex flex-col gap-2">
+            <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="fechaVencimientoId">
+              Fecha de Vencimiento de Identificación
+            </label>
+            <input
+              type="date"
+              id="fechaVencimientoId"
+              name="fechaVencimientoId"
+              value={formData.fechaVencimientoId || ""}
+              onChange={onInputChange}
+              className={`bg-[#f4f6f8] border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 ${
+                errors.fechaVencimientoId 
+                  ? "border-red-500 focus:border-red-500 focus:ring-red-500/20 bg-red-50/10" 
+                  : "border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"
+              }`}
+            />
+            {errors.fechaVencimientoId && (
+              <div className="text-xs text-red-700 font-medium flex items-center gap-1.5 mt-1 animate-fadeIn bg-red-50 border border-red-200 p-2.5 rounded-lg">
+                <span className="text-red-600 font-bold">⚠️</span>
+                <span>{errors.fechaVencimientoId}</span>
+              </div>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="numeroIdTributaria">
               No. de ID Tributaria
             </label>
