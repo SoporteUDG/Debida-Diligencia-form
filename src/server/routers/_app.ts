@@ -889,6 +889,15 @@ export const appRouter = router({
 
       const validatedData = validation.data as any;
 
+      // Safely parse signature date to prevent Invalid Date crash
+      let parsedSignatureDate = new Date();
+      if (validatedData.signatureDate) {
+        const d = new Date(validatedData.signatureDate);
+        if (!isNaN(d.getTime())) {
+          parsedSignatureDate = d;
+        }
+      }
+
       // 4. Run database persistence transaction
       const dbForm = await ctx.prisma.$transaction(async (tx: any) => {
         // Create the form
@@ -908,9 +917,9 @@ export const appRouter = router({
             submittedAt: new Date(),
             signature: {
               create: {
-                signerName: validatedData.signerName,
-                signatureDate: new Date(validatedData.signatureDate),
-                firmaImage: validatedData.firmaImage,
+                signerName: validatedData.signerName || clientName,
+                signatureDate: parsedSignatureDate,
+                firmaImage: validatedData.firmaImage || "NO_SIGNATURE",
               },
             },
             ...(isNatural
@@ -919,7 +928,7 @@ export const appRouter = router({
                   legalRepresentative: {
                     create: {
                       nombre: validatedData.rlNombre,
-                      fechaNacimiento: validatedData.rlFechaNacimiento ? new Date(validatedData.rlFechaNacimiento) : null,
+                      fechaNacimiento: validatedData.rlFechaNacimiento && !isNaN(new Date(validatedData.rlFechaNacimiento).getTime()) ? new Date(validatedData.rlFechaNacimiento) : null,
                       nacionalidad: validatedData.rlNacionalidad,
                       noIdentificacion: validatedData.rlNoIdentificacion,
                       profesionOcupacion: validatedData.rlProfesionOcupacion,
@@ -936,7 +945,7 @@ export const appRouter = router({
                       nombre: m.nombre,
                       apellidos: m.apellidos,
                       nacionalidad: m.nacionalidad,
-                      fechaNacimiento: m.fechaNacimiento ? new Date(m.fechaNacimiento) : null,
+                      fechaNacimiento: m.fechaNacimiento && !isNaN(new Date(m.fechaNacimiento).getTime()) ? new Date(m.fechaNacimiento) : null,
                       nroId: m.nroId,
                       direccion: m.direccion,
                     })),
@@ -946,7 +955,7 @@ export const appRouter = router({
                       nombreCompleto: m.nombreCompleto,
                       noIdentificacion: m.noIdentificacion,
                       nacionalidad: m.nacionalidad,
-                      fechaAdquisicion: m.fechaAdquisicion ? new Date(m.fechaAdquisicion) : null,
+                      fechaAdquisicion: m.fechaAdquisicion && !isNaN(new Date(m.fechaAdquisicion).getTime()) ? new Date(m.fechaAdquisicion) : null,
                       porcentajeParticipacion: m.porcentajeParticipacion,
                       paisNacimiento: m.paisNacimiento,
                       direccion: m.direccion,
@@ -958,7 +967,12 @@ export const appRouter = router({
 
         // Link existing uploaded Documents from draft to the newly created form
         await tx.document.updateMany({
-          where: { draftId: draft.id },
+          where: {
+            OR: [
+              { draftId: draft.id },
+              { draftId: draft.token },
+            ],
+          },
           data: { formId: form.id },
         });
 

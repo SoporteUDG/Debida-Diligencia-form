@@ -399,10 +399,10 @@ export const documentsRouter = router({
   getDraftDocuments: tokenProcedure
     .input(
       z.object({
-        draftId: z.string().min(1, "draftId requerido"),
+        draftId: z.string().optional(),
       })
     )
-    .query(async ({ input, ctx }) => {
+    .mutation(async ({ input, ctx }) => {
       try {
         const draft = await ctx.prisma.draft.findUnique({
           where: { token: ctx.client!.tokenUuid as string },
