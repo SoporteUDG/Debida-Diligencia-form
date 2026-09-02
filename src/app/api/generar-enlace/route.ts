@@ -6,8 +6,21 @@ import { logAuditEvent } from "@/lib/auditService";
 
 export const dynamic = "force-dynamic";
 
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+};
+
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: corsHeaders });
+}
+
 export async function GET(request: NextRequest) {
-  return NextResponse.json({ message: "El endpoint de generación de enlaces ZDK está activo y listo." });
+  return NextResponse.json(
+    { message: "El endpoint de generación de enlaces ZDK está activo y listo." },
+    { headers: corsHeaders }
+  );
 }
 
 export async function POST(request: NextRequest) {
@@ -131,18 +144,21 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return NextResponse.json({
-      success: true,
-      status: "success",
-      message: `¡Enlace de ${isNatural ? "Persona Natural" : "Persona Jurídica"} generado exitosamente!`,
-      clientUrl,
-      expiresAt,
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        status: "success",
+        message: `¡Enlace de ${isNatural ? "Persona Natural" : "Persona Jurídica"} generado exitosamente!`,
+        clientUrl,
+        expiresAt,
+      },
+      { headers: corsHeaders }
+    );
   } catch (error: any) {
     console.error("[API Generar Enlace ZDK Error]:", error);
     return NextResponse.json(
       { success: false, error: error.message || "Error interno del servidor" },
-      { status: 500 }
+      { status: 500, headers: corsHeaders }
     );
   }
 }
