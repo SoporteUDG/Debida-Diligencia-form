@@ -21,13 +21,13 @@ const phoneValidator = (fieldName: string) =>
   z.string({ message: `${fieldName} es requerido(a)` })
     .trim()
     .min(1, `${fieldName} es requerido(a)`)
-    .regex(/^\d{7,15}$/, `${fieldName} debe tener entre 7 y 15 dígitos numéricos sin espacios ni guiones`);
+    .refine(val => !val || /^\+?[\d\s\-]{7,20}$/.test(val), `${fieldName} debe ser un número telefónico válido (mínimo 7 dígitos)`);
 
 const optionalPhoneValidator = 
   z.string()
     .trim()
     .optional()
-    .refine(val => !val || /^\d{7,15}$/.test(val), "El número debe tener entre 7 y 15 dígitos numéricos");
+    .refine(val => !val || /^\+?[\d\s\-]{7,20}$/.test(val), "El número debe ser un teléfono válido");
 
 // Email Validator
 const emailValidator = (fieldName: string) =>
@@ -140,22 +140,22 @@ export const naturalStep1Schema = z.object({
   paisResidencial: requiredString("País residencial"),
   email: emailValidator("E-mail"),
   telefonoCodigo: z.string().default("+507"),
-  telefono: phoneValidator("Teléfono"),
+  telefono: optionalPhoneValidator,
   celularCodigo: z.string().default("+507"),
   celular: phoneValidator("Celular"),
 
   profession: requiredString("Profesión u Oficio"),
   profesionOtros: optionalString,
-  paisActividadLaboral: requiredString("País de Actividad Laboral"),
-  employer: requiredString("Nombre de Empresa Donde Labora"),
-  actividadLaboral: requiredString("Actividad Laboral"),
+  paisActividadLaboral: optionalString,
+  employer: optionalString,
+  actividadLaboral: optionalString,
   actividadLaboralOtros: optionalString,
-  direccionLaboral: requiredString("Dirección Laboral"),
-  cargoDesempena: requiredString("Cargo que Desempeña"),
+  direccionLaboral: optionalString,
+  cargoDesempena: optionalString,
 
-  actEconPrincipal: requiredString("Actividad Económica Principal"),
-  pctDedicacionPrincipal: percentageValidator("Porcentaje de Dedicación Principal", true),
-  jurisdiccionPrincipal: requiredString("Jurisdicción Principal"),
+  actEconPrincipal: optionalString,
+  pctDedicacionPrincipal: percentageValidator("Porcentaje de Dedicación Principal", false),
+  jurisdiccionPrincipal: optionalString,
   actEconSecundaria: optionalString,
   pctDedicacionSecundaria: percentageValidator("Porcentaje de Dedicación Secundaria"),
   jurisdiccionSecundaria: optionalString,
@@ -164,9 +164,9 @@ export const naturalStep1Schema = z.object({
   ingresosMensuales: requiredString("Ingresos Mensuales"),
   medioPago: requiredString("Medio de Pago"),
   fuenteFondosInmueble: requiredString("Fuente de Fondos"),
-  montoServiciosAnuales: requiredString("Monto de Servicios Anuales"),
-  adquiereNombreTercero: requiredString("Adquisición a nombre de terceros"),
-  destinoInmueble: requiredString("Destino del Inmueble"),
+  montoServiciosAnuales: optionalString,
+  adquiereNombreTercero: optionalString,
+  destinoInmueble: optionalString,
   esPep: requiredString("Persona Expuesta Políticamente (PEP)"),
   pepNombre: optionalString,
   pepCargo: optionalString,
