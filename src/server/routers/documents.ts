@@ -214,10 +214,46 @@ export const documentsRouter = router({
           currentStage = "DATABASE_PERSISTENCE";
           console.log(`[tRPC Upload] Persistiendo registro en base de datos. URL: ${shareLinkUrl}`);
 
+          // Safely resolve foreign keys to avoid Foreign Key Constraint Violations
+          let validDraftId: string | null = null;
+          if (input.draftId) {
+            const draftById = await ctx.prisma.draft.findUnique({
+              where: { id: input.draftId },
+            });
+            if (draftById) {
+              validDraftId = draftById.id;
+            } else {
+              const draftByToken = await ctx.prisma.draft.findUnique({
+                where: { token: input.draftId },
+              });
+              if (draftByToken) {
+                validDraftId = draftByToken.id;
+              }
+            }
+          }
+          if (!validDraftId && ctx.client?.tokenUuid) {
+            const draftByCtx = await ctx.prisma.draft.findUnique({
+              where: { token: ctx.client.tokenUuid },
+            });
+            if (draftByCtx) {
+              validDraftId = draftByCtx.id;
+            }
+          }
+
+          let validFormId: string | null = null;
+          if (input.formId) {
+            const formById = await ctx.prisma.form.findUnique({
+              where: { id: input.formId },
+            });
+            if (formById) {
+              validFormId = formById.id;
+            }
+          }
+
           const documentRecord = await ctx.prisma.document.create({
             data: {
-              formId: input.formId || null,
-              draftId: input.draftId || null,
+              formId: validFormId,
+              draftId: validDraftId,
               name: finalFileName,
               fileType: detected.mime,
               url: shareLinkUrl,
