@@ -528,14 +528,14 @@ export const appRouter = router({
       },
     });
 
-    const draftTokens = drafts.map((d) => d.token);
+    const draftTokens = drafts.map((d: any) => d.token);
     const dbTokens = await ctx.prisma.token.findMany({
       where: { token: { in: draftTokens } },
     });
-    const tokenMap = new Map(dbTokens.map((t) => [t.token, t]));
+    const tokenMap = new Map<string, any>(dbTokens.map((t: any) => [t.token, t]));
 
     // 3. Map drafts into submission schema
-    const mappedDrafts = drafts.map((draft) => {
+    const mappedDrafts = drafts.map((draft: any) => {
       const draftData = (draft.data || {}) as any;
       const clientName = draft.crmContact
         ? `${draft.crmContact.firstName} ${draft.crmContact.lastName}`.trim()
@@ -562,14 +562,14 @@ export const appRouter = router({
           crmContact: draft.crmContact,
           isDraftRecord: true,
           token: `${draft.token}.${signUuid(draft.token)}`,
-          tokenExpiresAt: tokenRecord?.expiresAt?.toISOString() || null,
-          tokenUsed: tokenRecord?.used || false,
+          tokenExpiresAt: tokenRecord?.expiresAt ? new Date(tokenRecord.expiresAt).toISOString() : null,
+          tokenUsed: Boolean(tokenRecord?.used),
         },
       };
     });
 
     // 4. Map forms to make sure data payload includes all joined fields
-    const mappedForms = forms.map((form) => ({
+    const mappedForms = forms.map((form: any) => ({
       id: form.id,
       type: form.type.toLowerCase(),
       status: form.status,
@@ -864,9 +864,15 @@ export const appRouter = router({
       const validation = schema.safeParse(sanitizedDraftData);
 
       if (!validation.success) {
+        const fieldErrors = validation.error.issues
+          .map((issue) => `${issue.path.length ? issue.path.join(".") : "Campo"}: ${issue.message}`)
+          .join(" | ");
+        
+        console.error("[Submit Form Zod Error] Borrador no pasó validación final:", fieldErrors, JSON.stringify(sanitizedDraftData));
+
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: "Errores de validación en los campos del formulario",
+          message: `Faltan campos obligatorios por completar: ${fieldErrors}`,
           cause: validation.error,
         });
       }
@@ -874,7 +880,7 @@ export const appRouter = router({
       const validatedData = validation.data as any;
 
       // 4. Run database persistence transaction
-      const dbForm = await ctx.prisma.$transaction(async (tx) => {
+      const dbForm = await ctx.prisma.$transaction(async (tx: any) => {
         // Create the form
         const clientName = isNatural
           ? `${validatedData.firstName || ""} ${validatedData.lastName || ""}`.trim() || "Cliente Natural"
@@ -1048,7 +1054,7 @@ export const appRouter = router({
           orderBy: { createdAt: "desc" },
         });
 
-        return logs.map((log) => ({
+        return logs.map((log: any) => ({
           id: log.id,
           action: log.action,
           entityName: log.entityName,
