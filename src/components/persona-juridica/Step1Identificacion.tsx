@@ -57,7 +57,7 @@ export default function Step1Identificacion({
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="formaContacto">
-              Formas de Contacto
+              ¿Por qué medio nos conoció?
             </label>
             <select
               id="formaContacto"

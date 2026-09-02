@@ -62,7 +62,7 @@ export default function Step1DatosPersonales({
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700 font-semibold" htmlFor="formaContacto">
-              Formas de Contacto
+              ¿Por qué medio nos conoció?
             </label>
             <select
               id="formaContacto"
@@ -219,36 +219,6 @@ export default function Step1DatosPersonales({
           </div>
 
           <div className="flex flex-col gap-2">
-            <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="estadoCivil">
-              Estado Civil <span className="text-red-500 font-bold">*</span>
-            </label>
-            <select
-              id="estadoCivil"
-              name="estadoCivil"
-              value={formData.estadoCivil || ""}
-              onChange={onInputChange}
-              className={`w-full bg-[#f4f6f8] border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 cursor-pointer ${
-                errors.estadoCivil 
-                  ? "border-red-500 focus:border-red-500 focus:ring-red-500/20" 
-                  : "border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"
-              }`}
-              required
-            >
-              <option value="">Selecciona estado civil</option>
-              <option value="Casado">Casado</option>
-              <option value="Soltero">Soltero</option>
-              <option value="Divorciado">Divorciado</option>
-              <option value="Viudo">Viudo</option>
-              <option value="Unido">Unido</option>
-            </select>
-            {errors.estadoCivil && (
-              <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
-                ⚠️ {errors.estadoCivil}
-              </span>
-            )}
-          </div>
-
-          <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700">
               País de Nacimiento <span className="text-red-500 font-bold">*</span>
             </label>
@@ -368,6 +338,37 @@ export default function Step1DatosPersonales({
             {errors.otraNacionalidad && (
               <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
                 ⚠️ {errors.otraNacionalidad}
+              </span>
+            )}
+          </div>
+
+          {/* Estado Civil (Ubicación exacta según mockup: entre Otra Nacionalidad y Estatus Migratorio) */}
+          <div className="flex flex-col gap-2">
+            <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="estadoCivil">
+              Estado Civil <span className="text-red-500 font-bold">*</span>
+            </label>
+            <select
+              id="estadoCivil"
+              name="estadoCivil"
+              value={formData.estadoCivil || ""}
+              onChange={onInputChange}
+              className={`w-full bg-[#f4f6f8] border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 cursor-pointer ${
+                errors.estadoCivil 
+                  ? "border-red-500 focus:border-red-500 focus:ring-red-500/20" 
+                  : "border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"
+              }`}
+              required
+            >
+              <option value="">Selecciona estado civil</option>
+              <option value="Casado">Casado</option>
+              <option value="Soltero">Soltero</option>
+              <option value="Divorciado">Divorciado</option>
+              <option value="Viudo">Viudo</option>
+              <option value="Unido">Unido</option>
+            </select>
+            {errors.estadoCivil && (
+              <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
+                ⚠️ {errors.estadoCivil}
               </span>
             )}
           </div>
