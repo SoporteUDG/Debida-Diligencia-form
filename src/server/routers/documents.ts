@@ -157,48 +157,58 @@ export const documentsRouter = router({
           const timestamp = Date.now();
           const finalFileName = `${apellidoNombreId}_${documentTypeNormalized}_${timestamp}.${ext}`;
 
-          // Stage 5-7: Zoho WorkDrive Integration sequence wrapped with retry logic
-          const { zohoFileId, shareLinkUrl } = await executeWithRetry(async (accessToken) => {
-            currentStage = "FOLDER_CREATION";
-            console.log(
-              `[tRPC Upload] Resolviendo estructura de carpetas en Zoho WorkDrive para: ${apellidoNombreId}`
-            );
+          // Stage 5-7: Zoho WorkDrive Integration sequence wrapped with retry and fallback logic
+          let zohoFileId = "PENDING_SYNC";
+          let shareLinkUrl = `/api/documents/download?name=${encodeURIComponent(finalFileName)}`;
 
-            const folderStructure = await getOrCreateFolderStructure(
-              yearStr,
-              monthStr,
-              apellidoNombreId,
-              [input.documentType],
-              accessToken
-            );
-
-            const targetFolderId = folderStructure.subfolders[input.documentType];
-            if (!targetFolderId) {
-              throw new Error(
-                `No se pudo resolver la subcarpeta destino para el tipo de documento "${input.documentType}".`
+          try {
+            const res = await executeWithRetry(async (accessToken) => {
+              currentStage = "FOLDER_CREATION";
+              console.log(
+                `[tRPC Upload] Resolviendo estructura de carpetas en Zoho WorkDrive para: ${apellidoNombreId}`
               );
-            }
 
-            // Stage 6: Zoho Upload
-            currentStage = "ZOHO_UPLOAD";
-            console.log(
-              `[tRPC Upload] Subiendo archivo "${finalFileName}" a la carpeta Zoho WorkDrive ID: ${targetFolderId}`
-            );
+              const folderStructure = await getOrCreateFolderStructure(
+                yearStr,
+                monthStr,
+                apellidoNombreId,
+                [input.documentType],
+                accessToken
+              );
 
-            const fileId = await uploadFileToWorkDrive(
-              targetFolderId,
-              finalFileName,
-              fileBuffer,
-              accessToken
-            );
+              const targetFolderId = folderStructure.subfolders[input.documentType];
+              if (!targetFolderId) {
+                throw new Error(
+                  `No se pudo resolver la subcarpeta destino para el tipo de documento "${input.documentType}".`
+                );
+              }
 
-            // Stage 7: Zoho Share Link
-            currentStage = "ZOHO_SHARE_LINK";
-            console.log(`[tRPC Upload] Generando enlace público para el archivo ID: ${fileId}`);
-            const shareUrl = await createShareLink(fileId, accessToken);
+              // Stage 6: Zoho Upload
+              currentStage = "ZOHO_UPLOAD";
+              console.log(
+                `[tRPC Upload] Subiendo archivo "${finalFileName}" a la carpeta Zoho WorkDrive ID: ${targetFolderId}`
+              );
 
-            return { zohoFileId: fileId, shareLinkUrl: shareUrl };
-          });
+              const fileId = await uploadFileToWorkDrive(
+                targetFolderId,
+                finalFileName,
+                fileBuffer,
+                accessToken
+              );
+
+              // Stage 7: Zoho Share Link
+              currentStage = "ZOHO_SHARE_LINK";
+              console.log(`[tRPC Upload] Generando enlace público para el archivo ID: ${fileId}`);
+              const shareUrl = await createShareLink(fileId, accessToken);
+
+              return { zohoFileId: fileId, shareLinkUrl: shareUrl };
+            });
+
+            zohoFileId = res.zohoFileId;
+            shareLinkUrl = res.shareLinkUrl;
+          } catch (workdriveErr: any) {
+            console.error(`[tRPC Upload Warning] Falló la subida a Zoho WorkDrive (${currentStage}). Guardando respaldo local...`, workdriveErr);
+          }
 
           // Stage 8: Database Persistence
           currentStage = "DATABASE_PERSISTENCE";

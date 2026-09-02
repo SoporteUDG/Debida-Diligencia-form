@@ -114,6 +114,33 @@ export async function createFolderInParent(
   return result.data.id;
 }
 
+export async function getMyFolderRootId(accessToken: string): Promise<string | null> {
+  try {
+    const workdriveBaseUrl =
+      process.env.ZOHO_WORKDRIVE_BASE_URL || "https://www.zohoapis.com/workdrive/api/v1";
+    const res = await fetch(`${workdriveBaseUrl}/users/me`, {
+      headers: {
+        Authorization: `Zoho-oauthtoken ${accessToken}`,
+        Accept: "application/vnd.api+json",
+      },
+    });
+    if (res.ok) {
+      const data = await res.json();
+      const rootId =
+        data.data?.attributes?.root_folder_id ||
+        data.data?.relationships?.root_folder?.data?.id ||
+        data.data?.id;
+      if (rootId) {
+        console.log(`[WorkDrive Service] Root folder ID resuelto automáticamente mediante /users/me: ${rootId}`);
+        return rootId;
+      }
+    }
+  } catch (e) {
+    console.warn("[WorkDrive Service] No se pudo resolver automáticamente el root_folder_id:", e);
+  }
+  return null;
+}
+
 /**
  * Creates or reuses the Zoho WorkDrive folder structure:
  * /DD/{AÑO}/{MES}/{APELLIDO_NOMBRE_ID}/
@@ -142,18 +169,36 @@ export async function getOrCreateFolderStructure(
   subfolders: Record<string, string>;
 }> {
   const accessToken = passedToken || await getAccessToken();
-  const rootFolderId = process.env.ZOHO_WORKDRIVE_ROOT_FOLDER_ID;
+  let rootFolderId = process.env.ZOHO_WORKDRIVE_ROOT_FOLDER_ID;
 
   if (!rootFolderId) {
-    throw new Error(
-      "Falta la variable de entorno ZOHO_WORKDRIVE_ROOT_FOLDER_ID. No se puede determinar la carpeta raíz de destino."
-    );
+    const resolvedRoot = await getMyFolderRootId(accessToken);
+    if (resolvedRoot) {
+      rootFolderId = resolvedRoot;
+    } else {
+      throw new Error(
+        "Falta la variable de entorno ZOHO_WORKDRIVE_ROOT_FOLDER_ID y no se pudo determinar la carpeta raíz automáticamente."
+      );
+    }
   }
 
   console.log(`[WorkDrive Service] Iniciando sincronización de estructura de carpetas: /DD/${year}/${month}/${apellidoNombreId}`);
 
-  // 1. Get or create '/DD' folder in Root
-  let ddFolderId = await findFolderInParent(rootFolderId, "DD", accessToken);
+  // 1. Get or create '/DD' folder in Root (con fallback si el rootFolderId configurado falla)
+  let ddFolderId: string | null = null;
+  try {
+    ddFolderId = await findFolderInParent(rootFolderId, "DD", accessToken);
+  } catch (err: any) {
+    console.warn(`[WorkDrive Service Warning] Falló búsqueda en rootFolderId "${rootFolderId}". Intentando resolver carpeta raíz del usuario...`, err.message);
+    const resolvedRoot = await getMyFolderRootId(accessToken);
+    if (resolvedRoot && resolvedRoot !== rootFolderId) {
+      rootFolderId = resolvedRoot;
+      ddFolderId = await findFolderInParent(rootFolderId, "DD", accessToken);
+    } else {
+      throw err;
+    }
+  }
+
   if (!ddFolderId) {
     console.log("[WorkDrive Service] Carpeta 'DD' no encontrada. Creándola...");
     ddFolderId = await createFolderInParent(rootFolderId, "DD", accessToken);
