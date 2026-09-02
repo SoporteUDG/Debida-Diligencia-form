@@ -898,139 +898,117 @@ export const appRouter = router({
         }
       }
 
-      // 4. Run database persistence transaction
-      const dbForm = await ctx.prisma.$transaction(async (tx: any) => {
-        // Create the form
-        const clientName = isNatural
-          ? `${validatedData.firstName || ""} ${validatedData.lastName || ""}`.trim() || "Cliente Natural"
-          : validatedData.razonSocial || "Empresa Registrada";
+      // 4. Run database persistence (sequential operations - no interactive transaction to avoid timeout)
+      const clientName = isNatural
+        ? `${validatedData.firstName || ""} ${validatedData.lastName || ""}`.trim() || "Cliente Natural"
+        : validatedData.razonSocial || "Empresa Registrada";
 
-        const form = await tx.form.create({
-          data: {
-            type: draft.type,
-            status: "SUBMITTED",
-            clientName,
-            projectName: validatedData.nombreProyecto || "General UDG",
-            crmContactId: ctx.client!.crmContactId || null,
-            data: validatedData as any,
-            conclusionesVerificacion: validatedData.conclusionesVerificacion || null,
-            submittedAt: new Date(),
-            signature: {
-              create: {
-                signerName: validatedData.signerName || clientName,
-                signatureDate: parsedSignatureDate,
-                firmaImage: validatedData.firmaImage || "NO_SIGNATURE",
-              },
+      const dbForm = await ctx.prisma.form.create({
+        data: {
+          type: draft.type,
+          status: "SUBMITTED",
+          clientName,
+          projectName: validatedData.nombreProyecto || "General UDG",
+          crmContactId: ctx.client!.crmContactId || null,
+          data: validatedData as any,
+          conclusionesVerificacion: validatedData.conclusionesVerificacion || null,
+          submittedAt: new Date(),
+          signature: {
+            create: {
+              signerName: validatedData.signerName || clientName,
+              signatureDate: parsedSignatureDate,
+              firmaImage: validatedData.firmaImage || "NO_SIGNATURE",
             },
-            ...(isNatural
-              ? {}
-              : {
-                  legalRepresentative: {
-                    create: {
-                      nombre: validatedData.rlNombre,
-                      fechaNacimiento: validatedData.rlFechaNacimiento && !isNaN(new Date(validatedData.rlFechaNacimiento).getTime()) ? new Date(validatedData.rlFechaNacimiento) : null,
-                      nacionalidad: validatedData.rlNacionalidad,
-                      noIdentificacion: validatedData.rlNoIdentificacion,
-                      profesionOcupacion: validatedData.rlProfesionOcupacion,
-                      actividadEconomica: validatedData.rlActividadEconomica || null,
-                      direccion: validatedData.rlDireccion || null,
-                      paisResidencia: validatedData.rlPaisResidencia || null,
-                      telefono: validatedData.rlTelefono || null,
-                      objetoInvestigacion: validatedData.rlObjetoInvestigacion,
-                    },
+          },
+          ...(isNatural
+            ? {}
+            : {
+                legalRepresentative: {
+                  create: {
+                    nombre: validatedData.rlNombre,
+                    fechaNacimiento: validatedData.rlFechaNacimiento && !isNaN(new Date(validatedData.rlFechaNacimiento).getTime()) ? new Date(validatedData.rlFechaNacimiento) : null,
+                    nacionalidad: validatedData.rlNacionalidad,
+                    noIdentificacion: validatedData.rlNoIdentificacion,
+                    profesionOcupacion: validatedData.rlProfesionOcupacion,
+                    actividadEconomica: validatedData.rlActividadEconomica || null,
+                    direccion: validatedData.rlDireccion || null,
+                    paisResidencia: validatedData.rlPaisResidencia || null,
+                    telefono: validatedData.rlTelefono || null,
+                    objetoInvestigacion: validatedData.rlObjetoInvestigacion,
                   },
-                  gjcMembers: {
-                    create: (validatedData.gjcMembers || []).map((m: any) => ({
-                      cargo: m.cargo,
-                      nombre: m.nombre,
-                      apellidos: m.apellidos,
-                      nacionalidad: m.nacionalidad,
-                      fechaNacimiento: m.fechaNacimiento && !isNaN(new Date(m.fechaNacimiento).getTime()) ? new Date(m.fechaNacimiento) : null,
-                      nroId: m.nroId,
-                      direccion: m.direccion,
-                    })),
-                  },
-                  bfMembers: {
-                    create: (validatedData.bfMembers || []).map((m: any) => ({
-                      nombreCompleto: m.nombreCompleto,
-                      noIdentificacion: m.noIdentificacion,
-                      nacionalidad: m.nacionalidad,
-                      fechaAdquisicion: m.fechaAdquisicion && !isNaN(new Date(m.fechaAdquisicion).getTime()) ? new Date(m.fechaAdquisicion) : null,
-                      porcentajeParticipacion: m.porcentajeParticipacion,
-                      paisNacimiento: m.paisNacimiento,
-                      direccion: m.direccion,
-                    })),
-                  },
-                }),
-          },
-        });
+                },
+                gjcMembers: {
+                  create: (validatedData.gjcMembers || []).map((m: any) => ({
+                    cargo: m.cargo,
+                    nombre: m.nombre,
+                    apellidos: m.apellidos,
+                    nacionalidad: m.nacionalidad,
+                    fechaNacimiento: m.fechaNacimiento && !isNaN(new Date(m.fechaNacimiento).getTime()) ? new Date(m.fechaNacimiento) : null,
+                    nroId: m.nroId,
+                    direccion: m.direccion,
+                  })),
+                },
+                bfMembers: {
+                  create: (validatedData.bfMembers || []).map((m: any) => ({
+                    nombreCompleto: m.nombreCompleto,
+                    noIdentificacion: m.noIdentificacion,
+                    nacionalidad: m.nacionalidad,
+                    fechaAdquisicion: m.fechaAdquisicion && !isNaN(new Date(m.fechaAdquisicion).getTime()) ? new Date(m.fechaAdquisicion) : null,
+                    porcentajeParticipacion: m.porcentajeParticipacion,
+                    paisNacimiento: m.paisNacimiento,
+                    direccion: m.direccion,
+                  })),
+                },
+              }),
+        },
+      });
 
-        // Link existing uploaded Documents from draft to the newly created form
-        await tx.document.updateMany({
-          where: {
-            OR: [
-              { draftId: draft.id },
-              { draftId: draft.token },
-            ],
-          },
-          data: { formId: form.id },
-        });
+      // Link existing uploaded Documents from draft to the newly created form
+      await ctx.prisma.document.updateMany({
+        where: {
+          OR: [
+            { draftId: draft.id },
+            { draftId: draft.token },
+          ],
+        },
+        data: { formId: dbForm.id },
+      });
 
-        // Initialize synchronization placeholders
-        await tx.crmSync.create({
+      // Initialize synchronization placeholders (parallel for speed)
+      await Promise.all([
+        ctx.prisma.crmSync.create({ data: { formId: dbForm.id, status: "PENDING" } }),
+        ctx.prisma.workDriveSync.create({ data: { formId: dbForm.id, status: "PENDING" } }),
+        ctx.prisma.sapSync.create({ data: { formId: dbForm.id, status: "PENDING" } }),
+      ]);
+
+      // Update the draft to set completed: true and save the submittedFormId
+      await ctx.prisma.draft.update({
+        where: { id: draft.id },
+        data: {
           data: {
-            formId: form.id,
-            status: "PENDING",
+            ...draftData,
+            completed: true,
+            submittedFormId: dbForm.id,
           },
-        });
+        },
+      });
 
-        await tx.workDriveSync.create({
-          data: {
-            formId: form.id,
-            status: "PENDING",
-          },
-        });
-
-        await tx.sapSync.create({
-          data: {
-            formId: form.id,
-            status: "PENDING",
-          },
-        });
-
-        // Update the draft to set completed: true and save the submittedFormId
-        const updatedDraftData = {
-          ...draftData,
-          completed: true,
-          submittedFormId: form.id,
-        };
-
-        await tx.draft.update({
-          where: { id: draft.id },
-          data: {
-            data: updatedDraftData,
-          },
-        });
-
-        // Create an audit log for form submission
-        await tx.auditLog.create({
-          data: {
-            action: "FORM_SUBMIT",
-            entityName: "Form",
-            entityId: form.id,
-            ipAddress: ctx.ip,
-            userAgent: ctx.userAgent,
-            userId: null,
-            details: sanitizeDetails({
-              type: draft.type,
-              clientName,
-              projectName: form.projectName,
-            }),
-          },
-        });
-
-        return form;
-      }, { maxWait: 10000, timeout: 30000 });
+      // Create an audit log for form submission
+      await ctx.prisma.auditLog.create({
+        data: {
+          action: "FORM_SUBMIT",
+          entityName: "Form",
+          entityId: dbForm.id,
+          ipAddress: ctx.ip,
+          userAgent: ctx.userAgent,
+          userId: null,
+          details: sanitizeDetails({
+            type: draft.type,
+            clientName,
+            projectName: dbForm.projectName,
+          }),
+        },
+      });
 
       // 5. Revoke token if it is a database-backed token (i.e. not starting with "draft-")
       const rawToken = ctx.req.headers.get("authorization")?.replace("Bearer ", "") || ctx.req.headers.get("x-client-token");
