@@ -1016,7 +1016,7 @@ export const appRouter = router({
         });
 
         return form;
-      });
+      }, { maxWait: 10000, timeout: 30000 });
 
       // 5. Revoke token if it is a database-backed token (i.e. not starting with "draft-")
       const rawToken = ctx.req.headers.get("authorization")?.replace("Bearer ", "") || ctx.req.headers.get("x-client-token");
