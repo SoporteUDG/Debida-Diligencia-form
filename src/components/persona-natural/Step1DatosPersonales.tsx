@@ -91,6 +91,7 @@ export default function Step1DatosPersonales({
               <option value="Instagram">Instagram</option>
               <option value="Landing casa desde 150">Landing casa desde 150</option>
               <option value="Linkedln">Linkedln</option>
+              <option value="Referido">Referido</option>
               <option value="Timelines">Timelines</option>
               <option value="WhatsApp">WhatsApp</option>
               <option value="Sala de Ventas">Sala de Ventas</option>
@@ -103,6 +104,60 @@ export default function Step1DatosPersonales({
               </span>
             )}
           </div>
+
+          {/* Campo condicional para 'Otros' */}
+          {(formData.formaContacto === "Otros" || formData.formaContacto === "Otro") && (
+            <div className="flex flex-col gap-2 md:col-span-2 animate-fadeIn">
+              <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="formaContactoDetalle">
+                Especifique Forma de Contacto <span className="text-red-500 font-bold">*</span>
+              </label>
+              <input
+                type="text"
+                id="formaContactoDetalle"
+                name="formaContactoDetalle"
+                value={formData.formaContactoDetalle || ""}
+                onChange={onInputChange}
+                placeholder="Escribe el detalle de cómo nos conoció..."
+                className={`bg-[#f4f6f8] border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 ${
+                  errors.formaContactoDetalle 
+                    ? "border-red-500 focus:border-red-500 focus:ring-red-500/20" 
+                    : "border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"
+                }`}
+              />
+              {errors.formaContactoDetalle && (
+                <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
+                  ⚠️ {errors.formaContactoDetalle}
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Campo condicional para 'Referido' */}
+          {formData.formaContacto === "Referido" && (
+            <div className="flex flex-col gap-2 md:col-span-2 animate-fadeIn">
+              <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="referidoPor">
+                Nombre de quien lo refirió <span className="text-red-500 font-bold">*</span>
+              </label>
+              <input
+                type="text"
+                id="referidoPor"
+                name="referidoPor"
+                value={formData.referidoPor || ""}
+                onChange={onInputChange}
+                placeholder="Escribe el nombre de la persona que lo refirió..."
+                className={`bg-[#f4f6f8] border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 ${
+                  errors.referidoPor 
+                    ? "border-red-500 focus:border-red-500 focus:ring-red-500/20" 
+                    : "border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"
+                }`}
+              />
+              {errors.referidoPor && (
+                <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
+                  ⚠️ {errors.referidoPor}
+                </span>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -159,6 +214,36 @@ export default function Step1DatosPersonales({
             {errors.lastName && (
               <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
                 ⚠️ {errors.lastName}
+              </span>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="estadoCivil">
+              Estado Civil <span className="text-red-500 font-bold">*</span>
+            </label>
+            <select
+              id="estadoCivil"
+              name="estadoCivil"
+              value={formData.estadoCivil || ""}
+              onChange={onInputChange}
+              className={`w-full bg-[#f4f6f8] border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 cursor-pointer ${
+                errors.estadoCivil 
+                  ? "border-red-500 focus:border-red-500 focus:ring-red-500/20" 
+                  : "border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"
+              }`}
+              required
+            >
+              <option value="">Selecciona estado civil</option>
+              <option value="Casado">Casado</option>
+              <option value="Soltero">Soltero</option>
+              <option value="Divorciado">Divorciado</option>
+              <option value="Viudo">Viudo</option>
+              <option value="Unido">Unido</option>
+            </select>
+            {errors.estadoCivil && (
+              <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
+                ⚠️ {errors.estadoCivil}
               </span>
             )}
           </div>

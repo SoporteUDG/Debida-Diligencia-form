@@ -87,6 +87,11 @@ export async function generatePDF(
           <tr>
             <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Dirección Laboral:</td>
             <td colspan="3" style="color: #1f2937; padding: 4px 0;">${data.direccionLaboral || "-"}</td>
+          <tr>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Estado Civil:</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.estadoCivil || "-"}</td>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Medio de Contacto:</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.formaContacto || "-"}${data.formaContactoDetalle ? ` (${data.formaContactoDetalle})` : ""}${data.referidoPor ? ` (Referido por: ${data.referidoPor})` : ""}</td>
           </tr>
           <tr>
             <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Dirección Residencial:</td>
@@ -221,8 +226,8 @@ export async function generatePDF(
             <td style="color: #1f2937; padding: 4px 0;">${data.rlProfesionOcupacion || "-"}</td>
           </tr>
           <tr>
-            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Profesión RL:</td>
-            <td style="color: #1f2937; padding: 4px 0;">${data.rlProfesionOcupacion || "-"}</td>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Estado Civil RL:</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.rlEstadoCivil || "-"}</td>
             <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Actividad Económica RL:</td>
             <td style="color: #1f2937; padding: 4px 0;">${data.rlActividadEconomica || "-"}</td>
           </tr>

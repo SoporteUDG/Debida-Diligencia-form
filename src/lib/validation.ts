@@ -117,8 +117,11 @@ export const naturalStep1Schema = z.object({
   // Datos Generales
   nombreProyecto: requiredString("Nombre del Proyecto"),
   formaContacto: requiredString("Forma de Contacto"),
+  formaContactoDetalle: optionalString,
+  referidoPor: optionalString,
   firstName: requiredString("Nombre"),
   lastName: requiredString("Apellido(s)"),
+  estadoCivil: requiredString("Estado Civil"),
   paisNacimiento: requiredString("País de Nacimiento"),
   paisResidenciaFiscal: requiredString("País de Residencia Fiscal"),
   idTributaria: requiredString("No. ID Tributaria"),
@@ -170,6 +173,22 @@ export const naturalStep1Schema = z.object({
   pepInstitucion: optionalString,
   pepRelacion: optionalString,
 }).superRefine((data, ctx) => {
+  // Conditional: formaContacto === "Otros"
+  if ((data.formaContacto === "Otros" || data.formaContacto === "Otro") && (!data.formaContactoDetalle || data.formaContactoDetalle.trim() === "")) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Debe especificar el detalle cuando selecciona 'Otros' en Formas de Contacto",
+      path: ["formaContactoDetalle"],
+    });
+  }
+  // Conditional: formaContacto === "Referido"
+  if (data.formaContacto === "Referido" && (!data.referidoPor || data.referidoPor.trim() === "")) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Debe ingresar el nombre de la persona que lo refirió",
+      path: ["referidoPor"],
+    });
+  }
   // Conditional: profession === "Otros"
   if (data.profession === "Otros" && (!data.profesionOtros || data.profesionOtros.trim() === "")) {
     ctx.addIssue({
@@ -328,6 +347,8 @@ export const juridicaStep1Schema = z.object({
   // Identificación
   nombreProyecto: requiredString("Nombre del Proyecto"),
   formaContacto: requiredString("Forma de Contacto"),
+  formaContactoDetalle: optionalString,
+  referidoPor: optionalString,
   razonSocial: requiredString("Razón Social"),
   tipoSociedad: requiredString("Tipo de Sociedad"),
   tipoCliente: requiredString("Tipo de Cliente"),
@@ -365,6 +386,7 @@ export const juridicaStep1Schema = z.object({
   rlNombre: requiredString("Nombre y Apellido de Representante Legal"),
   rlFechaNacimiento: adultBirthdateValidator("Fecha de Nacimiento de Representante Legal"),
   rlNacionalidad: requiredString("Nacionalidad de Representante Legal"),
+  rlEstadoCivil: requiredString("Estado Civil de Representante Legal"),
   rlNoIdentificacion: requiredString("No. Identificación de Representante Legal"),
   rlProfesionOcupacion: requiredString("Profesión / Ocupación de Representante Legal"),
   rlActividadEconomica: requiredString("Actividad Económica de Representante Legal"),

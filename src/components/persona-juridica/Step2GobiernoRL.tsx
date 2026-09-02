@@ -383,6 +383,32 @@ export default function Step2GobiernoRL({
           </div>
 
           <div className="flex flex-col gap-2">
+            <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="rlEstadoCivil">
+              1 RL - Estado Civil <span className="text-red-500 font-bold">*</span>
+            </label>
+            <select
+              id="rlEstadoCivil"
+              name="rlEstadoCivil"
+              value={formData.rlEstadoCivil || ""}
+              onChange={onInputChange}
+              className={`${errors.rlEstadoCivil ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full cursor-pointer`}
+              required
+            >
+              <option value="">Selecciona estado civil</option>
+              <option value="Casado">Casado</option>
+              <option value="Soltero">Soltero</option>
+              <option value="Divorciado">Divorciado</option>
+              <option value="Viudo">Viudo</option>
+              <option value="Unido">Unido</option>
+            </select>
+            {errors.rlEstadoCivil && (
+              <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
+                ⚠️ {errors.rlEstadoCivil}
+              </span>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="rlNoIdentificacion">
               1 RL - No. Identificación
             </label>

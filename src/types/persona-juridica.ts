@@ -24,6 +24,8 @@ export interface FormState {
   // Step 1: Initial Info
   nombreProyecto: string;
   formaContacto: string;
+  formaContactoDetalle: string;
+  referidoPor: string;
 
   // Step 1: Identificación del Cliente
   razonSocial: string;
@@ -63,6 +65,7 @@ export interface FormState {
   rlNombre: string;
   rlFechaNacimiento: string;
   rlNacionalidad: string;
+  rlEstadoCivil: string;
   rlNoIdentificacion: string;
   rlProfesionOcupacion: string;
   rlActividadEconomica: string;
@@ -118,6 +121,8 @@ export interface FormState {
 export const INITIAL_FORM_STATE: FormState = {
   nombreProyecto: "",
   formaContacto: "",
+  formaContactoDetalle: "",
+  referidoPor: "",
   
   razonSocial: "",
   tipoSociedad: "",
@@ -153,6 +158,7 @@ export const INITIAL_FORM_STATE: FormState = {
   rlNombre: "",
   rlFechaNacimiento: "",
   rlNacionalidad: "",
+  rlEstadoCivil: "",
   rlNoIdentificacion: "",
   rlProfesionOcupacion: "",
   rlActividadEconomica: "",

@@ -2,10 +2,13 @@ export interface FormState {
   // Step 1: Initial Info
   nombreProyecto: string;
   formaContacto: string;
+  formaContactoDetalle: string;
+  referidoPor: string;
 
   // Step 1: Identificación del Cliente
   firstName: string; // Nombre
   lastName: string;  // Apellido(s)
+  estadoCivil: string; // Estado Civil
   paisNacimiento: string;
   paisResidenciaFiscal: string;
   idTributaria: string;
@@ -80,9 +83,12 @@ export interface FormState {
 export const INITIAL_FORM_STATE: FormState = {
   nombreProyecto: "",
   formaContacto: "",
+  formaContactoDetalle: "",
+  referidoPor: "",
 
   firstName: "",
   lastName: "",
+  estadoCivil: "",
   paisNacimiento: "",
   paisResidenciaFiscal: "",
   idTributaria: "",
