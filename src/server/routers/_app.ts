@@ -187,17 +187,27 @@ export const appRouter = router({
         }
       }
 
+      // Resolve valid FormType enum (NATURAL or JURIDICA)
+      let resolvedFormType: "NATURAL" | "JURIDICA" = "NATURAL";
+      const rawClientType = String(ctx.client?.type || "").toUpperCase();
+      if (rawClientType.includes("JUR") || input.data?.type === "JURIDICA" || input.data?.razonSocial) {
+        resolvedFormType = "JURIDICA";
+      } else if (existing?.type) {
+        resolvedFormType = existing.type;
+      }
+
       // Upsert draft safely scoped to the validated token
       const draft = await ctx.prisma.draft.upsert({
         where: { token: ctx.client!.tokenUuid as string },
         update: {
           data: input.data || {},
           step: input.step,
+          type: resolvedFormType,
           updatedAt: new Date(),
         },
         create: {
           token: ctx.client!.tokenUuid as string,
-          type: ctx.client!.type as any, // NATURAL or JURIDICA
+          type: resolvedFormType,
           data: input.data || {},
           step: input.step,
           crmContactId: ctx.client!.crmContactId || null,
