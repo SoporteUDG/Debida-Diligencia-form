@@ -155,8 +155,14 @@ export default function Step3Finanzas({
                   type="number"
                   min="0"
                   max="100"
+                  step="any"
                   value={bf.porcentajeParticipacion}
                   onChange={(e) => onBfMemberChange(bf.id, "porcentajeParticipacion", e.target.value)}
+                  onKeyDown={(e) => {
+                    if (["e", "E", "+", "-"].includes(e.key)) {
+                      e.preventDefault();
+                    }
+                  }}
                   placeholder="0"
                   className={`border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full ${
                     errors[`bfMembers.${idx}.porcentajeParticipacion`]
@@ -241,19 +247,42 @@ export default function Step3Finanzas({
               Ingresos Mensuales Aproximados Son de <span className="text-red-500 font-bold">*</span>
             </label>
             <div className="flex items-center gap-3">
-              <input
-                type="text"
-                id="ingresosMensuales"
-                name="ingresosMensuales"
-                value={formData.ingresosMensuales}
-                onChange={onInputChange}
-                placeholder="Monto estimado mensual"
-                className={`w-full border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 ${
-                  errors.ingresosMensuales
-                    ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20"
-                    : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"
-                }`}
-              />
+              <div className="relative w-full">
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500 font-bold text-sm select-none">$</span>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  id="ingresosMensuales"
+                  name="ingresosMensuales"
+                  value={formData.ingresosMensuales}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/[^0-9.,]/g, "");
+                    const syntheticEvent = {
+                      ...e,
+                      target: { ...e.target, name: "ingresosMensuales", value: val },
+                    };
+                    onInputChange(syntheticEvent as unknown as React.ChangeEvent<HTMLInputElement>);
+                  }}
+                  onKeyDown={(e) => {
+                    if (
+                      ["Backspace", "Tab", "Delete", "ArrowLeft", "ArrowRight", "Enter", "Home", "End"].includes(e.key) ||
+                      e.ctrlKey ||
+                      e.metaKey
+                    ) {
+                      return;
+                    }
+                    if (!/[\d.,]/.test(e.key)) {
+                      e.preventDefault();
+                    }
+                  }}
+                  placeholder="Monto estimado mensual"
+                  className={`w-full border rounded-lg pl-8 pr-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 font-medium ${
+                    errors.ingresosMensuales
+                      ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20"
+                      : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"
+                  }`}
+                />
+              </div>
               <span className="text-xs font-bold text-zinc-600 tracking-wider">USD</span>
             </div>
             {errors.ingresosMensuales && (
@@ -266,28 +295,66 @@ export default function Step3Finanzas({
 
         <div className="bg-white rounded-2xl p-6 md:p-8 shadow-xl border border-zinc-200">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-[#1a1c1a]">
-            <div className="flex flex-col gap-2">
-              <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="medioPago">
-                MEDIO DE PAGO
+            <div className="flex flex-col gap-2.5 md:col-span-2">
+              <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700">
+                MEDIO DE PAGO <span className="text-red-500 font-bold">*</span>
+                <span className="text-[10px] font-normal text-zinc-500 lowercase ml-1.5 italic">(puede seleccionar varios)</span>
               </label>
-              <select
-                id="medioPago"
-                name="medioPago"
-                value={formData.medioPago}
-                onChange={onInputChange}
-                className={`w-full border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 cursor-pointer ${
-                  errors.medioPago
-                    ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20"
-                    : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"
-                }`}
-              >
-                <option value="">Selecciona medio de pago</option>
-                <option value="Transferencia ACH">Transferencia ACH</option>
-                <option value="Internacional">Internacional</option>
-                <option value="Nacional">Nacional</option>
-                <option value="Cheque">Cheque</option>
-                <option value="Crédito (Financiamiento)">Crédito (Financiamiento)</option>
-              </select>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                {[
+                  "Efectivo",
+                  "Transferencia ACH",
+                  "Internacional",
+                  "Nacional",
+                  "Cheque",
+                  "Crédito (Financiamiento)",
+                ].map((opt) => {
+                  const selectedMedios = (formData.medioPago || "")
+                    .split(",")
+                    .map((s) => s.trim())
+                    .filter(Boolean);
+                  const isSelected = selectedMedios.includes(opt);
+                  return (
+                    <button
+                      type="button"
+                      key={opt}
+                      onClick={() => {
+                        let updated: string[];
+                        if (isSelected) {
+                          updated = selectedMedios.filter((item) => item !== opt);
+                        } else {
+                          updated = [...selectedMedios, opt];
+                        }
+                        const syntheticEvent = {
+                          target: {
+                            name: "medioPago",
+                            value: updated.join(", "),
+                          },
+                        } as unknown as React.ChangeEvent<HTMLInputElement>;
+                        onInputChange(syntheticEvent);
+                      }}
+                      className={`flex items-center gap-2.5 p-3 rounded-xl border text-left text-xs font-semibold transition-all duration-150 cursor-pointer select-none ${
+                        isSelected
+                          ? "bg-[#002b49] text-white border-[#002b49] shadow-sm ring-1 ring-[#002b49]/30"
+                          : "bg-[#f4f6f8] text-zinc-700 border-zinc-300 hover:bg-zinc-100 hover:border-zinc-400"
+                      }`}
+                    >
+                      <div
+                        className={`w-4 h-4 rounded flex items-center justify-center border transition-colors shrink-0 ${
+                          isSelected ? "bg-[#c8a788] border-[#c8a788] text-white" : "border-zinc-400 bg-white"
+                        }`}
+                      >
+                        {isSelected && (
+                          <svg className="w-3 h-3 stroke-current stroke-[3]" fill="none" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                          </svg>
+                        )}
+                      </div>
+                      <span className="truncate">{opt}</span>
+                    </button>
+                  );
+                })}
+              </div>
               {errors.medioPago && (
                 <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
                   ⚠️ {errors.medioPago}
@@ -295,27 +362,64 @@ export default function Step3Finanzas({
               )}
             </div>
 
-            <div className="flex flex-col gap-2">
-              <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="fuenteFondosInmueble">
-                Usted Adquiere el Bien Inmueble con Fondos
+            <div className="flex flex-col gap-2.5 md:col-span-2">
+              <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700">
+                USTED ADQUIERE EL BIEN INMUEBLE CON FONDOS <span className="text-red-500 font-bold">*</span>
+                <span className="text-[10px] font-normal text-zinc-500 lowercase ml-1.5 italic">(puede seleccionar varios)</span>
               </label>
-              <select
-                id="fuenteFondosInmueble"
-                name="fuenteFondosInmueble"
-                value={formData.fuenteFondosInmueble}
-                onChange={onInputChange}
-                className={`w-full border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 cursor-pointer ${
-                  errors.fuenteFondosInmueble
-                    ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20"
-                    : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"
-                }`}
-              >
-                <option value="">Selecciona origen de fondos</option>
-                <option value="Propios">Propios</option>
-                <option value="Financiamiento">Financiamiento</option>
-                <option value="Terceros">Terceros</option>
-                <option value="Otros">Otros</option>
-              </select>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                {[
+                  "Recursos propios",
+                  "Financiamiento",
+                  "Ambos",
+                  "Terceros",
+                ].map((opt) => {
+                  const selectedFondos = (formData.fuenteFondosInmueble || "")
+                    .split(",")
+                    .map((s) => s.trim())
+                    .filter(Boolean);
+                  const isSelected = selectedFondos.includes(opt);
+                  return (
+                    <button
+                      type="button"
+                      key={opt}
+                      onClick={() => {
+                        let updated: string[];
+                        if (isSelected) {
+                          updated = selectedFondos.filter((item) => item !== opt);
+                        } else {
+                          updated = [...selectedFondos, opt];
+                        }
+                        const syntheticEvent = {
+                          target: {
+                            name: "fuenteFondosInmueble",
+                            value: updated.join(", "),
+                          },
+                        } as unknown as React.ChangeEvent<HTMLInputElement>;
+                        onInputChange(syntheticEvent);
+                      }}
+                      className={`flex items-center gap-2.5 p-3 rounded-xl border text-left text-xs font-semibold transition-all duration-150 cursor-pointer select-none ${
+                        isSelected
+                          ? "bg-[#002b49] text-white border-[#002b49] shadow-sm ring-1 ring-[#002b49]/30"
+                          : "bg-[#f4f6f8] text-zinc-700 border-zinc-300 hover:bg-zinc-100 hover:border-zinc-400"
+                      }`}
+                    >
+                      <div
+                        className={`w-4 h-4 rounded flex items-center justify-center border transition-colors shrink-0 ${
+                          isSelected ? "bg-[#c8a788] border-[#c8a788] text-white" : "border-zinc-400 bg-white"
+                        }`}
+                      >
+                        {isSelected && (
+                          <svg className="w-3 h-3 stroke-current stroke-[3]" fill="none" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                          </svg>
+                        )}
+                      </div>
+                      <span className="truncate">{opt}</span>
+                    </button>
+                  );
+                })}
+              </div>
               {errors.fuenteFondosInmueble && (
                 <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
                   ⚠️ {errors.fuenteFondosInmueble}
@@ -323,32 +427,173 @@ export default function Step3Finanzas({
               )}
             </div>
 
-            <div className="flex flex-col gap-2 md:col-span-2">
-              <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="montoServiciosAnuales">
-                Montos de Servicios y Productos Aproximados Anuales que Adquirirá
-              </label>
-              <select
-                id="montoServiciosAnuales"
-                name="montoServiciosAnuales"
-                value={formData.montoServiciosAnuales}
-                onChange={onInputChange}
-                className={`w-full border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 cursor-pointer ${
-                  errors.montoServiciosAnuales
-                    ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20"
-                    : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"
-                }`}
-              >
-                <option value="">Selecciona rango anual</option>
-                <option value="Menos de $5,000">Menos de $5,000</option>
-                <option value="$5,001 a $25,000">$5,001 a $25,000</option>
-                <option value="$25,001 a $50,000">$25,001 a $50,000</option>
-                <option value="$50,001 a $100,000">$50,001 a $100,000</option>
-                <option value="Más de $100,000">Más de $100,000</option>
-              </select>
-              {errors.montoServiciosAnuales && (
-                <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
-                  ⚠️ {errors.montoServiciosAnuales}
-                </span>
+            {((formData.fuenteFondosInmueble || "").includes("Terceros")) && (
+              <div className="bg-[#f8fafc] border border-zinc-300/80 rounded-xl p-5 md:p-6 space-y-4 animate-fadeIn shadow-sm md:col-span-2">
+                <h4 className="text-xs font-bold text-[#002b49] uppercase tracking-wider border-b border-zinc-200 pb-2">
+                  Identificación de la Persona que Aportará los Fondos (Terceros)
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-semibold text-zinc-700">
+                      Nombre Completo <span className="text-red-500 font-bold">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="terceroNombre"
+                      value={formData.terceroNombre || ""}
+                      onChange={onInputChange}
+                      placeholder="Nombre y apellido del aportante"
+                      className={`bg-white border rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 placeholder:text-zinc-400 ${
+                        errors.terceroNombre
+                          ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
+                          : "border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"
+                      }`}
+                    />
+                    {errors.terceroNombre && (
+                      <span className="text-xs text-red-500 font-medium">⚠️ {errors.terceroNombre}</span>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-semibold text-zinc-700">
+                      Nacionalidad <span className="text-red-500 font-bold">*</span>
+                    </label>
+                    <SearchableSelect
+                      value={formData.terceroNacionalidad || ""}
+                      onChange={(val) => {
+                        const syntheticEvent = {
+                          target: { name: "terceroNacionalidad", value: val },
+                        } as unknown as React.ChangeEvent<HTMLInputElement>;
+                        onInputChange(syntheticEvent);
+                      }}
+                      options={countries}
+                      placeholder="Buscar nacionalidad..."
+                      hasError={!!errors.terceroNacionalidad}
+                    />
+                    {errors.terceroNacionalidad && (
+                      <span className="text-xs text-red-500 font-medium">⚠️ {errors.terceroNacionalidad}</span>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-semibold text-zinc-700">
+                      Vínculo con la Persona Jurídica <span className="text-red-500 font-bold">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="terceroVinculo"
+                      value={formData.terceroVinculo || ""}
+                      onChange={onInputChange}
+                      placeholder="Ej: Accionista mayoritario, Empresa matriz, Socio"
+                      className={`bg-white border rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 placeholder:text-zinc-400 ${
+                        errors.terceroVinculo
+                          ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
+                          : "border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"
+                      }`}
+                    />
+                    {errors.terceroVinculo && (
+                      <span className="text-xs text-red-500 font-medium">⚠️ {errors.terceroVinculo}</span>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-semibold text-zinc-700">
+                      Fuente de los Fondos <span className="text-red-500 font-bold">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="terceroFuenteFondos"
+                      value={formData.terceroFuenteFondos || ""}
+                      onChange={onInputChange}
+                      placeholder="Ej: Utilidades retenidas, Préstamo comercial, Inversiones"
+                      className={`bg-white border rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 placeholder:text-zinc-400 ${
+                        errors.terceroFuenteFondos
+                          ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
+                          : "border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"
+                      }`}
+                    />
+                    {errors.terceroFuenteFondos && (
+                      <span className="text-xs text-red-500 font-medium">⚠️ {errors.terceroFuenteFondos}</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="flex flex-col gap-3 md:col-span-2 pt-4 border-t border-zinc-200">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <label className="text-xs text-zinc-700 font-semibold leading-normal md:max-w-xl" htmlFor="adquiereMasUnidades">
+                  ¿Tiene previsto adquirir más de una unidad inmobiliaria durante los próximos 12 meses? <span className="text-red-500 font-bold">*</span>
+                </label>
+                <div className="w-full md:w-56">
+                  <select
+                    id="adquiereMasUnidades"
+                    name="adquiereMasUnidades"
+                    value={formData.adquiereMasUnidades || ""}
+                    onChange={onInputChange}
+                    className={`w-full border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 font-semibold cursor-pointer ${
+                      errors.adquiereMasUnidades
+                        ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20"
+                        : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"
+                    }`}
+                    required
+                  >
+                    <option value="">Selecciona opción</option>
+                    <option value="No">No</option>
+                    <option value="Sí">Sí</option>
+                  </select>
+                  {errors.adquiereMasUnidades && (
+                    <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
+                      ⚠️ {errors.adquiereMasUnidades}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {(formData.adquiereMasUnidades === "Sí" || formData.adquiereMasUnidades === "Si") && (
+                <div className="bg-[#f8fafc] border border-zinc-300/80 rounded-xl p-4 mt-2 animate-fadeIn space-y-2">
+                  <label className="text-xs font-semibold text-zinc-700" htmlFor="cantidadUnidadesInmobiliarias">
+                    En caso afirmativo, indique la cantidad aproximada de unidades: <span className="text-red-500 font-bold">*</span>
+                  </label>
+                  <div className="max-w-xs">
+                    <input
+                      type="number"
+                      min="1"
+                      step="1"
+                      id="cantidadUnidadesInmobiliarias"
+                      name="cantidadUnidadesInmobiliarias"
+                      value={formData.cantidadUnidadesInmobiliarias || ""}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/[^0-9]/g, "");
+                        const syntheticEvent = {
+                          ...e,
+                          target: { ...e.target, name: "cantidadUnidadesInmobiliarias", value: val },
+                        };
+                        onInputChange(syntheticEvent as unknown as React.ChangeEvent<HTMLInputElement>);
+                      }}
+                      onKeyDown={(e) => {
+                        if (["Backspace", "Tab", "Delete", "ArrowLeft", "ArrowRight", "Enter", "Home", "End"].includes(e.key) || e.ctrlKey || e.metaKey) {
+                          return;
+                        }
+                        if (!/\d/.test(e.key)) {
+                          e.preventDefault();
+                        }
+                      }}
+                      placeholder="Ej: 2"
+                      className={`w-full bg-white border rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 ${
+                        errors.cantidadUnidadesInmobiliarias
+                          ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
+                          : "border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"
+                      }`}
+                      required
+                    />
+                    {errors.cantidadUnidadesInmobiliarias && (
+                      <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
+                        ⚠️ {errors.cantidadUnidadesInmobiliarias}
+                      </span>
+                    )}
+                  </div>
+                </div>
               )}
             </div>
           </div>
@@ -372,7 +617,7 @@ export default function Step3Finanzas({
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center pt-2">
           <p className="text-xs md:text-sm font-medium leading-relaxed text-zinc-700 md:col-span-2">
-            ¿Cualquiera de las personas naturales arriba mencionadas en el presente formulario, ha desempeñado en los últimos 2 años o desempeña algún cargo público que le catalogue como persona expuesta políticamente (PEP) según la Ley 23- 2015 Artículo-4#18, o es cónyuge, o mantiene un grado de parentesco dentro del segundo grado de consanguinidad o primero de afinidad, o tiene estrecha relación con una persona PEP?
+            ¿Alguna de las personas naturales mencionadas anteriormente en este formulario desempeña, o ha desempeñado en los últimos 2 años, algún cargo público que la catalogue como Persona Expuesta Políticamente (PEP) según el artículo 4, numeral 18, de la Ley 23 de 2015? Asimismo, ¿es cónyuge, mantiene un parentesco dentro del segundo grado de consanguinidad o primero de afinidad, o tiene una relación estrecha con una PEP? <span className="text-red-500 font-bold">*</span>
           </p>
           <div>
             <select
@@ -387,8 +632,8 @@ export default function Step3Finanzas({
               required
             >
               <option value="">Selecciona opción</option>
-              <option value="Sí">Sí</option>
               <option value="No">No</option>
+              <option value="Sí">Sí</option>
             </select>
             {errors.esPep && (
               <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
@@ -399,13 +644,13 @@ export default function Step3Finanzas({
         </div>
 
         {(formData.esPep === "Sí" || formData.esPep === "Si") && (
-          <div className="bg-[#040e16]/30 border border-zinc-800/80 rounded-xl p-5 md:p-6 mt-4 space-y-4 animate-fadeIn">
-            <h4 className="text-xs font-bold text-[#c8a788] uppercase tracking-wider">
+          <div className="bg-[#f8fafc] border border-zinc-300/80 rounded-xl p-5 md:p-6 mt-4 space-y-4 animate-fadeIn shadow-sm">
+            <h4 className="text-xs font-bold text-[#002b49] uppercase tracking-wider border-b border-zinc-200 pb-2">
               Detalles de la Persona Expuesta Políticamente (PEP)
             </h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-zinc-300">
+                <label className="text-xs font-semibold text-zinc-700">
                   Nombre Completo <span className="text-red-500 font-bold">*</span>
                 </label>
                 <input
@@ -413,22 +658,22 @@ export default function Step3Finanzas({
                   name="pepNombre"
                   value={formData.pepNombre || ""}
                   onChange={onInputChange}
-                  className={`bg-[#040e16] border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 transition text-white ${
+                  className={`bg-white border rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 placeholder:text-zinc-400 ${
                     errors.pepNombre
                       ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
-                      : "border-zinc-800 focus:border-[#c8a788] focus:ring-[#c8a788]/20"
+                      : "border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"
                   }`}
                   placeholder="Ej: Juan Pérez"
                 />
                 {errors.pepNombre && (
-                  <span className="text-xs text-red-400 font-medium">
+                  <span className="text-xs text-red-500 font-medium">
                     ⚠️ {errors.pepNombre}
                   </span>
                 )}
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-zinc-300">
+                <label className="text-xs font-semibold text-zinc-700">
                   Cargo Desempeñado <span className="text-red-500 font-bold">*</span>
                 </label>
                 <input
@@ -436,22 +681,22 @@ export default function Step3Finanzas({
                   name="pepCargo"
                   value={formData.pepCargo || ""}
                   onChange={onInputChange}
-                  className={`bg-[#040e16] border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 transition text-white ${
+                  className={`bg-white border rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 placeholder:text-zinc-400 ${
                     errors.pepCargo
                       ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
-                      : "border-zinc-800 focus:border-[#c8a788] focus:ring-[#c8a788]/20"
+                      : "border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"
                   }`}
                   placeholder="Ej: Ministro de Estado"
                 />
                 {errors.pepCargo && (
-                  <span className="text-xs text-red-400 font-medium">
+                  <span className="text-xs text-red-500 font-medium">
                     ⚠️ {errors.pepCargo}
                   </span>
                 )}
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-zinc-300">
+                <label className="text-xs font-semibold text-zinc-700">
                   Institución o Entidad <span className="text-red-500 font-bold">*</span>
                 </label>
                 <input
@@ -459,32 +704,32 @@ export default function Step3Finanzas({
                   name="pepInstitucion"
                   value={formData.pepInstitucion || ""}
                   onChange={onInputChange}
-                  className={`bg-[#040e16] border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 transition text-white ${
+                  className={`bg-white border rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 placeholder:text-zinc-400 ${
                     errors.pepInstitucion
                       ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
-                      : "border-zinc-800 focus:border-[#c8a788] focus:ring-[#c8a788]/20"
+                      : "border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"
                   }`}
                   placeholder="Ej: Ministerio de Obras Públicas"
                 />
                 {errors.pepInstitucion && (
-                  <span className="text-xs text-red-400 font-medium">
+                  <span className="text-xs text-red-500 font-medium">
                     ⚠️ {errors.pepInstitucion}
                   </span>
                 )}
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-zinc-300">
+                <label className="text-xs font-semibold text-zinc-700">
                   Relación o Parentesco <span className="text-red-500 font-bold">*</span>
                 </label>
                 <select
                   name="pepRelacion"
                   value={formData.pepRelacion || ""}
                   onChange={onInputChange}
-                  className={`bg-[#040e16] border rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-1 transition text-white cursor-pointer ${
+                  className={`bg-white border rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 cursor-pointer ${
                     errors.pepRelacion
                       ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
-                      : "border-zinc-800 focus:border-[#c8a788] focus:ring-[#c8a788]/20"
+                      : "border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"
                   }`}
                 >
                   <option value="">Seleccione parentesco</option>
@@ -492,12 +737,15 @@ export default function Step3Finanzas({
                   <option value="Dignatario / Director">Dignatario / Director</option>
                   <option value="Beneficiario Final">Beneficiario Final</option>
                   <option value="Apoderado">Apoderado</option>
-                  <option value="Familiar de PEP">Familiar de PEP</option>
+                  <option value="Cónyuge">Cónyuge</option>
+                  <option value="Padre / Madre">Padre / Madre</option>
+                  <option value="Hijo / Hija">Hijo / Hija</option>
+                  <option value="Hermano / Hermana">Hermano / Hermana</option>
                   <option value="Estrecho Colaborador">Estrecho Colaborador</option>
                   <option value="Otros">Otros</option>
                 </select>
                 {errors.pepRelacion && (
-                  <span className="text-xs text-red-400 font-medium">
+                  <span className="text-xs text-red-500 font-medium">
                     ⚠️ {errors.pepRelacion}
                   </span>
                 )}

@@ -467,8 +467,16 @@ export default function Step2PerfilFinanciero({
                 type="number"
                 id="pctDedicacionPrincipal"
                 name="pctDedicacionPrincipal"
+                min="0"
+                max="100"
+                step="any"
                 value={formData.pctDedicacionPrincipal || ""}
                 onChange={onInputChange}
+                onKeyDown={(e) => {
+                  if (["e", "E", "+", "-"].includes(e.key)) {
+                    e.preventDefault();
+                  }
+                }}
                 placeholder="Ej: 80%"
                 className={`${errors.pctDedicacionPrincipal ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800`}
               />
@@ -531,8 +539,16 @@ export default function Step2PerfilFinanciero({
                 type="number"
                 id="pctDedicacionSecundaria"
                 name="pctDedicacionSecundaria"
+                min="0"
+                max="100"
+                step="any"
                 value={formData.pctDedicacionSecundaria || ""}
                 onChange={onInputChange}
+                onKeyDown={(e) => {
+                  if (["e", "E", "+", "-"].includes(e.key)) {
+                    e.preventDefault();
+                  }
+                }}
                 placeholder="Ej: 20%"
                 className={`${errors.pctDedicacionSecundaria ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800`}
               />

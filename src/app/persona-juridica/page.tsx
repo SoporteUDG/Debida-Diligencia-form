@@ -33,10 +33,10 @@ const getStepForField = (field: string): number => {
   const step1Fields = [
     "nombreProyecto", "formaContacto", "razonSocial", "tipoSociedad", "tipoCliente", "tipoDocumentoIdentidad", "actividadPrincipal", "numeroDocumento", "numeroIdTributaria", "paisTributacion", "porcentajeActividad", "fechaConstitucion", "paisOpera", "paisInscripcion", "fechaNacimiento", "contactoNombre", "contactoApellido", "contactoId", "contactoTelefono", "contactoEmail", "empresaDireccion", "empresaCiudad", "empresaProvincia", "empresaPais", "empresaTelefonoCodigo", "empresaTelefono", "empresaCelularCodigo", "empresaCelular", "empresaEmail",
     "rlNombre", "rlFechaNacimiento", "rlNacionalidad", "rlNoIdentificacion", "rlProfesionOcupacion", "rlActividadEconomica", "rlDireccion", "rlPaisResidencia", "rlTelefono", "rlObjetoInvestigacion", "gjcMembers",
-    "bfMembers", "ingresosMensuales", "medioPago", "fuenteFondosInmueble", "montoServiciosAnuales", "esPep", "pepNombre", "pepCargo", "pepInstitucion", "pepRelacion", "actividadComercial", "origenFondos", "destinoFondos", "volumenVentas", "bancoReferencia"
+    "bfMembers", "ingresosMensuales", "medioPago", "fuenteFondosInmueble", "terceroNombre", "terceroNacionalidad", "terceroVinculo", "terceroFuenteFondos", "adquiereMasUnidades", "cantidadUnidadesInmobiliarias", "montoServiciosAnuales", "esPep", "pepNombre", "pepCargo", "pepInstitucion", "pepRelacion", "actividadComercial", "origenFondos", "destinoFondos", "volumenVentas", "bancoReferencia"
   ];
   const step2Fields = ["avisoOperacionesFile", "copiaIdFile", "origenFondosFile", "pactoSocialFile", "serviciosPublicosFile", "certBancariaFile", "certRegistroFile"];
-  const step3Fields = ["termsAccepted", "signerName", "signatureDate", "firmaImage"];
+  const step3Fields = ["termsAccepted", "signatureConfirmed", "signerName", "signatureDate", "firmaImage"];
 
   if (step1Fields.some(f => field.startsWith(f))) return 1;
   if (step2Fields.some(f => field.startsWith(f))) return 2;

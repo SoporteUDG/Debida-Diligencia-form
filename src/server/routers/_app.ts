@@ -4,6 +4,7 @@ import { reactivateToken, generateToken, signUuid, revokeToken } from "@/lib/tok
 import { documentsRouter } from "./documents";
 import { naturalFormSchema, juridicaFormSchema } from "@/lib/validation";
 import { syncFormToCrm } from "@/lib/crmSyncService";
+import { syncFormToWorkDrive } from "@/lib/workdriveSyncService";
 import { TRPCError } from "@trpc/server";
 import { logAuditEvent, computeDiff, sanitizeDetails } from "@/lib/auditService";
 import { zoho, mergeCrmAndDraft } from "@/lib/zohoService";
@@ -626,6 +627,19 @@ export const appRouter = router({
       return updated;
     }),
 
+  // Admin mutation: Retry/trigger WorkDrive sync for a specific form (generates consolidated PDF and uploads)
+  retryWorkDriveSync: adminProcedure
+    .input(
+      z.object({
+        formId: z.string().uuid("ID de formulario inválido"),
+      })
+    )
+    .mutation(async ({ input }) => {
+      console.log(`[Admin] Disparando sincronización manual con WorkDrive para form: ${input.formId}`);
+      const result = await syncFormToWorkDrive(input.formId);
+      return result;
+    }),
+
   // Admin mutation: Approve a client submission
   approveForm: adminProcedure
     .input(
@@ -1025,9 +1039,13 @@ export const appRouter = router({
         }
       }
 
-      // 6. Trigger Zoho CRM sync in the background asynchronously
+      // 6. Trigger Zoho CRM & WorkDrive sync in the background asynchronously
       syncFormToCrm(dbForm.id).catch((syncErr) => {
         console.error(`[Submit Form Sync Warning] Error in CRM sync background promise for form ${dbForm.id}:`, syncErr);
+      });
+
+      syncFormToWorkDrive(dbForm.id).catch((wdErr) => {
+        console.error(`[Submit Form Sync Warning] Error in WorkDrive sync background promise for form ${dbForm.id}:`, wdErr);
       });
 
       return {

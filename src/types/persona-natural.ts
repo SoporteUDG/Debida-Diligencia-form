@@ -72,6 +72,7 @@ export interface FormState {
 
   // Step 5: Terms & Sign
   termsAccepted: boolean;
+  signatureConfirmed: boolean;
   signerName: string;
   signatureDate: string;
   firmaImage: string;
@@ -146,6 +147,7 @@ export const INITIAL_FORM_STATE: FormState = {
   otrosAdjuntosFile: "",
 
   termsAccepted: false,
+  signatureConfirmed: false,
   signerName: "",
   signatureDate: "",
   firmaImage: "",

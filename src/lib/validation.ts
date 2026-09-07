@@ -94,6 +94,43 @@ const percentageValidator = (fieldName: string, isRequired = false) => {
 };
 
 
+// Monetary / Quantitative string validator (e.g., 5000, 5,000.00)
+const monetaryValidator = (fieldName: string, isRequired = true) => {
+  if (isRequired) {
+    return z.string({ message: `${fieldName} es requerido(a)` })
+      .trim()
+      .min(1, `${fieldName} es requerido(a)`)
+      .refine((val) => {
+        const clean = val.replace(/[\$,\s]/g, "");
+        if (!clean) return false;
+        if (!/^\d+(\.\d{1,2})?$/.test(clean)) return false;
+        const num = parseFloat(clean);
+        return !isNaN(num) && num > 0;
+      }, `${fieldName} debe ser un monto numérico válido mayor a 0 (ej: 5000 o 5,000.00)`);
+  }
+  return z.string()
+    .trim()
+    .optional()
+    .refine((val) => {
+      if (!val) return true;
+      const clean = val.replace(/[\$,\s]/g, "");
+      if (!clean) return true;
+      if (!/^\d+(\.\d{1,2})?$/.test(clean)) return false;
+      const num = parseFloat(clean);
+      return !isNaN(num) && num >= 0;
+    }, `${fieldName} debe ser un monto numérico válido`);
+};
+
+// Multi-select validator for Medio de Pago
+const medioPagoValidator = (fieldName: string) =>
+  z.string({ message: `${fieldName} es requerido(a)` })
+    .trim()
+    .min(1, `Debe seleccionar al menos un ${fieldName}`)
+    .refine((val) => {
+      const parts = val.split(",").map((s) => s.trim()).filter(Boolean);
+      return parts.length > 0;
+    }, `Debe seleccionar al menos un ${fieldName}`);
+
 // Expiration Date Validator (Identification Document must not be expired)
 const idExpirationDateValidator = (fieldName: string) =>
   z.string()
@@ -161,8 +198,8 @@ export const naturalStep1Schema = z.object({
   jurisdiccionSecundaria: optionalString,
 
   // Perfil Financiero y PEP
-  ingresosMensuales: requiredString("Ingresos Mensuales"),
-  medioPago: requiredString("Medio de Pago"),
+  ingresosMensuales: monetaryValidator("Ingresos Mensuales"),
+  medioPago: medioPagoValidator("Medio de Pago"),
   fuenteFondosInmueble: requiredString("Fuente de Fondos"),
   montoServiciosAnuales: optionalString,
   adquiereNombreTercero: optionalString,
@@ -260,7 +297,8 @@ export const naturalStep2Schema = z.object({
 
 // Paso 3: Declaración y Firma (Anterior Paso 5)
 export const naturalStep3Schema = z.object({
-  termsAccepted: z.boolean().refine(val => val === true, "Debe aceptar los términos y condiciones de la declaración jurada"),
+  termsAccepted: z.boolean().refine(val => val === true, "Debe dar consentimiento legal y autorizar el análisis de prevención"),
+  signatureConfirmed: z.boolean().refine(val => val === true, "Debe confirmar la veracidad, validez de la firma digital y compromiso de firma física"),
   signerName: requiredString("Nombre del Firmante"),
   signatureDate: pastOrTodayDateValidator("Fecha de Firma"),
   firmaImage: requiredString("Firma Digital (Imagen de la firma)"),
@@ -398,10 +436,16 @@ export const juridicaStep1Schema = z.object({
 
   // Beneficiarios Finales y Finanzas
   bfMembers: z.array(bfMemberSchema).min(1, "Debe registrar al menos un (1) Beneficiario Final"),
-  ingresosMensuales: requiredString("Ingresos Mensuales"),
-  medioPago: requiredString("Medio de Pago"),
-  fuenteFondosInmueble: requiredString("Usted Adquiere el Bien Inmueble con Fondos"),
-  montoServiciosAnuales: requiredString("Monto de Servicios Anuales"),
+  ingresosMensuales: monetaryValidator("Ingresos Mensuales"),
+  medioPago: medioPagoValidator("Medio de Pago"),
+  fuenteFondosInmueble: medioPagoValidator("Usted Adquiere el Bien Inmueble con Fondos"),
+  terceroNombre: optionalString,
+  terceroNacionalidad: optionalString,
+  terceroVinculo: optionalString,
+  terceroFuenteFondos: optionalString,
+  adquiereMasUnidades: requiredString("¿Tiene previsto adquirir más de una unidad inmobiliaria?"),
+  cantidadUnidadesInmobiliarias: optionalString,
+  montoServiciosAnuales: optionalString,
   esPep: requiredString("Pregunta de PEP de Persona Jurídica"),
   pepNombre: optionalString,
   pepCargo: optionalString,
@@ -424,6 +468,50 @@ export const juridicaStep1Schema = z.object({
       message: `La suma de participación de los Beneficiarios Finales (${sumPct}%) no puede exceder el 100%`,
       path: ["bfMembers"],
     });
+  }
+
+  // Validate conditional Terceros fields when selected in fuenteFondosInmueble
+  if (data.fuenteFondosInmueble && data.fuenteFondosInmueble.includes("Terceros")) {
+    if (!data.terceroNombre || data.terceroNombre.trim() === "") {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "El nombre completo de la persona que aportará los fondos es requerido",
+        path: ["terceroNombre"],
+      });
+    }
+    if (!data.terceroNacionalidad || data.terceroNacionalidad.trim() === "") {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "La nacionalidad del tercero es requerida",
+        path: ["terceroNacionalidad"],
+      });
+    }
+    if (!data.terceroVinculo || data.terceroVinculo.trim() === "") {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "El vínculo con la persona jurídica es requerido",
+        path: ["terceroVinculo"],
+      });
+    }
+    if (!data.terceroFuenteFondos || data.terceroFuenteFondos.trim() === "") {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "La fuente de los fondos del tercero es requerida",
+        path: ["terceroFuenteFondos"],
+      });
+    }
+  }
+
+  // Validate conditional cantidadUnidadesInmobiliarias when adquiereMasUnidades === "Sí"
+  if (data.adquiereMasUnidades === "Sí" || data.adquiereMasUnidades === "Si") {
+    const qty = parseInt(data.cantidadUnidadesInmobiliarias || "0", 10);
+    if (!data.cantidadUnidadesInmobiliarias || isNaN(qty) || qty <= 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Debe ingresar una cantidad aproximada de unidades válida (mínimo 1)",
+        path: ["cantidadUnidadesInmobiliarias"],
+      });
+    }
   }
 
   // Validate conditional PEP fields
@@ -480,7 +568,8 @@ export const juridicaStep2Schema = z.object({
 
 // Paso 3: Declaración y Firma (Anterior Paso 5)
 export const juridicaStep3Schema = z.object({
-  termsAccepted: z.boolean().refine(val => val === true, "Debe aceptar la declaración jurada"),
+  termsAccepted: z.boolean().refine(val => val === true, "Debe dar consentimiento legal y autorizar el análisis de prevención"),
+  signatureConfirmed: z.boolean().refine(val => val === true, "Debe confirmar la veracidad, validez de la firma digital y compromiso de firma física"),
   signerName: requiredString("Nombre del Representante Legal o Firmante"),
   signatureDate: pastOrTodayDateValidator("Fecha de Firma"),
   firmaImage: requiredString("Firma Digital (Imagen de la firma)"),

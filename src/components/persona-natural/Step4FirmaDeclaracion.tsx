@@ -198,7 +198,7 @@ export default function Step4FirmaDeclaracion({ formData, onInputChange, errors 
             2. Declara el firmante que acepta que nuestra empresa puede verificar la información proporcionada en este formulario, en cualquier momento de la relación comercial.
           </p>
           <p>
-            3. Declara el firmante que de acuerdo con lo dispuesto en la Ley 23 del 27 de abril de 2015, en el Decreto 35-2022 y de la Resolución No. JD-001-015 de 14 de agosto de 2015 emitida por la Intendencia de Supervisión y Regulación de los sujetos obligados no financieros, nuestra empresa solicitará actualización de esta información anualmente, mientras dure la relación comercial.
+            3. Declara el firmante que, de acuerdo con lo dispuesto en la Ley 23 del 27 de abril de 2015 y sus reglamentaciones, emitidas por la Superintendencia de Sujetos no Financieros, nuestra empresa solicitará la actualización de esta información anualmente, mientras dure la relación comercial.
           </p>
           <p>
             4. Declara el firmante que no ha estado involucrado o no ha sido condenado en Panamá, ni en ningún otro país por la comisión de delitos relacionados al lavado de dinero, tráfico de drogas, terrorismo, fraude o delitos de cualquier naturaleza.
@@ -220,29 +220,7 @@ export default function Step4FirmaDeclaracion({ formData, onInputChange, errors 
           </p>
         </div>
 
-        <div className="flex flex-col gap-1.5 mt-4">
-          <div className="flex items-start gap-3">
-            <input
-              type="checkbox"
-              id="termsAccepted"
-              name="termsAccepted"
-              checked={formData.termsAccepted}
-              onChange={onInputChange}
-              className="mt-1 h-4 w-4 rounded border-zinc-300 bg-[#f4f6f8] text-[#c8a788] accent-[#c8a788] focus:ring-0 focus:ring-offset-0 cursor-pointer"
-              required
-            />
-            <label htmlFor="termsAccepted" className="text-xs text-zinc-500 leading-normal select-none cursor-pointer">
-              He leído y acepto la Declaración de Licitud de Fondos y el Consentimiento para Tratamiento de Datos Personales expuestos arriba. <span className="text-red-500 font-bold">*</span>
-            </label>
-          </div>
-          {errors.termsAccepted && (
-            <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
-              ⚠️ {errors.termsAccepted}
-            </span>
-          )}
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8 pt-4 border-t border-zinc-200">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6 pt-4 border-t border-zinc-200">
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="signerName">
               Nombre del Cliente <span className="text-red-500 font-bold">*</span>
@@ -294,17 +272,12 @@ export default function Step4FirmaDeclaracion({ formData, onInputChange, errors 
         </div>
 
         {/* Signature Pad Area */}
-        <div className={`flex flex-col gap-3 transition-all duration-300 ${!formData.termsAccepted ? "opacity-45 pointer-events-none select-none" : ""}`}>
+        <div className="flex flex-col gap-3 transition-all duration-300">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700">
                 Firma Digital del Cliente <span className="text-red-500 font-bold">*</span>
               </label>
-              {!formData.termsAccepted && (
-                <span className="text-[9px] text-amber-700 bg-amber-50 border border-amber-200/50 px-2 py-0.5 rounded-full font-bold uppercase tracking-wide">
-                  Bloqueado: Acepta consentimiento arriba
-                </span>
-              )}
             </div>
             
             {/* Signature Mode Selector */}
@@ -428,8 +401,57 @@ export default function Step4FirmaDeclaracion({ formData, onInputChange, errors 
             )}
           </div>
         </div>
-      </div>
 
+        {/* Final Checklist Area */}
+        <div className="space-y-3 pt-4 border-t border-zinc-200">
+          {/* Checkbox 1: Legal Consent */}
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-start gap-3">
+              <input
+                type="checkbox"
+                id="termsAccepted"
+                name="termsAccepted"
+                checked={formData.termsAccepted}
+                onChange={onInputChange}
+                className="mt-1 h-4 w-4 rounded border-zinc-300 bg-[#f4f6f8] text-[#c8a788] accent-[#c8a788] focus:ring-0 focus:ring-offset-0 cursor-pointer"
+                required
+              />
+              <label htmlFor="termsAccepted" className="text-xs text-zinc-600 leading-normal select-none cursor-pointer">
+                Doy consentimiento legal expreso, certifico que la información declarada es verídica e íntegra, y autorizo el análisis conforme a la Ley de Prevención de Capitales. <span className="text-red-500 font-bold">*</span>
+              </label>
+            </div>
+            {errors.termsAccepted && (
+              <span className="text-xs text-red-500 font-medium flex items-center gap-1 ml-7 animate-fadeIn">
+                ⚠️ {errors.termsAccepted}
+              </span>
+            )}
+          </div>
+
+          {/* Checkbox 2: Confirmation & Digital/Physical Signature Commitment */}
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-start gap-3">
+              <input
+                type="checkbox"
+                id="signatureConfirmed"
+                name="signatureConfirmed"
+                checked={formData.signatureConfirmed}
+                onChange={onInputChange}
+                className="mt-1 h-4 w-4 rounded border-zinc-300 bg-[#f4f6f8] text-[#c8a788] accent-[#c8a788] focus:ring-0 focus:ring-offset-0 cursor-pointer"
+                required
+              />
+              <label htmlFor="signatureConfirmed" className="text-xs text-zinc-600 leading-normal select-none cursor-pointer">
+                Confirmo que los datos son correctos, acepto la validez de mi firma digital en este acto y me comprometo a proporcionar mi firma física cuando sea requerida. <span className="text-red-500 font-bold">*</span>
+              </label>
+            </div>
+            {errors.signatureConfirmed && (
+              <span className="text-xs text-red-500 font-medium flex items-center gap-1 ml-7 animate-fadeIn">
+                ⚠️ {errors.signatureConfirmed}
+              </span>
+            )}
+          </div>
+        </div>
+
+      </div>
 
     </div>
   );

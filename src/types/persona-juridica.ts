@@ -80,6 +80,12 @@ export interface FormState {
   ingresosMensuales: string;
   medioPago: string;
   fuenteFondosInmueble: string;
+  terceroNombre: string;
+  terceroNacionalidad: string;
+  terceroVinculo: string;
+  terceroFuenteFondos: string;
+  adquiereMasUnidades: string;
+  cantidadUnidadesInmobiliarias: string;
   montoServiciosAnuales: string;
   esPep: string;
   pepNombre: string;
@@ -111,6 +117,7 @@ export interface FormState {
   
   // Step 5: Terms and Signature
   termsAccepted: boolean;
+  signatureConfirmed: boolean;
   signerName: string;
   signatureDate: string;
   firmaImage: string; // Base64 representation of signature canvas
@@ -204,6 +211,12 @@ export const INITIAL_FORM_STATE: FormState = {
   ingresosMensuales: "",
   medioPago: "",
   fuenteFondosInmueble: "",
+  terceroNombre: "",
+  terceroNacionalidad: "",
+  terceroVinculo: "",
+  terceroFuenteFondos: "",
+  adquiereMasUnidades: "",
+  cantidadUnidadesInmobiliarias: "",
   montoServiciosAnuales: "",
   esPep: "",
   pepNombre: "",
@@ -235,6 +248,7 @@ export const INITIAL_FORM_STATE: FormState = {
   
   // Step 5
   termsAccepted: false,
+  signatureConfirmed: false,
   signerName: "",
   signatureDate: "",
   firmaImage: "",

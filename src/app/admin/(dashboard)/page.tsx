@@ -207,6 +207,7 @@ export default function AdminDashboard() {
           origenFondosFile: "carta_trabajo_perez.pdf",
           proofAddressFile: "recibo_electricidad_cde.pdf",
           termsAccepted: true,
+          signatureConfirmed: true,
           signerName: "Juan A. Pérez M.",
           signatureDate: new Date().toLocaleDateString(),
           firmaImage: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAABkCAYAAABgCAYAAADQC4GPAAAAAXNSR0IArs4c6QAAAXlJREFUeF7t0sENgEAQA8G7E/pPylQEC7h7C2fGssmv9QyMAtsZ2D0zGhgFAsoR0gICyvHTAgrIDtICAsrx0wIKyA7SAgLK8dMCAsoO0gICyvHTAgrIDtICAsrx0wIKyA7SAgLK8dMCAsoO0gICyvHTAgrIDtICAsrx0wIKyA7SAgLK8dMCAsoO0gICyvHTAgrIDtICAsrx0wIKyA7SAgLK8dMCAsoO0gICyvHTAgrIDtICAsrx0wIKyA7SAgLK8dMCAsoO0gICyvHTAgrIDtICAsrx0wIKyA7SAgLK8dMCAsoO0gICyvHTAgrIDtICAsrx0wIKyA7SAgLK8dMCAsoO0gICyvHTAgrIDtICAsrx0wIKyA7SAgLK8dMCAsoO0gICyvHTAgrIDtICAgp7G7G0wF7xAAAAAElFTkSuQmCC",
@@ -1499,6 +1500,34 @@ export default function AdminDashboard() {
                     <Download className="w-4 h-4" />
                     PDF
                   </button>
+                  {!selectedSub.data.isDraftRecord && (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          const res = await fetch("/api/trpc/retryWorkDriveSync", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ formId: selectedSub.id }),
+                          });
+                          const json = await res.json();
+                          if (json.result?.data?.success) {
+                            alert("Expediente consolidado y subido a WorkDrive con éxito.");
+                            window.location.reload();
+                          } else {
+                            alert(`Resultado: ${json.result?.data?.error || "Error al sincronizar con WorkDrive"}`);
+                          }
+                        } catch (e: any) {
+                          alert(`Error: ${e.message}`);
+                        }
+                      }}
+                      className="bg-blue-600 hover:bg-blue-500 text-white px-3 py-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
+                      title="Generar PDF consolidado completo y subir a Zoho WorkDrive"
+                    >
+                      <RefreshCw className="w-4 h-4" />
+                      WorkDrive
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -2039,6 +2068,43 @@ export default function AdminDashboard() {
                         </div>
                         {selectedSub.data.workDriveSync?.folderId && (
                           <p className="text-[9px] text-zinc-500 font-mono">ID Carpeta: {selectedSub.data.workDriveSync.folderId}</p>
+                        )}
+                        {selectedSub.data.workDriveSync?.folderUrl && (
+                          <a
+                            href={selectedSub.data.workDriveSync.folderUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[9px] text-[#c8a788] hover:underline block font-semibold"
+                          >
+                            Abrir en WorkDrive ↗
+                          </a>
+                        )}
+                        {!selectedSub.data.isDraftRecord && (
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              try {
+                                const res = await fetch("/api/trpc/retryWorkDriveSync", {
+                                  method: "POST",
+                                  headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({ formId: selectedSub.id }),
+                                });
+                                const json = await res.json();
+                                if (json.result?.data?.success) {
+                                  alert("Sincronización con WorkDrive ejecutada con éxito.");
+                                  window.location.reload();
+                                } else {
+                                  alert(`Resultado: ${json.result?.data?.error || "Error al sincronizar"}`);
+                                }
+                              } catch (e: any) {
+                                alert(`Error: ${e.message}`);
+                              }
+                            }}
+                            className="text-[9px] px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-semibold transition cursor-pointer flex items-center gap-1 mt-1"
+                          >
+                            <RefreshCw className="w-2.5 h-2.5" />
+                            {selectedSub.data.workDriveSync?.status === "SUCCESS" ? "Re-sincronizar WorkDrive" : "Subir PDF a WorkDrive"}
+                          </button>
                         )}
                       </div>
 

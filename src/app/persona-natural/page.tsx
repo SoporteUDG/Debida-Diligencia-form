@@ -36,7 +36,7 @@ const getStepForField = (field: string): number => {
     "ingresosMensuales", "medioPago", "fuenteFondosInmueble", "montoServiciosAnuales", "adquiereNombreTercero", "destinoInmueble", "esPep", "pepNombre", "pepCargo", "pepInstitucion", "pepRelacion"
   ];
   const step2Fields = ["idFile", "proofAddressFile", "origenFondosFile", "hasEstadoCuenta", "hasCertificacionBancaria", "otrosAdjuntosFile"];
-  const step3Fields = ["termsAccepted", "signerName", "signatureDate", "firmaImage"];
+  const step3Fields = ["termsAccepted", "signatureConfirmed", "signerName", "signatureDate", "firmaImage"];
 
   if (step1Fields.includes(field)) return 1;
   if (step2Fields.includes(field)) return 2;

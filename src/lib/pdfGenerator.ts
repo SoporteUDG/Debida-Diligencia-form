@@ -319,19 +319,36 @@ export async function generatePDF(
         </h3>
         <table style="width: 100%; border-collapse: collapse; font-size: 9px; line-height: 1.6;">
           <tr>
-            <td style="width: 25%; font-weight: bold; color: #4b5563; padding: 4px 0;">Ingresos Mensuales Promedio:</td>
+            <td style="width: 25%; font-weight: bold; color: #4b5563; padding: 4px 0;">Ingresos Mensuales:</td>
             <td style="color: #1f2937; padding: 4px 0;">${data.ingresosMensuales || "-"}</td>
             <td style="width: 25%; font-weight: bold; color: #4b5563; padding: 4px 0;">Volumen Ventas Anual:</td>
             <td style="color: #1f2937; padding: 4px 0;">${data.volumenVentas || "-"}</td>
           </tr>
           <tr>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Medio de Pago:</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.medioPago || "-"}</td>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Fondos de Adquisición:</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.fuenteFondosInmueble || "-"}</td>
+          </tr>
+          ${data.fuenteFondosInmueble && data.fuenteFondosInmueble.includes("Terceros") ? `
+          <tr>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Aportante Tercero:</td>
+            <td colspan="3" style="color: #1f2937; padding: 4px 0;">
+              <strong>Nombre:</strong> ${data.terceroNombre || "-"} | 
+              <strong>Nacionalidad:</strong> ${data.terceroNacionalidad || "-"} | 
+              <strong>Vínculo:</strong> ${data.terceroVinculo || "-"} | 
+              <strong>Fuente:</strong> ${data.terceroFuenteFondos || "-"}
+            </td>
+          </tr>
+          ` : ""}
+          <tr>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">¿Previsto >1 Unidad (12m)?:</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.adquiereMasUnidades || "No"}${data.cantidadUnidadesInmobiliarias ? ` (${data.cantidadUnidadesInmobiliarias} unidades)` : ""}</td>
             <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Banco de Referencia:</td>
             <td style="color: #1f2937; padding: 4px 0;">${data.bancoReferencia || "-"}</td>
-            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Monto Servicios Anuales:</td>
-            <td style="color: #1f2937; padding: 4px 0;">${data.montoServiciosAnuales || "-"}</td>
           </tr>
           <tr>
-            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Fuente de Fondos:</td>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Fuente / Origen Fondos:</td>
             <td style="color: #1f2937; padding: 4px 0;">${data.origenFondos || "-"}</td>
             <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Destino de Fondos:</td>
             <td style="color: #1f2937; padding: 4px 0;">${data.destinoFondos || "-"}</td>

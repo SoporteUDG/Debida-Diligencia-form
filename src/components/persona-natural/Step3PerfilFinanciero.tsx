@@ -8,7 +8,37 @@ interface Step3Props {
   errors: Record<string, string>;
 }
 
+const MEDIO_PAGO_OPTIONS = [
+  "Efectivo",
+  "Transferencia ACH",
+  "Internacional",
+  "Nacional",
+  "Cheque",
+  "Crédito (Financiamiento)",
+];
+
 export default function Step3PerfilFinanciero({ formData, onInputChange, errors = {} }: Step3Props) {
+  const selectedMedios = (formData.medioPago || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  const toggleMedioPago = (option: string) => {
+    let updated: string[];
+    if (selectedMedios.includes(option)) {
+      updated = selectedMedios.filter((item) => item !== option);
+    } else {
+      updated = [...selectedMedios, option];
+    }
+    const syntheticEvent = {
+      target: {
+        name: "medioPago",
+        value: updated.join(", "),
+      },
+    } as unknown as React.ChangeEvent<HTMLInputElement>;
+    onInputChange(syntheticEvent);
+  };
+
   return (
     <div className="space-y-8">
 
@@ -28,23 +58,46 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, errors 
             Ingresos Mensuales Aproximados Son de <span className="text-red-500 font-bold">*</span>
           </label>
           <div className="flex items-center gap-2">
-            <input
-              type="text"
-              id="ingresosMensuales"
-              name="ingresosMensuales"
-              value={formData.ingresosMensuales || ""}
-              onChange={onInputChange}
-              placeholder="Ej: 5,000"
-              className={`${errors.ingresosMensuales ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
-              required
-            />
-            {errors.ingresosMensuales && (
-              <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
-                ⚠️ {errors.ingresosMensuales}
-              </span>
-            )}
+            <div className="relative w-full">
+              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500 font-bold text-sm select-none">$</span>
+              <input
+                type="text"
+                inputMode="decimal"
+                id="ingresosMensuales"
+                name="ingresosMensuales"
+                value={formData.ingresosMensuales || ""}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/[^0-9.,]/g, "");
+                  const syntheticEvent = {
+                    ...e,
+                    target: { ...e.target, name: "ingresosMensuales", value: val },
+                  };
+                  onInputChange(syntheticEvent as unknown as React.ChangeEvent<HTMLInputElement>);
+                }}
+                onKeyDown={(e) => {
+                  if (
+                    ["Backspace", "Tab", "Delete", "ArrowLeft", "ArrowRight", "Enter", "Home", "End"].includes(e.key) ||
+                    e.ctrlKey ||
+                    e.metaKey
+                  ) {
+                    return;
+                  }
+                  if (!/[\d.,]/.test(e.key)) {
+                    e.preventDefault();
+                  }
+                }}
+                placeholder="5,000.00"
+                className={`${errors.ingresosMensuales ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"} border rounded-lg pl-8 pr-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full font-medium`}
+                required
+              />
+            </div>
             <span className="text-sm font-semibold text-zinc-650">USD</span>
           </div>
+          {errors.ingresosMensuales && (
+            <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
+              ⚠️ {errors.ingresosMensuales}
+            </span>
+          )}
         </div>
       </div>
 
@@ -52,30 +105,46 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, errors 
       <div className="bg-white rounded-2xl p-6 md:p-8 shadow-xl border border-zinc-200 space-y-6 text-[#1a1c1a] font-sans">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-          <div className="flex flex-col gap-2">
-            <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="medioPago">
+          <div className="flex flex-col gap-2.5 md:col-span-2">
+            <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700">
               Medio de Pago <span className="text-red-500 font-bold">*</span>
+              <span className="text-[10px] font-normal text-zinc-500 lowercase ml-1.5 italic">(puede seleccionar varios)</span>
             </label>
-            <select
-              id="medioPago"
-              name="medioPago"
-              value={formData.medioPago || ""}
-              onChange={onInputChange}
-              className={`${errors.medioPago ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
-              required
-            >
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+              {MEDIO_PAGO_OPTIONS.map((opt) => {
+                const isSelected = selectedMedios.includes(opt);
+                return (
+                  <button
+                    type="button"
+                    key={opt}
+                    onClick={() => toggleMedioPago(opt)}
+                    className={`flex items-center gap-2.5 p-3 rounded-xl border text-left text-xs font-semibold transition-all duration-150 cursor-pointer select-none ${
+                      isSelected
+                        ? "bg-[#002b49] text-white border-[#002b49] shadow-sm ring-1 ring-[#002b49]/30"
+                        : "bg-[#f4f6f8] text-zinc-700 border-zinc-300 hover:bg-zinc-100 hover:border-zinc-400"
+                    }`}
+                  >
+                    <div
+                      className={`w-4 h-4 rounded flex items-center justify-center border transition-colors shrink-0 ${
+                        isSelected ? "bg-[#c8a788] border-[#c8a788] text-white" : "border-zinc-400 bg-white"
+                      }`}
+                    >
+                      {isSelected && (
+                        <svg className="w-3 h-3 stroke-current stroke-[3]" fill="none" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
+                    </div>
+                    <span className="truncate">{opt}</span>
+                  </button>
+                );
+              })}
+            </div>
             {errors.medioPago && (
               <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
                 ⚠️ {errors.medioPago}
               </span>
             )}
-              <option value="">-Select-</option>
-              <option value="Transferencia ACH">Transferencia ACH</option>
-              <option value="Internacional">Internacional</option>
-              <option value="Nacional">Nacional</option>
-              <option value="Cheque">Cheque</option>
-              <option value="Credito (financciamiento)">Credito (financiamiento)</option>
-            </select>
           </div>
 
           <div className="flex flex-col gap-2">
@@ -204,14 +273,14 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, errors 
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center pt-4 border-t border-zinc-150">
           <span className="text-xs text-zinc-700 leading-normal font-semibold">
-            ¿Cualquiera de las personas naturales arriba mencionadas en el presente formulario, ha desempeñado en los últimos 2 años o desempeña algún cargo público que le catalogue como persona expuesta políticamente (PEP) según la Ley 23- 2015 Artículo-4#18, o es conyugue, o mantiene un grado de parentesco dentro del segundo grado de consanguinidad o primero de afinidad, o tiene estrecha relación con una persona PEP? <span className="text-red-500 font-bold">*</span>
+            ¿Alguna de las personas naturales mencionadas anteriormente en este formulario desempeña, o ha desempeñado en los últimos 2 años, algún cargo público que la catalogue como Persona Expuesta Políticamente (PEP) según el artículo 4, numeral 18, de la Ley 23 de 2015? Asimismo, ¿es cónyuge, mantiene un parentesco dentro del segundo grado de consanguinidad o primero de afinidad, o tiene una relación estrecha con una PEP? <span className="text-red-500 font-bold">*</span>
           </span>
           <div>
             <select
               name="esPep"
               value={formData.esPep || ""}
               onChange={onInputChange}
-              className={`${errors.esPep ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
+              className={`${errors.esPep ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full cursor-pointer font-medium`}
               required
             >
               <option value="">Selecciona opción</option>
@@ -227,8 +296,8 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, errors 
         </div>
 
         {(formData.esPep === "Sí" || formData.esPep === "Si") && (
-          <div className="bg-[#f8fafc] border border-zinc-200/85 rounded-xl p-5 md:p-6 mt-4 space-y-4 animate-fadeIn">
-            <h4 className="text-xs font-bold text-[#002b49] uppercase tracking-wider">
+          <div className="bg-[#f8fafc] border border-zinc-300/80 rounded-xl p-5 md:p-6 mt-4 space-y-4 animate-fadeIn shadow-sm">
+            <h4 className="text-xs font-bold text-[#002b49] uppercase tracking-wider border-b border-zinc-200 pb-2">
               Detalles de la Persona Expuesta Políticamente (PEP)
             </h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -241,7 +310,7 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, errors 
                   name="pepNombre"
                   value={formData.pepNombre || ""}
                   onChange={onInputChange}
-                  className={`border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 ${
+                  className={`bg-white border rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 placeholder:text-zinc-400 ${
                     errors.pepNombre
                       ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
                       : "border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"
@@ -264,7 +333,7 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, errors 
                   name="pepCargo"
                   value={formData.pepCargo || ""}
                   onChange={onInputChange}
-                  className={`border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 ${
+                  className={`bg-white border rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 placeholder:text-zinc-400 ${
                     errors.pepCargo
                       ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
                       : "border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"
@@ -287,7 +356,7 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, errors 
                   name="pepInstitucion"
                   value={formData.pepInstitucion || ""}
                   onChange={onInputChange}
-                  className={`border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 ${
+                  className={`bg-white border rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 placeholder:text-zinc-400 ${
                     errors.pepInstitucion
                       ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
                       : "border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"
@@ -309,20 +378,20 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, errors 
                   name="pepRelacion"
                   value={formData.pepRelacion || ""}
                   onChange={onInputChange}
-                  className={`border rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 bg-white ${
+                  className={`bg-white border rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 cursor-pointer ${
                     errors.pepRelacion
                       ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
                       : "border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"
                   }`}
                 >
                   <option value="">Seleccione parentesco</option>
-                  <option value="Yo mismo">Titular (Yo mismo)</option>
+                  <option value="Titular (Yo mismo)">Titular (Yo mismo)</option>
                   <option value="Cónyuge">Cónyuge</option>
                   <option value="Padre / Madre">Padre / Madre</option>
-                  <option value="Hijo(a)">Hijo(a)</option>
-                  <option value="Hermano(a)">Hermano(a)</option>
+                  <option value="Hijo / Hija">Hijo / Hija</option>
+                  <option value="Hermano / Hermana">Hermano / Hermana</option>
                   <option value="Estrecho Colaborador">Estrecho Colaborador</option>
-                  <option value="Otros">Otros</option>
+                  <option value="Otro">Otro</option>
                 </select>
                 {errors.pepRelacion && (
                   <span className="text-xs text-red-500 font-medium">
