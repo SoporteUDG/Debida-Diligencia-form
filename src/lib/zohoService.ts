@@ -8,6 +8,10 @@ function cleanValue(val: any): string {
   if (val === null || val === undefined || String(val).trim().toLowerCase() === "null") {
     return "";
   }
+  if (typeof val === "object") {
+    if (val.name) return String(val.name).trim();
+    if (val.value) return String(val.value).trim();
+  }
   return String(val).trim();
 }
 
@@ -293,19 +297,59 @@ export const zoho = {
               const record = resJson.data[0];
               console.log(`[Zoho Service] Registro de Debida_Diligencia ${crmId} encontrado.`);
               
-              const isJur = record.Tipo_de_Persona === "Persona Jurídica" || record.Tipo_de_Persona === "JURIDICA";
+              const rawType = (record.Tipo_de_Persona || record.Tipo_de_Cliente || record.Tipo_Cliente || "").toString().toLowerCase();
+              const isJur = rawType.includes("jur") || rawType.includes("empresa") || rawType.includes("sociedad") || !!record.Raz_n_social || !!record.Razon_Social;
               const type = isJur ? "JURIDICA" as const : "NATURAL" as const;
-              const projectName = record.Proyecto?.name || record.Proyecto || "";
               
+              const projectName = findValue(record, ["Proyecto", "Nombre_Proyecto", "Project", "Project_Interest"]) || "Altos del Parque";
+              
+              const email = findValue(record, [
+                "Email",
+                "Correo_Electr_nico",
+                "Correo_Electrónico",
+                "Correo_Electronico",
+                "Correo_de_contacto",
+                "Correo_contacto",
+                "Email_Address",
+                "Correo_Secundario",
+                "Secondary_Email",
+                "Correo_Alternativo",
+                "Email_2",
+                "Correo",
+              ]);
+
+              const phone = findValue(record, ["Tel_fono", "Telefono", "Teléfono", "Celular", "Mobile", "Phone"]);
+              const idNumber = findValue(record, ["RUC_NIT", "Identificacion", "Cedula", "Cédula", "C_dula", "ID_Number", "N_Identificacion", "C_I_P_Pasaporte"]);
+
+              let firstName = findValue(record, ["First_Name", "Nombre", "Nombres", "FirstName"]);
+              let lastName = findValue(record, ["Last_Name", "Apellido", "Apellidos", "LastName"]);
+
+              if (!firstName && record.Name) {
+                const cleanName = String(record.Name).split("-")[0].trim();
+                const parts = cleanName.split(/\s+/);
+                if (parts.length > 1) {
+                  firstName = parts.slice(0, Math.ceil(parts.length / 2)).join(" ");
+                  lastName = parts.slice(Math.ceil(parts.length / 2)).join(" ");
+                } else {
+                  firstName = cleanName;
+                  lastName = "";
+                }
+              }
+
               return {
                 type,
                 nombreProyecto: projectName,
-                razonSocial: record.Raz_n_social || "",
-                numeroDocumento: record.RUC_NIT || "",
-                contactoNombre: record.Name || "Expediente",
-                contactoApellido: "",
-                contactoEmail: record.Email || record.Correo_de_contacto || "",
-                contactoTelefono: record.Tel_fono || "",
+                firstName: firstName || "Cliente",
+                lastName: lastName || "",
+                email,
+                celular: phone,
+                idNumber,
+                razonSocial: record.Raz_n_social || record.Razon_Social || "",
+                numeroDocumento: idNumber,
+                contactoNombre: record.Name || (firstName && lastName ? `${firstName} ${lastName}`.trim() : (firstName || "Expediente")),
+                contactoApellido: lastName || "",
+                contactoEmail: email,
+                contactoTelefono: phone,
                 module: "Debida_Diligencia",
               };
             }

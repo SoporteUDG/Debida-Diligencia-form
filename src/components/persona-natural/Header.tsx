@@ -14,7 +14,7 @@ export default function Header({ isSaving, lastSaved, saveStatus }: HeaderProps)
     <header className="border-b border-zinc-800/40 bg-[#052B48]/95 backdrop-blur-md sticky top-0 z-50 text-white">
       <div className="max-w-6xl mx-auto px-6 h-20 md:h-24 flex items-center justify-between">
         {/* Left: UDG Brand Logo */}
-        <Link href="/" className="flex items-center gap-3 hover:opacity-90 transition cursor-pointer select-none">
+        <div className="flex items-center gap-3 select-none">
           <Image
             src="/UDG_LOGO.png"
             alt="Logo UDG"
@@ -23,7 +23,7 @@ export default function Header({ isSaving, lastSaved, saveStatus }: HeaderProps)
             className="object-contain h-8 md:h-12 w-auto"
             priority
           />
-        </Link>
+        </div>
 
         {/* Right: Save Status & 20 Años Slogan Banner */}
         <div className="flex items-center gap-4 md:gap-6">

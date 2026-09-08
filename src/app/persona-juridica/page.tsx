@@ -118,6 +118,16 @@ export default function PersonaJuridicaPage() {
         }
       }
       setDraftToken(token);
+
+      // Lock history so user cannot accidentally navigate back to selection hub
+      window.history.pushState(null, "", window.location.href);
+      const handlePopState = () => {
+        window.history.pushState(null, "", window.location.href);
+      };
+      window.addEventListener("popstate", handlePopState);
+      return () => {
+        window.removeEventListener("popstate", handlePopState);
+      };
     }
   }, []);
 

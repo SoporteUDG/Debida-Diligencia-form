@@ -66,20 +66,40 @@ export async function POST(request: NextRequest) {
       console.warn(`[API Generar Enlace ZDK] No se obtuvo datos directos de CRM para ID ${recordId}:`, err);
     }
 
-    const clientName = crmData.name || crmData.razonSocial || "Cliente UDG";
-    const projectName = crmData.projectName || "Altos del Parque";
-    const email = crmData.email || "cliente@udg.com";
+    const firstName = crmData.firstName || crmData.contactoNombre || "Cliente";
+    const lastName = crmData.lastName || crmData.contactoApellido || "";
+    const clientName = (firstName && lastName) ? `${firstName} ${lastName}`.trim() : (crmData.razonSocial || firstName || "Cliente UDG");
+    const projectName = crmData.nombreProyecto || crmData.projectName || "Altos del Parque";
+    const rawEmail = crmData.email || crmData.contactoEmail || "";
+    const email = rawEmail.trim() ? rawEmail.trim() : `cliente_${recordId}@udg.com`;
 
     if (!contact) {
-      contact = await prisma.crmContact.create({
-        data: {
-          crmId: recordId,
-          firstName: isNatural ? (crmData.firstName || clientName) : clientName,
-          lastName: isNatural ? (crmData.lastName || "") : "",
-          email,
-        },
+      // Check if another contact has this email to avoid unique constraint violation
+      const existingByEmail = await prisma.crmContact.findUnique({
+        where: { email },
       });
-      console.log(`[API Generar Enlace ZDK] Contacto local creado con ID: ${contact.id}`);
+
+      if (existingByEmail) {
+        contact = await prisma.crmContact.update({
+          where: { id: existingByEmail.id },
+          data: {
+            crmId: recordId,
+            firstName: isNatural ? firstName : clientName,
+            lastName: isNatural ? lastName : "",
+          },
+        });
+        console.log(`[API Generar Enlace ZDK] Contacto existente por email actualizado con ID: ${contact.id}`);
+      } else {
+        contact = await prisma.crmContact.create({
+          data: {
+            crmId: recordId,
+            firstName: isNatural ? firstName : clientName,
+            lastName: isNatural ? lastName : "",
+            email,
+          },
+        });
+        console.log(`[API Generar Enlace ZDK] Contacto local creado con ID: ${contact.id}`);
+      }
     }
 
     // 2. Generar un nuevo token de 30 días
