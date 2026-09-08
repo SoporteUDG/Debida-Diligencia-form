@@ -38,6 +38,7 @@ COPY --from=base /app/public ./public
 COPY --from=base /app/package.json ./package.json
 COPY --from=base /app/node_modules ./node_modules
 COPY --from=base /app/prisma ./prisma
+COPY --from=base /app/prisma.config.* ./
 COPY --from=base /app/start.sh ./start.sh
 
 # Dar permisos de ejecución al script de inicio
