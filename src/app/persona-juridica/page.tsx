@@ -9,6 +9,7 @@ import dynamic from "next/dynamic";
 import Header from "@/components/persona-juridica/Header";
 import PoliciesScreen from "@/components/persona-juridica/PoliciesScreen";
 import FormStepper from "@/components/persona-juridica/FormStepper";
+import AccessRestricted from "@/components/AccessRestricted";
 
 const Step1Identificacion = dynamic(() => import("@/components/persona-juridica/Step1Identificacion"), { ssr: false });
 const Step2GobiernoRL = dynamic(() => import("@/components/persona-juridica/Step2GobiernoRL"), { ssr: false });
@@ -112,12 +113,13 @@ export default function PersonaJuridicaPage() {
         localStorage.setItem("udg_due_diligence_juridica_token", token);
       } else {
         token = localStorage.getItem("udg_due_diligence_juridica_token");
-        if (!token) {
-          token = "draft-jur-" + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-          localStorage.setItem("udg_due_diligence_juridica_token", token);
-        }
       }
-      setDraftToken(token);
+
+      if (token && !token.startsWith("draft-jur-")) {
+        setDraftToken(token);
+      } else {
+        setDraftToken(null);
+      }
 
       // Lock history so user cannot accidentally navigate back to selection hub
       window.history.pushState(null, "", window.location.href);
@@ -730,6 +732,10 @@ export default function PersonaJuridicaPage() {
     );
   }
 
+  if (!draftToken) {
+    return <AccessRestricted />;
+  }
+
   if (isSubmitted) {
     return (
       <div className="min-h-screen bg-[#052B48] text-white flex flex-col justify-between selection:bg-[#DAB38D]/30 font-sans">
@@ -820,16 +826,6 @@ export default function PersonaJuridicaPage() {
         {/* Step 1 to 5: MULTI-STEP JURIDICAL FORM */}
         {currentStep > 0 && (
           <div className="w-full animate-fadeIn">
-            
-            {/* Back to welcome hub */}
-            <div className="mb-6 flex justify-start">
-              <Link
-                href="/"
-                className="inline-flex items-center gap-2 text-xs font-semibold text-[#c8a788] hover:text-white transition tracking-wider uppercase bg-[#081827] border border-[#c8a788]/20 px-4 py-2 rounded-lg shadow-md cursor-pointer hover:shadow-lg hover:shadow-[#c8a788]/5 select-none"
-              >
-                <span>← Volver a la Selección</span>
-              </Link>
-            </div>
             
             {/* Section Indicator Breadcrumb */}
             <FormStepper 
