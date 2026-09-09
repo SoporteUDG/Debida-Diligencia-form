@@ -2328,7 +2328,7 @@ export default function AdminDashboard() {
               {/* Buscador Zoho CRM */}
               <div className="space-y-2">
                 <label className="text-[10px] font-bold tracking-wider uppercase text-zinc-400 block">
-                  1. Buscar Contacto o Lead en Zoho CRM
+                  1. Buscar Socio de Negocio o Expediente en Zoho CRM
                 </label>
                 <div className="relative">
                   <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
@@ -2369,7 +2369,7 @@ export default function AdminDashboard() {
                           <p className="text-[10px] text-zinc-400 font-mono mt-0.5">{contact.email || "Sin correo"}</p>
                         </div>
                         <span className="text-[9px] bg-zinc-950 px-2 py-0.5 rounded font-bold uppercase tracking-wider text-zinc-400">
-                          {contact.module === "Debida_Diligencia" ? "Debida Diligencia" : contact.module}
+                          {contact.module === "Accounts" ? "Socio de Negocio" : contact.module === "Debida_Diligencia" ? "Debida Diligencia" : contact.module}
                         </span>
                       </div>
                     ))}
@@ -2381,7 +2381,7 @@ export default function AdminDashboard() {
               {selectedContact && (
                 <div className="bg-emerald-950/20 border border-emerald-800/40 p-4 rounded-xl space-y-1">
                   <span className="text-[9px] text-emerald-400 font-bold uppercase tracking-widest block">
-                    {selectedContact.module === "Debida_Diligencia" ? "Expediente Seleccionado" : "Contacto Seleccionado"}
+                    {selectedContact.module === "Accounts" ? "Socio de Negocio Seleccionado" : selectedContact.module === "Debida_Diligencia" ? "Expediente Seleccionado" : "Contacto Seleccionado"}
                   </span>
                   <p className="text-white font-medium text-sm">{selectedContact.name}</p>
                   <p className="text-[10px] text-zinc-400 font-mono">CRM ID: {selectedContact.id}</p>

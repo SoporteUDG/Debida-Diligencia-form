@@ -12,6 +12,7 @@ vi.mock("../zohoService", () => {
         updateContact: vi.fn(),
         searchContacts: vi.fn(),
         updateClientFormLink: vi.fn(),
+        createDebidaDiligenciaRecord: vi.fn(),
         createNote: vi.fn(),
       }
     },
@@ -230,6 +231,77 @@ describe("Admin Router tRPC Procedures", () => {
     expect(mockPrisma.crmContact.upsert).toHaveBeenCalled();
     expect(mockPrisma.draft.create).toHaveBeenCalled();
     expect(zoho.service.updateClientFormLink).toHaveBeenCalledWith("crm-debida-id", "Debida_Diligencia", expect.any(String), expect.any(Date), "Activo");
+  });
+
+  it("should generate client link via generateClientLink mutation with Accounts module and create Debida_Diligencia record", async () => {
+    // 1. Mock zoho.service.getContact for Account
+    vi.mocked(zoho.service.getContact).mockResolvedValue({
+      firstName: "Carlos",
+      lastName: "Mendoza",
+      email: "carlos.mendoza@example.com",
+      celular: "50761112222",
+      idNumber: "8-765-4321",
+      estadoCivil: "Casado/a",
+      type: "NATURAL",
+      nombreProyecto: "Costa del Este Luxury",
+      module: "Accounts"
+    });
+
+    vi.mocked(zoho.service.createDebidaDiligenciaRecord).mockResolvedValue({
+      success: true,
+      debidaId: "new-debida-record-999"
+    });
+
+    vi.mocked(zoho.service.updateClientFormLink).mockResolvedValue({ success: true });
+
+    // 2. Mock prisma upserts and creates
+    const mockPrisma = {
+      crmContact: {
+        upsert: vi.fn().mockResolvedValue({ id: "contact-uuid-accounts", crmId: "new-debida-record-999" })
+      },
+      draft: {
+        create: vi.fn().mockResolvedValue({ id: "draft-uuid-accounts", token: "mock-token-uuid" })
+      }
+    };
+
+    const caller = appRouter.createCaller({
+      prisma: mockPrisma as any,
+      req: {
+        headers: new Map([["x-admin-token", "admin-secret-dev"]])
+      } as any,
+      ip: "127.0.0.1",
+      userAgent: "vitest"
+    });
+
+    const result = await caller.generateClientLink({
+      crmId: "account-id-555",
+      clientType: "NATURAL",
+      projectName: "Costa del Este Luxury",
+      advisorName: "Adviser John",
+      module: "Accounts"
+    });
+
+    expect(result).toBeDefined();
+    expect(result.success).toBe(true);
+    expect(result.debidaCrmId).toBe("new-debida-record-999");
+    expect(result.clientUrl).toContain("token=mock-token-uuid.mock-signature");
+
+    expect(zoho.service.getContact).toHaveBeenCalledWith("account-id-555");
+    expect(zoho.service.createDebidaDiligenciaRecord).toHaveBeenCalledWith(expect.objectContaining({
+      accountCrmId: "account-id-555",
+      clientType: "NATURAL",
+      name: "Carlos Mendoza",
+      projectName: "Costa del Este Luxury",
+      email: "carlos.mendoza@example.com",
+      phone: "50761112222",
+      idNumber: "8-765-4321",
+      estadoCivil: "Casado/a",
+      advisorName: "Adviser John",
+    }));
+    expect(mockPrisma.crmContact.upsert).toHaveBeenCalledWith(expect.objectContaining({
+      where: { crmId: "new-debida-record-999" }
+    }));
+    expect(mockPrisma.draft.create).toHaveBeenCalled();
   });
 
   it("should update conclusions via updateConclusions procedure", async () => {

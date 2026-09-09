@@ -444,7 +444,7 @@ describe("Zoho CRM & WorkDrive Integration Mocks", () => {
 
       expect(noteRes.success).toBe(true);
       expect(noteRes.noteId).toBe("note-id-123");
-      expect(spyFetch).toHaveBeenCalledTimes(4);
+      expect(spyFetch).toHaveBeenCalledTimes(5);
 
       // Verify the POST arguments
       const noteCall = spyFetch.mock.calls.find(call => String(call[0]).includes("/Notes"));
@@ -559,6 +559,131 @@ describe("Zoho CRM & WorkDrive Integration Mocks", () => {
       expect(result.success).toBe(true);
       expect(result.attachmentId).toBe("att-12345");
       expect(spyFetch).toHaveBeenCalled();
+    });
+
+    it("searchContacts - should search across Debida_Diligencia and Accounts modules", async () => {
+      const spyFetch = vi.spyOn(global, "fetch").mockImplementation(async (url) => {
+        const urlStr = String(url);
+        if (urlStr.includes("/oauth/v2/token")) {
+          return {
+            ok: true,
+            json: async () => ({ access_token: "token_abc", expires_in: 3600 }),
+          } as any;
+        }
+        if (urlStr.includes("/Debida_Diligencia/search?word=Test")) {
+          return {
+            ok: true,
+            json: async () => ({
+              data: [{
+                id: "debida-search-1",
+                Name: "Expediente Test",
+                Tipo_de_Persona: "Persona Natural",
+                Email: "test@debida.com",
+                Tel_fono: "50761110000",
+                Proyecto: "Altos del Parque",
+              }],
+            }),
+          } as any;
+        }
+        if (urlStr.includes("/Accounts/search?word=Test")) {
+          return {
+            ok: true,
+            json: async () => ({
+              data: [{
+                id: "account-search-1",
+                Account_Name: "Inversiones Test S.A.",
+                Tipo_de_Persona: "Persona Jurídica",
+                Correo_electr_nico: "info@testcorp.com",
+                Phone: "5073009999",
+                Proyecto: "Ocean Reef",
+              }],
+            }),
+          } as any;
+        }
+        return { ok: false, status: 404, text: async () => "Not Found" } as any;
+      });
+
+      const results = await zoho.service.searchContacts("Test");
+
+      expect(results).toHaveLength(2);
+      expect(results[0]).toEqual({
+        id: "debida-search-1",
+        name: "Expediente Test",
+        email: "test@debida.com",
+        phone: "50761110000",
+        module: "Debida_Diligencia",
+        type: "NATURAL",
+        projectInterest: "Altos del Parque",
+      });
+      expect(results[1]).toEqual({
+        id: "account-search-1",
+        name: "Inversiones Test S.A.",
+        email: "info@testcorp.com",
+        phone: "5073009999",
+        module: "Accounts",
+        type: "JURIDICA",
+        projectInterest: "Ocean Reef",
+      });
+      expect(spyFetch).toHaveBeenCalled();
+    });
+
+    it("createDebidaDiligenciaRecord - should send POST to /Debida_Diligencia and return created record ID", async () => {
+      const spyFetch = vi.spyOn(global, "fetch").mockImplementation(async (url) => {
+        const urlStr = String(url);
+        if (urlStr.includes("/oauth/v2/token")) {
+          return {
+            ok: true,
+            json: async () => ({ access_token: "token_abc", expires_in: 3600 }),
+          } as any;
+        }
+        if (urlStr.includes("/Debida_Diligencia")) {
+          return {
+            ok: true,
+            json: async () => ({
+              data: [{
+                status: "success",
+                code: "SUCCESS",
+                details: { id: "new-debida-record-777" },
+                message: "record added successfully",
+              }],
+            }),
+          } as any;
+        }
+        return { ok: false, status: 404, text: async () => "Not Found" } as any;
+      });
+
+      const expires = new Date("2026-10-01T12:00:00Z");
+      const result = await zoho.service.createDebidaDiligenciaRecord({
+        clientType: "NATURAL",
+        name: "Juan Perez",
+        projectName: "Costa del Este",
+        email: "juan@example.com",
+        phone: "50766665555",
+        idNumber: "8-888-8888",
+        estadoCivil: "Soltero/a",
+        formLink: "https://portal.udg.com.pa/persona-natural?token=abc.xyz",
+        expiresAt: expires,
+        advisorName: "Adviser John",
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.debidaId).toBe("new-debida-record-777");
+
+      const debidaPostCall = spyFetch.mock.calls.find(call => String(call[0]).endsWith("/Debida_Diligencia"));
+      expect(debidaPostCall).toBeDefined();
+      const [_, init] = debidaPostCall!;
+      expect(init?.method).toBe("POST");
+      const body = JSON.parse(init?.body as string);
+      expect(body.data[0].Name).toBe("Juan Perez");
+      expect(body.data[0].Tipo_de_Persona).toBe("Persona Natural");
+      expect(body.data[0].Estado_del_enlace).toBe("Activo");
+      expect(body.data[0].Estado).toBe("En Proceso");
+      expect(body.data[0].Email).toBe("juan@example.com");
+      expect(body.data[0].RUC_NIT).toBe("8-888-8888");
+      expect(body.data[0].Estado_Civil).toBe("Soltero/a");
+      expect(body.data[0].Proyecto).toBe("Costa del Este");
+      expect(body.data[0].Asesor).toBe("Adviser John");
+      expect(body.data[0].Enlace_de_Formulario).toBe("https://portal.udg.com.pa/persona-natural?token=abc.xyz");
     });
   });
 });

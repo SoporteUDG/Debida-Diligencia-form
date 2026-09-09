@@ -745,7 +745,7 @@ export const appRouter = router({
         clientType: z.enum(["NATURAL", "JURIDICA"]),
         projectName: z.string().min(1, "El nombre del proyecto es requerido"),
         advisorName: z.string().min(1, "El nombre del asesor es requerido"),
-        module: z.enum(["Contacts", "Leads", "Debida_Diligencia"]),
+        module: z.enum(["Accounts", "Debida_Diligencia", "Contacts", "Leads"]),
       })
     )
     .mutation(async ({ input, ctx }) => {
@@ -758,30 +758,67 @@ export const appRouter = router({
       const lastName = isNatural ? (crmData.lastName || "") : (crmData.contactoApellido || "");
       const email = isNatural ? (crmData.email || "") : (crmData.contactoEmail || "");
       const phone = isNatural ? (crmData.celular || "") : (crmData.contactoTelefono || "");
+      const estadoCivil = crmData.estadoCivil || "";
 
-      // 3. Upsert local CrmContact
+      let targetCrmId = input.crmId;
+      let targetModule: "Accounts" | "Debida_Diligencia" | "Contacts" | "Leads" = input.module;
+
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 30);
+
+      // 3. If originating from Accounts (Socios de Negocio), create new Debida_Diligencia record
+      if (input.module === "Accounts") {
+        try {
+          const expedienteName = isNatural
+            ? `${firstName} ${lastName}`.trim() || crmData.nombreProyecto || "Expediente Natural"
+            : (crmData.razonSocial || crmData.contactoNombre || "Expediente Jurídico");
+
+          const createRes = await zoho.service.createDebidaDiligenciaRecord({
+            accountCrmId: input.crmId,
+            clientType: input.clientType,
+            name: expedienteName,
+            projectName: input.projectName,
+            email,
+            phone,
+            idNumber: crmData.idNumber || crmData.contactoId || "",
+            estadoCivil: crmData.estadoCivil,
+            razonSocial: crmData.razonSocial,
+            advisorName: input.advisorName,
+            expiresAt,
+          });
+
+          if (createRes.debidaId) {
+            targetCrmId = createRes.debidaId;
+            targetModule = "Debida_Diligencia";
+          }
+        } catch (createErr) {
+          console.error(`[generateClientLink] Error creando registro en Debida_Diligencia para Account ${input.crmId}:`, createErr);
+        }
+      }
+
+      // 4. Upsert local CrmContact pointing to the target CRM ID
       const localContact = await ctx.prisma.crmContact.upsert({
-        where: { crmId: input.crmId },
+        where: { crmId: targetCrmId },
         update: {
           firstName: firstName || "Pre-carga",
           lastName: lastName || "CRM",
-          email: email || `${input.crmId}@crm.udg.com`,
+          email: email || `${targetCrmId}@crm.udg.com`,
           phone: phone || null,
         },
         create: {
-          crmId: input.crmId,
+          crmId: targetCrmId,
           firstName: firstName || "Pre-carga",
           lastName: lastName || "CRM",
-          email: email || `${input.crmId}@crm.udg.com`,
+          email: email || `${targetCrmId}@crm.udg.com`,
           phone: phone || null,
         },
       });
 
-      // 4. Generate access token
+      // 5. Generate access token
       const signedToken = await generateToken(localContact.id, "ACCESS", 30);
       const tokenUuid = signedToken.split(".")[0];
 
-      // 5. Construct initial pre-loaded form payload
+      // 6. Construct initial pre-loaded form payload
       const initialPayload: any = {
         nombreProyecto: input.projectName,
         projectName: input.projectName,
@@ -791,6 +828,7 @@ export const appRouter = router({
         email: email,
         celular: phone,
         idNumber: crmData.idNumber || crmData.contactoId || "",
+        estadoCivil: estadoCivil || undefined,
         // Specific fields for Persona Jurídica Contact Person:
         contactoNombre: crmData.contactoNombre || firstName,
         contactoApellido: crmData.contactoApellido || lastName,
@@ -801,7 +839,7 @@ export const appRouter = router({
         numeroDocumento: crmData.numeroDocumento || "",
       };
 
-      // 6. Create Draft in database
+      // 7. Create Draft in database
       const draft = await ctx.prisma.draft.create({
         data: {
           token: tokenUuid,
@@ -812,7 +850,14 @@ export const appRouter = router({
         },
       });
 
-      // 7. Log audit event
+      // 8. Construct public URL link
+      const host = ctx.req.headers.get("host") || "localhost:3000";
+      const protocol = ctx.req.headers.get("x-forwarded-proto") || "http";
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || `${protocol}://${host}`;
+      const formPath = isNatural ? "persona-natural" : "persona-juridica";
+      const clientUrl = `${appUrl}/${formPath}?token=${signedToken}`;
+
+      // 9. Log audit event
       await logAuditEvent({
         action: "LINK_GENERATE",
         entityName: "Draft",
@@ -821,7 +866,9 @@ export const appRouter = router({
         userAgent: ctx.userAgent,
         userId: ctx.admin?.id || null,
         details: sanitizeDetails({
-          crmId: input.crmId,
+          crmId: targetCrmId,
+          originModule: input.module,
+          targetModule,
           clientType: input.clientType,
           projectName: input.projectName,
           advisorName: input.advisorName,
@@ -829,26 +876,23 @@ export const appRouter = router({
         }),
       });
 
-      // 8. Construct public URL link
-      const host = ctx.req.headers.get("host") || "localhost:3000";
-      const protocol = ctx.req.headers.get("x-forwarded-proto") || "http";
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL || `${protocol}://${host}`;
-      const formPath = isNatural ? "persona-natural" : "persona-juridica";
-      const clientUrl = `${appUrl}/${formPath}?token=${signedToken}`;
-
-      const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + 30);
-
-      // 9. Update Zoho CRM asynchronously in background
-      zoho.service.updateClientFormLink(input.crmId, input.module, clientUrl, expiresAt, "Activo").catch((err) => {
-        console.error(`[generateClientLink CRM Warning] Falló actualización de enlace en Zoho para ${input.crmId}:`, err);
+      // 10. Update target CRM record with link (and original Account record if created new Debida record)
+      zoho.service.updateClientFormLink(targetCrmId, targetModule, clientUrl, expiresAt, "Activo").catch((err) => {
+        console.error(`[generateClientLink CRM Warning] Falló actualización de enlace en Zoho para ${targetCrmId}:`, err);
       });
+
+      if (input.module === "Accounts" && targetCrmId !== input.crmId) {
+        zoho.service.updateClientFormLink(input.crmId, "Accounts", clientUrl, expiresAt, "Activo").catch((err) => {
+          console.error(`[generateClientLink CRM Warning] Falló actualización de enlace en Account original ${input.crmId}:`, err);
+        });
+      }
 
       return {
         success: true,
         signedToken,
         clientUrl,
         draftId: draft.id,
+        debidaCrmId: targetCrmId,
       };
     }),
 

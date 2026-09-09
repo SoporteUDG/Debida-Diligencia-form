@@ -36,6 +36,7 @@ export interface MappedCrmData {
   email?: string;
   celular?: string;
   idNumber?: string;
+  estadoCivil?: string;
   
   razonSocial?: string;
   numeroDocumento?: string;
@@ -56,7 +57,86 @@ export interface MappedCrmData {
   rlProfesionOcupacion?: string;
   rlActividadEconomica?: string;
   
-  module?: "Contacts" | "Leads" | "Debida_Diligencia";
+  module?: "Accounts" | "Debida_Diligencia" | "Contacts" | "Leads";
+}
+
+/**
+ * Maps a raw Zoho CRM Account (Socio de Negocio) record to portal structures.
+ */
+export function mapAccountRecord(record: any): MappedCrmData {
+  const rawType = findValue(record, [
+    "Tipo_de_Persona",
+    "Tipo_Cliente",
+    "Tipo_de_Cliente",
+    "Client_Type",
+    "ClientType",
+  ]).toLowerCase();
+
+  const isJuridica =
+    rawType.includes("jur") ||
+    rawType.includes("corp") ||
+    rawType.includes("empresa") ||
+    rawType.includes("sociedad") ||
+    !!findValue(record, ["Razon_Social", "Razón_Social", "Company", "Empresa"]);
+
+  const type = isJuridica ? "JURIDICA" : "NATURAL";
+  const nombreProyecto = findValue(record, ["Proyecto", "Project_Interest", "Project", "Nombre_Proyecto"]) || "General UDG";
+  const email = findValue(record, ["Correo_electr_nico", "Email", "Correo_Electrónico", "Correo", "Email_corporativo"]);
+  const phone = findValue(record, ["Celular", "Phone", "Tel_fono", "Teléfono", "Mobile", "Mobile_Phone"]);
+  const idNumber = findValue(record, [
+    "RUC",
+    "N_mero_de_Identificaci_n_Fiscal_",
+    "RUC_NIT",
+    "Identificacion",
+    "Cedula",
+    "C_dula",
+    "No_Identificacion",
+  ]);
+  const estadoCivil = findValue(record, ["Estado_Civil"]);
+  const accountName = findValue(record, ["Account_Name", "Name", "Razon_Social", "Razón_Social"]);
+
+  if (type === "NATURAL") {
+    let firstName = findValue(record, ["First_Name", "Nombre", "Nombres", "FirstName"]);
+    let lastName = findValue(record, ["Last_Name", "Apellido", "Apellidos", "LastName"]);
+
+    if (!firstName && accountName) {
+      const parts = accountName.split(/\s+/);
+      if (parts.length > 1) {
+        firstName = parts.slice(0, Math.ceil(parts.length / 2)).join(" ");
+        lastName = parts.slice(Math.ceil(parts.length / 2)).join(" ");
+      } else {
+        firstName = accountName;
+        lastName = "";
+      }
+    }
+
+    return {
+      type: "NATURAL",
+      nombreProyecto,
+      firstName: firstName || "Cliente",
+      lastName: lastName || "",
+      email,
+      celular: phone,
+      idNumber,
+      estadoCivil,
+      module: "Accounts",
+    };
+  } else {
+    return {
+      type: "JURIDICA",
+      nombreProyecto,
+      razonSocial: accountName || "Empresa Registrada",
+      numeroDocumento: idNumber,
+      email,
+      celular: phone,
+      contactoNombre: accountName,
+      contactoEmail: email,
+      contactoTelefono: phone,
+      contactoId: idNumber,
+      estadoCivil,
+      module: "Accounts",
+    };
+  }
 }
 
 /**
@@ -358,7 +438,28 @@ export const zoho = {
           console.log(`[Zoho Service] Error buscando en módulo Debida_Diligencia, intentando estándar...`, e);
         }
 
-        // 2. Try Contacts Module
+        // 2. Try Accounts Module (Socios de Negocio)
+        try {
+          console.log(`[Zoho Service] Buscando registro ${crmId} en módulo Accounts (Socios de Negocio)...`);
+          const accResponse = await fetch(`${crmBaseUrl}/Accounts/${crmId}`, {
+            method: "GET",
+            headers: {
+              Authorization: `Zoho-oauthtoken ${accessToken}`,
+            },
+          });
+
+          if (accResponse.ok && accResponse.status !== 204) {
+            const accJson = await accResponse.json();
+            if (accJson.data && accJson.data.length > 0) {
+              console.log(`[Zoho Service] Socio de Negocio ${crmId} encontrado.`);
+              return mapAccountRecord(accJson.data[0]);
+            }
+          }
+        } catch (accErr) {
+          console.log(`[Zoho Service] Error buscando en módulo Accounts, intentando fallback...`, accErr);
+        }
+
+        // 3. Fallback to Contacts Module
         console.log(`[Zoho Service] Buscando contacto ${crmId} en módulo Contacts...`);
         let response = await fetch(`${crmBaseUrl}/Contacts/${crmId}`, {
           method: "GET",
@@ -508,7 +609,7 @@ export const zoho = {
         name: string;
         email: string;
         phone: string;
-        module: "Contacts" | "Leads" | "Debida_Diligencia";
+        module: "Accounts" | "Debida_Diligencia" | "Contacts" | "Leads";
         type: "NATURAL" | "JURIDICA";
         projectInterest?: string;
       }>
@@ -529,6 +630,24 @@ export const zoho = {
         console.log(`[Zoho Service] Búsqueda simulada activa para query: "${query}"`);
         const mockResults = [
           {
+            id: "mock-account-natural",
+            name: "Juan Pérez (Socio de Negocio)",
+            email: "juan.perez.mock@gmail.com",
+            phone: "50766554433",
+            module: "Accounts" as const,
+            type: "NATURAL" as const,
+            projectInterest: "Proyecto Terrazas Mock",
+          },
+          {
+            id: "mock-account-juridica",
+            name: "Inversiones Tecnológicas S.A. (Socio de Negocio)",
+            email: "contacto@inversionesmock.com",
+            phone: "50766112233",
+            module: "Accounts" as const,
+            type: "JURIDICA" as const,
+            projectInterest: "Proyecto Edificio Mock",
+          },
+          {
             id: "mock-debida-natural",
             name: "Expediente: Juan Pérez (Debida Diligencia)",
             email: "juan.perez.mock@gmail.com",
@@ -546,24 +665,6 @@ export const zoho = {
             type: "JURIDICA" as const,
             projectInterest: "Proyecto Edificio Mock",
           },
-          {
-            id: "mock-contact-natural",
-            name: "Juan Pérez",
-            email: "juan.perez.mock@gmail.com",
-            phone: "50766554433",
-            module: "Contacts" as const,
-            type: "NATURAL" as const,
-            projectInterest: "Proyecto Terrazas Mock",
-          },
-          {
-            id: "mock-lead-juridica",
-            name: "Inversiones Tecnológicas S.A. (Ana Martínez)",
-            email: "contacto@inversionesmock.com",
-            phone: "50766112233",
-            module: "Leads" as const,
-            type: "JURIDICA" as const,
-            projectInterest: "Proyecto Edificio Mock",
-          },
         ];
         return mockResults.filter(
           r => r.name.toLowerCase().includes(query.toLowerCase()) || r.email.toLowerCase().includes(query.toLowerCase())
@@ -577,7 +678,7 @@ export const zoho = {
           name: string;
           email: string;
           phone: string;
-          module: "Contacts" | "Leads" | "Debida_Diligencia";
+          module: "Accounts" | "Debida_Diligencia" | "Contacts" | "Leads";
           type: "NATURAL" | "JURIDICA";
           projectInterest?: string;
         }> = [];
@@ -612,10 +713,10 @@ export const zoho = {
           console.error("[Zoho Service Search Contacts] Error searching Debida_Diligencia:", err);
         }
 
-        // 2. Search in Contacts
+        // 2. Search in Accounts (Socios de Negocio)
         try {
-          console.log(`[Zoho Service] Buscando "${query}" en módulo Contacts...`);
-          const res = await fetch(`${crmBaseUrl}/Contacts/search?word=${encodeURIComponent(query)}`, {
+          console.log(`[Zoho Service] Buscando "${query}" en módulo Accounts (Socios de Negocio)...`);
+          const res = await fetch(`${crmBaseUrl}/Accounts/search?word=${encodeURIComponent(query)}`, {
             method: "GET",
             headers: { Authorization: `Zoho-oauthtoken ${accessToken}` },
           });
@@ -623,44 +724,14 @@ export const zoho = {
             const data = await res.json();
             if (data.data) {
               for (const record of data.data) {
-                const mapped = mapCrmRecord(record, "Contacts");
-                const firstName = record.First_Name || "";
-                const lastName = record.Last_Name || "";
-                results.push({
-                  id: record.id,
-                  name: `${firstName} ${lastName}`.trim() || record.Full_Name || "Contacto sin nombre",
-                  email: record.Email || "",
-                  phone: record.Mobile || record.Phone || "",
-                  module: "Contacts",
-                  type: mapped.type,
-                  projectInterest: mapped.nombreProyecto || undefined,
-                });
-              }
-            }
-          }
-        } catch (err) {
-          console.error("[Zoho Service Search Contacts] Error searching Contacts:", err);
-        }
-
-        // 3. Search in Leads
-        try {
-          console.log(`[Zoho Service] Buscando "${query}" en módulo Leads...`);
-          const res = await fetch(`${crmBaseUrl}/Leads/search?word=${encodeURIComponent(query)}`, {
-            method: "GET",
-            headers: { Authorization: `Zoho-oauthtoken ${accessToken}` },
-          });
-          if (res.ok && res.status !== 204) {
-            const data = await res.json();
-            if (data.data) {
-              for (const record of data.data) {
-                const mapped = mapCrmRecord(record, "Leads");
-                const name = record.Company || `${record.First_Name || ""} ${record.Last_Name || ""}`.trim() || record.Full_Name || "Lead sin nombre";
+                const mapped = mapAccountRecord(record);
+                const name = record.Account_Name || record.Name || (mapped.firstName ? `${mapped.firstName} ${mapped.lastName}`.trim() : "Socio de Negocio");
                 results.push({
                   id: record.id,
                   name,
-                  email: record.Email || "",
-                  phone: record.Mobile || record.Phone || "",
-                  module: "Leads",
+                  email: mapped.email || "",
+                  phone: mapped.celular || "",
+                  module: "Accounts",
                   type: mapped.type,
                   projectInterest: mapped.nombreProyecto || undefined,
                 });
@@ -668,10 +739,144 @@ export const zoho = {
             }
           }
         } catch (err) {
-          console.error("[Zoho Service Search Contacts] Error searching Leads:", err);
+          console.error("[Zoho Service Search Contacts] Error searching Accounts:", err);
         }
 
         return results;
+      });
+    },
+
+    /**
+     * Creates a new record in the Zoho CRM Debida_Diligencia module.
+     * Used when initializing a due diligence process from an Account (Socio de Negocio).
+     */
+    createDebidaDiligenciaRecord: async (params: {
+      accountCrmId?: string;
+      clientType: "NATURAL" | "JURIDICA";
+      name: string;
+      projectName?: string;
+      formLink?: string;
+      expiresAt?: Date;
+      email?: string;
+      phone?: string;
+      idNumber?: string;
+      estadoCivil?: string;
+      razonSocial?: string;
+      advisorName?: string;
+    }): Promise<{ success: boolean; debidaId: string; mocked?: boolean }> => {
+      const clientId = process.env.ZOHO_CLIENT_ID;
+      const clientSecret = process.env.ZOHO_CLIENT_SECRET;
+      const refreshToken = process.env.ZOHO_REFRESH_TOKEN;
+
+      const isPlaceholder =
+        !clientId ||
+        clientId === "placeholder_client_id" ||
+        !clientSecret ||
+        clientSecret === "placeholder_client_secret" ||
+        clientSecret === "placeholder_secret" ||
+        !refreshToken ||
+        refreshToken === "placeholder_refresh_token";
+
+      if (isPlaceholder || (params.accountCrmId && (params.accountCrmId.startsWith("mock-") || params.accountCrmId === "simulated-crm-contact-id"))) {
+        const mockDebidaId = "mock-debida-" + Date.now();
+        console.log(`[Zoho Service] Simulación: Creando registro en Debida_Diligencia con ID ${mockDebidaId} para socio ${params.accountCrmId}`);
+        return { success: true, debidaId: mockDebidaId, mocked: true };
+      }
+
+      return executeWithRetry(async (accessToken) => {
+        const crmBaseUrl = process.env.ZOHO_CRM_BASE_URL || "https://www.zohoapis.com/crm/v2";
+
+        let isoDate: string | undefined;
+        if (params.expiresAt) {
+          const pad = (num: number) => String(num).padStart(2, "0");
+          const year = params.expiresAt.getUTCFullYear();
+          const month = pad(params.expiresAt.getUTCMonth() + 1);
+          const day = pad(params.expiresAt.getUTCDate());
+          const hours = pad(params.expiresAt.getUTCHours());
+          const minutes = pad(params.expiresAt.getUTCMinutes());
+          const seconds = pad(params.expiresAt.getUTCSeconds());
+          isoDate = `${year}-${month}-${day}T${hours}:${minutes}:${seconds}+00:00`;
+        }
+
+        const recordPayload: any = {
+          Name: params.name || "Nuevo Expediente DD",
+          Tipo_de_Persona: params.clientType === "NATURAL" ? "Persona Natural" : "Persona Jurídica",
+          Estado_del_enlace: "Activo",
+          Estado: "En Proceso",
+        };
+
+        if (params.formLink) {
+          recordPayload.Enlace_de_Formulario = params.formLink;
+          recordPayload.Enlace_Formulario = params.formLink;
+          recordPayload.Enlace_Debida_Diligencia = params.formLink;
+          recordPayload.Client_Form_Link = params.formLink;
+        }
+
+        if (isoDate) {
+          recordPayload.Vigencia_del_enlace = isoDate;
+        }
+
+        if (params.email) {
+          recordPayload.Email = params.email;
+          recordPayload.Correo_Electr_nico = params.email;
+          recordPayload.Correo_de_contacto = params.email;
+        }
+
+        if (params.phone) {
+          recordPayload.Tel_fono = params.phone;
+          recordPayload.Celular = params.phone;
+        }
+
+        if (params.idNumber) {
+          recordPayload.RUC_NIT = params.idNumber;
+          recordPayload.Identificacion = params.idNumber;
+        }
+
+        if (params.estadoCivil) {
+          recordPayload.Estado_Civil = params.estadoCivil;
+        }
+
+        if (params.projectName) {
+          recordPayload.Proyecto = params.projectName;
+        }
+
+        if (params.razonSocial) {
+          recordPayload.Raz_n_social = params.razonSocial;
+          recordPayload.Razon_Social = params.razonSocial;
+        }
+
+        if (params.advisorName) {
+          recordPayload.Asesor = params.advisorName;
+        }
+
+        console.log(`[Zoho Service] Creando registro en Debida_Diligencia...`);
+        const response = await fetch(`${crmBaseUrl}/Debida_Diligencia`, {
+          method: "POST",
+          headers: {
+            Authorization: `Zoho-oauthtoken ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ data: [recordPayload] }),
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Zoho CRM API Debida_Diligencia POST returned HTTP ${response.status}: ${errorText}`);
+        }
+
+        const resJson = await response.json();
+        if (!resJson.data || resJson.data.length === 0) {
+          throw new Error(`Zoho CRM Debida_Diligencia creation returned empty response: ${JSON.stringify(resJson)}`);
+        }
+
+        const result = resJson.data[0];
+        if (result.status === "error" || (result.code !== "SUCCESS" && result.status !== "success")) {
+          throw new Error(`Zoho CRM Error creando Debida_Diligencia [${result.code}]: ${result.message}`);
+        }
+
+        const createdId = result.details?.id;
+        console.log(`[Zoho Service] Registro creado exitosamente en Debida_Diligencia con ID: ${createdId}`);
+        return { success: true, debidaId: createdId };
       });
     },
 
@@ -680,7 +885,7 @@ export const zoho = {
      */
     updateClientFormLink: async (
       crmId: string,
-      module: "Contacts" | "Leads" | "Debida_Diligencia",
+      module: "Accounts" | "Debida_Diligencia" | "Contacts" | "Leads",
       formLink?: string,
       expiresAt?: Date,
       linkStatus?: string
@@ -784,13 +989,13 @@ export const zoho = {
       return executeWithRetry(async (accessToken) => {
         const crmBaseUrl = process.env.ZOHO_CRM_BASE_URL || "https://www.zohoapis.com/crm/v2";
 
-        // Determine if it is under Contacts, Leads or Debida_Diligencia
-        let resolvedModule: "Contacts" | "Leads" | "Debida_Diligencia" = "Contacts";
+        // Determine if it is under Accounts, Debida_Diligencia, Contacts or Leads
+        let resolvedModule: "Accounts" | "Debida_Diligencia" | "Contacts" | "Leads" = "Debida_Diligencia";
         try {
           const contactInfo = await zoho.service.getContact(crmId);
-          resolvedModule = contactInfo.module || "Contacts";
+          resolvedModule = contactInfo.module || "Debida_Diligencia";
         } catch (e) {
-          console.warn(`[Zoho Note] No se pudo determinar el módulo para ID ${crmId}, asumiendo Contacts:`, e);
+          console.warn(`[Zoho Note] No se pudo determinar el módulo para ID ${crmId}, asumiendo Debida_Diligencia:`, e);
         }
 
         console.log(`[Zoho Service] Creando nota de actividad para ${crmId} (${resolvedModule}): ${title}`);
@@ -834,13 +1039,13 @@ export const zoho = {
 
     /**
      * Uploads a file buffer directly as an Attachment to a record in Zoho CRM
-     * (Debida_Diligencia, Contacts, or Leads).
+     * (Debida_Diligencia, Accounts, Contacts, or Leads).
      */
     uploadAttachment: async (
       crmId: string,
       fileName: string,
       fileBuffer: Buffer,
-      moduleOverride?: "Contacts" | "Leads" | "Debida_Diligencia"
+      moduleOverride?: "Accounts" | "Debida_Diligencia" | "Contacts" | "Leads"
     ): Promise<{ success: boolean; attachmentId?: string; mocked?: boolean }> => {
       const clientId = process.env.ZOHO_CLIENT_ID;
       const clientSecret = process.env.ZOHO_CLIENT_SECRET;
@@ -862,13 +1067,13 @@ export const zoho = {
       return executeWithRetry(async (accessToken) => {
         const crmBaseUrl = process.env.ZOHO_CRM_BASE_URL || "https://www.zohoapis.com/crm/v2";
 
-        let resolvedModule: "Contacts" | "Leads" | "Debida_Diligencia" = moduleOverride || "Contacts";
+        let resolvedModule: "Accounts" | "Debida_Diligencia" | "Contacts" | "Leads" = moduleOverride || "Debida_Diligencia";
         if (!moduleOverride) {
           try {
             const contactInfo = await zoho.service.getContact(crmId);
-            resolvedModule = contactInfo.module || "Contacts";
+            resolvedModule = contactInfo.module || "Debida_Diligencia";
           } catch (e) {
-            console.warn(`[Zoho Attachment] No se pudo determinar el módulo para ID ${crmId}, asumiendo Contacts:`, e);
+            console.warn(`[Zoho Attachment] No se pudo determinar el módulo para ID ${crmId}, asumiendo Debida_Diligencia:`, e);
           }
         }
 
