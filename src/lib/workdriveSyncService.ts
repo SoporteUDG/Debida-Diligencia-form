@@ -7,6 +7,7 @@ import {
 } from "@/lib/workdriveService";
 import { generateCompleteDossierPDF } from "@/lib/completeDossierService";
 import { logAuditEvent } from "@/lib/auditService";
+import { zoho } from "@/lib/zohoService";
 
 /**
  * Synchronizes a submitted Form with Zoho WorkDrive:
@@ -136,6 +137,21 @@ export async function syncFormToWorkDrive(formId: string) {
         shareUrl = await createShareLink(fileId, accessToken);
       } catch (linkErr) {
         console.warn(`[WorkDrive Sync Warning] No se pudo generar enlace público compartido:`, linkErr);
+      }
+
+      // 5. Also attach the consolidated PDF directly to the Zoho CRM record's Attachments related list
+      const crmContactId = form.crmContact?.crmId;
+      if (crmContactId) {
+        try {
+          console.log(`[WorkDrive Sync] Subiendo copia del expediente a Archivos Adjuntos de Zoho CRM (${crmContactId})...`);
+          await zoho.service.uploadAttachment(
+            crmContactId,
+            pdfFileName,
+            pdfBuffer
+          );
+        } catch (crmAttErr) {
+          console.warn(`[WorkDrive Sync Warning] No se pudo adjuntar el archivo directamente en Zoho CRM para ${crmContactId}:`, crmAttErr);
+        }
       }
 
       return {

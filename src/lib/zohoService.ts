@@ -831,6 +831,80 @@ export const zoho = {
         return { success: true, noteId: result.details?.id };
       });
     },
+
+    /**
+     * Uploads a file buffer directly as an Attachment to a record in Zoho CRM
+     * (Debida_Diligencia, Contacts, or Leads).
+     */
+    uploadAttachment: async (
+      crmId: string,
+      fileName: string,
+      fileBuffer: Buffer,
+      moduleOverride?: "Contacts" | "Leads" | "Debida_Diligencia"
+    ): Promise<{ success: boolean; attachmentId?: string; mocked?: boolean }> => {
+      const clientId = process.env.ZOHO_CLIENT_ID;
+      const clientSecret = process.env.ZOHO_CLIENT_SECRET;
+      const refreshToken = process.env.ZOHO_REFRESH_TOKEN;
+
+      const isPlaceholder =
+        !clientId ||
+        clientId === "placeholder_client_id" ||
+        !clientSecret ||
+        clientSecret === "placeholder_client_secret" ||
+        !refreshToken ||
+        refreshToken === "placeholder_refresh_token";
+
+      if (isPlaceholder || crmId.startsWith("mock-") || crmId === "simulated-crm-contact-id") {
+        console.log(`[Zoho Service] Modo placeholder. Simulando subida de archivo adjunto "${fileName}" para ID ${crmId}`);
+        return { success: true, attachmentId: "mock-attachment-id-" + crypto.randomUUID(), mocked: true };
+      }
+
+      return executeWithRetry(async (accessToken) => {
+        const crmBaseUrl = process.env.ZOHO_CRM_BASE_URL || "https://www.zohoapis.com/crm/v2";
+
+        let resolvedModule: "Contacts" | "Leads" | "Debida_Diligencia" = moduleOverride || "Contacts";
+        if (!moduleOverride) {
+          try {
+            const contactInfo = await zoho.service.getContact(crmId);
+            resolvedModule = contactInfo.module || "Contacts";
+          } catch (e) {
+            console.warn(`[Zoho Attachment] No se pudo determinar el módulo para ID ${crmId}, asumiendo Contacts:`, e);
+          }
+        }
+
+        console.log(`[Zoho Service] Subiendo archivo adjunto "${fileName}" a ${resolvedModule} (ID: ${crmId})...`);
+
+        const formData = new FormData();
+        const blob = new Blob([new Uint8Array(fileBuffer)], { type: "application/pdf" });
+        formData.append("file", blob, fileName);
+
+        const response = await fetch(`${crmBaseUrl}/${resolvedModule}/${crmId}/Attachments`, {
+          method: "POST",
+          headers: {
+            Authorization: `Zoho-oauthtoken ${accessToken}`,
+          },
+          body: formData,
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Zoho CRM Attachments API returned HTTP ${response.status}: ${errorText}`);
+        }
+
+        const resJson = await response.json();
+        if (!resJson.data || resJson.data.length === 0) {
+          throw new Error(`Zoho CRM Attachments response was empty or invalid: ${JSON.stringify(resJson)}`);
+        }
+
+        const result = resJson.data[0];
+        if (result.status === "error") {
+          throw new Error(`Zoho CRM Attachments Error [${result.code}]: ${result.message}`);
+        }
+
+        console.log(`[Zoho Service] Archivo adjunto subido exitosamente a Zoho CRM. ID de adjunto: ${result.details?.id || "N/A"}`);
+        return { success: true, attachmentId: result.details?.id };
+      });
+    },
   },
 };
 

@@ -527,5 +527,38 @@ describe("Zoho CRM & WorkDrive Integration Mocks", () => {
       expect(result.crmId).toBe("crm-debida-id");
       expect(spyFetch).toHaveBeenCalled();
     });
+
+    it("uploadAttachment - should upload file buffer as attachment to CRM record", async () => {
+      const spyFetch = vi.spyOn(global, "fetch").mockImplementation(async (url) => {
+        const urlStr = String(url);
+        if (urlStr.includes("/oauth/v2/token")) {
+          return {
+            ok: true,
+            json: async () => ({ access_token: "token_abc", expires_in: 3600 }),
+          } as any;
+        }
+        if (urlStr.includes("/Debida_Diligencia/crm-debida-id/Attachments") || urlStr.includes("/Contacts/crm-debida-id/Attachments")) {
+          return {
+            ok: true,
+            json: async () => ({
+              data: [{
+                status: "success",
+                code: "SUCCESS",
+                details: { id: "att-12345", File_Name: "Expediente.pdf" },
+                message: "attachment added successfully",
+              }],
+            }),
+          } as any;
+        }
+        return { ok: false, status: 404, text: async () => "Not Found" } as any;
+      });
+
+      const buffer = Buffer.from("mock pdf content");
+      const result = await zoho.service.uploadAttachment("crm-debida-id", "Expediente.pdf", buffer, "Debida_Diligencia");
+
+      expect(result.success).toBe(true);
+      expect(result.attachmentId).toBe("att-12345");
+      expect(spyFetch).toHaveBeenCalled();
+    });
   });
 });
