@@ -37,7 +37,7 @@ export default function Step1DatosPersonales({
               className={`w-full bg-[#f4f6f8] border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 ${
                 errors.nombreProyecto 
                   ? "border-red-500 focus:border-red-500 focus:ring-red-500/20" 
-                  : "border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"
+                  : "border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"
               }`}
               required
             >
@@ -72,7 +72,7 @@ export default function Step1DatosPersonales({
               className={`w-full bg-[#f4f6f8] border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 cursor-pointer ${
                 errors.formaContacto
                   ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
-                  : "border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"
+                  : "border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"
               }`}
             >
               <option value="">Selecciona opción</option>
@@ -121,7 +121,7 @@ export default function Step1DatosPersonales({
                 className={`bg-[#f4f6f8] border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 ${
                   errors.formaContactoDetalle 
                     ? "border-red-500 focus:border-red-500 focus:ring-red-500/20" 
-                    : "border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"
+                    : "border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"
                 }`}
               />
               {errors.formaContactoDetalle && (
@@ -148,7 +148,7 @@ export default function Step1DatosPersonales({
                 className={`bg-[#f4f6f8] border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 ${
                   errors.referidoPor 
                     ? "border-red-500 focus:border-red-500 focus:ring-red-500/20" 
-                    : "border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"
+                    : "border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"
                 }`}
               />
               {errors.referidoPor && (
@@ -163,8 +163,8 @@ export default function Step1DatosPersonales({
 
       {/* Card B: IDENTIFICACIÓN DEL CLIENTE ** */}
       <div className="bg-white rounded-2xl p-6 md:p-8 shadow-xl border border-zinc-200 space-y-6 text-[#1a1c1a] font-sans">
-        <h3 className="text-sm font-bold tracking-widest text-[#002b49] uppercase border-b border-zinc-200 pb-3 font-sans">
-          IDENTIFICACIÓN DEL CLIENTE **
+        <h3 className="text-sm font-bold tracking-widest text-[#052B48] uppercase border-b border-zinc-200 pb-3 font-sans">
+          IDENTIFICACIÓN DEL CLIENTE
         </h3>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -182,7 +182,7 @@ export default function Step1DatosPersonales({
               className={`bg-[#f4f6f8] border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 ${
                 errors.firstName 
                   ? "border-red-500 focus:border-red-500 focus:ring-red-500/20" 
-                  : "border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"
+                  : "border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"
               }`}
               required
             />
@@ -207,7 +207,7 @@ export default function Step1DatosPersonales({
               className={`bg-[#f4f6f8] border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 ${
                 errors.lastName 
                   ? "border-red-500 focus:border-red-500 focus:ring-red-500/20" 
-                  : "border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"
+                  : "border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"
               }`}
               required
             />
@@ -268,7 +268,7 @@ export default function Step1DatosPersonales({
               className={`bg-[#f4f6f8] border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 ${
                 errors.idTributaria 
                   ? "border-red-500 focus:border-red-500 focus:ring-red-500/20" 
-                  : "border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"
+                  : "border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"
               }`}
             />
             {errors.idTributaria && (
@@ -308,7 +308,7 @@ export default function Step1DatosPersonales({
               className={`w-full bg-[#f4f6f8] border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 ${
                 errors.tipoIdentificacion 
                   ? "border-red-500 focus:border-red-500 focus:ring-red-500/20" 
-                  : "border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"
+                  : "border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"
               }`}
             >
               <option value="">Selecciona tipo</option>
@@ -355,7 +355,7 @@ export default function Step1DatosPersonales({
               className={`w-full bg-[#f4f6f8] border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 cursor-pointer ${
                 errors.estadoCivil 
                   ? "border-red-500 focus:border-red-500 focus:ring-red-500/20" 
-                  : "border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"
+                  : "border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"
               }`}
               required
             >
@@ -387,7 +387,7 @@ export default function Step1DatosPersonales({
               className={`bg-[#f4f6f8] border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 ${
                 errors.idNumber 
                   ? "border-red-500 focus:border-red-500 focus:ring-red-500/20" 
-                  : "border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"
+                  : "border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"
               }`}
               required
             />
@@ -434,7 +434,7 @@ export default function Step1DatosPersonales({
               className={`w-full bg-[#f4f6f8] border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 ${
                 errors.estatusMigratorio 
                   ? "border-red-500 focus:border-red-500 focus:ring-red-500/20" 
-                  : "border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"
+                  : "border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"
               }`}
             >
               <option value="">Selecciona opción</option>
@@ -462,7 +462,7 @@ export default function Step1DatosPersonales({
               className={`bg-[#f4f6f8] border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 ${
                 errors.fechaNacimiento 
                   ? "border-red-500 focus:border-red-500 focus:ring-red-500/20" 
-                  : "border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"
+                  : "border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"
               }`}
               required
             />

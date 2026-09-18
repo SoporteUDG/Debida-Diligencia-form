@@ -189,8 +189,11 @@ export const naturalStep1Schema = z.object({
   actividadLaboralOtros: optionalString,
   direccionLaboral: optionalString,
   cargoDesempena: optionalString,
+  esPropietario: optionalString,
+  usaFondos: optionalString,
 
-  actEconPrincipal: optionalString,
+  actEconPrincipal: requiredString("Actividad Económica Principal"),
+  otroActEcon: optionalString,
   pctDedicacionPrincipal: percentageValidator("Porcentaje de Dedicación Principal", false),
   jurisdiccionPrincipal: optionalString,
   actEconSecundaria: optionalString,
@@ -201,8 +204,16 @@ export const naturalStep1Schema = z.object({
   ingresosMensuales: monetaryValidator("Ingresos Mensuales"),
   medioPago: medioPagoValidator("Medio de Pago"),
   fuenteFondosInmueble: requiredString("Fuente de Fondos"),
+  ifOtroNombre: optionalString,
+  ifTerceroNombre: optionalString,
+  ifTerceroNacionalidad: optionalString,
+  ifTerceroFuenteDeIngresos: optionalString,
+  ifTerceroRelacion: optionalString,
   montoServiciosAnuales: optionalString,
+  cantidadServiciosAnuales: optionalString,
+
   adquiereNombreTercero: optionalString,
+  nombreTercero: optionalString,
   destinoInmueble: optionalString,
   esPep: requiredString("Persona Expuesta Políticamente (PEP)"),
   pepNombre: optionalString,
@@ -290,8 +301,8 @@ export const naturalStep2Schema = z.object({
   idFile: requiredString("Copia de ID"),
   proofAddressFile: optionalString,
   origenFondosFile: optionalString,
-  hasEstadoCuenta: z.boolean().default(false),
-  hasCertificacionBancaria: z.boolean().default(false),
+  hasEstadoCuenta: optionalString,
+  hasCertificacionBancaria: optionalString,
   otrosAdjuntosFile: optionalString,
 });
 
@@ -389,6 +400,7 @@ export const juridicaStep1Schema = z.object({
   referidoPor: optionalString,
   razonSocial: requiredString("Razón Social"),
   tipoSociedad: requiredString("Tipo de Sociedad"),
+  estadoSociedad: requiredString("Estado de la Sociedad"),
   tipoCliente: requiredString("Tipo de Cliente"),
   tipoDocumentoIdentidad: requiredString("Tipo de Documento Identidad"),
   actividadPrincipal: requiredString("Actividad Principal"),
@@ -408,6 +420,8 @@ export const juridicaStep1Schema = z.object({
   contactoId: requiredString("Identificación de Contacto"),
   contactoTelefono: phoneValidator("Teléfono de Contacto"),
   contactoEmail: emailValidator("Email de Contacto"),
+  ifContacto: requiredString("¿Tiene cargo en la empresa?"),
+  contactoCargo: optionalString,
 
   // General Company Data
   empresaDireccion: requiredString("Dirección de la Empresa"),
@@ -451,11 +465,13 @@ export const juridicaStep1Schema = z.object({
   pepCargo: optionalString,
   pepInstitucion: optionalString,
   pepRelacion: optionalString,
-  actividadComercial: requiredString("Actividad Comercial"),
-  origenFondos: requiredString("Origen de Fondos"),
   destinoFondos: requiredString("Destino de Fondos"),
-  volumenVentas: requiredString("Volumen de Ventas"),
-  bancoReferencia: requiredString("Banco de Referencia"),
+
+  //maybe delete these fields if not needed
+  actividadComercial: optionalString,
+  origenFondos: optionalString,
+  volumenVentas: optionalString,
+  bancoReferencia: optionalString,
 }).superRefine((data, ctx) => {
   // Validate that sum of BfMembers percentages is <= 100%
   const sumPct = data.bfMembers.reduce((sum, member) => {
@@ -556,6 +572,7 @@ export const juridicaStep2Schema = z.object({
   serviciosPublicosFile: optionalString,
   certBancariaFile: optionalString,
   certRegistroFile: optionalString,
+  certComprasFile: optionalString,
   
   checkedCopiaId: z.boolean().default(false),
   checkedOrigenFondos: z.boolean().default(false),

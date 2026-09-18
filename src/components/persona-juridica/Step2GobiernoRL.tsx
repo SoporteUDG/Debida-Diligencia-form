@@ -49,7 +49,7 @@ export default function Step2GobiernoRL({
       <div className="bg-white rounded-2xl p-6 md:p-8 shadow-xl border border-zinc-200 space-y-6">
         <div className="border-b border-zinc-200 pb-3 flex items-center justify-between">
           <div>
-            <h3 className="text-sm font-bold tracking-widest text-[#002b49] uppercase">
+            <h3 className="text-sm font-bold tracking-widest text-[#052B48] uppercase">
               GOBIERNO CORPORATIVO / JUNTA DIRECTIVA / CONSEJO FUNDACIONAL **
             </h3>
             <p className="text-[11px] text-zinc-500 mt-1">
@@ -59,7 +59,7 @@ export default function Step2GobiernoRL({
           <button
             type="button"
             onClick={onAddGjcMember}
-            className="inline-flex items-center gap-1.5 text-xs text-white bg-[#002b49] border border-[#002b49] px-4 py-2 rounded-lg hover:bg-[#081827] transition cursor-pointer font-sans font-semibold active:scale-95"
+            className="inline-flex items-center gap-1.5 text-xs text-white bg-[#052B48] border border-[#052B48] px-4 py-2 rounded-lg hover:bg-[#081827] transition cursor-pointer font-sans font-semibold active:scale-95"
           >
             <Plus className="h-4 w-4" />
             Agregar Miembro
@@ -91,7 +91,7 @@ export default function Step2GobiernoRL({
             <button
               type="button"
               onClick={onAddGjcMember}
-              className="inline-flex items-center gap-1.5 text-xs text-[#002b49] border border-[#002b49]/30 px-3 py-1.5 rounded-lg hover:bg-[#002b49]/10 font-semibold transition cursor-pointer"
+              className="inline-flex items-center gap-1.5 text-xs text-[#052B48] border border-[#052B48]/30 px-3 py-1.5 rounded-lg hover:bg-[#052B48]/10 font-semibold transition cursor-pointer"
             >
               <Plus className="h-3.5 w-3.5" />
               Crear Registro Inicial
@@ -111,7 +111,7 @@ export default function Step2GobiernoRL({
                 >
                   <div className="flex items-center justify-between border-b border-zinc-200/60 pb-3">
                     <div className="flex items-center gap-3">
-                      <span className="text-[10px] bg-[#002b49] text-white px-2.5 py-1 rounded-full font-bold uppercase">
+                      <span className="text-[10px] bg-[#052B48] text-white px-2.5 py-1 rounded-full font-bold uppercase">
                         Miembro #{idx + 1}
                       </span>
                       {!complete && (
@@ -147,7 +147,7 @@ export default function Step2GobiernoRL({
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-[#1a1c1a]">
                     <div className="flex flex-col gap-1.5">
                       <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700">
-                        {idx + 1} - GJC Cargo <span className="text-red-500 font-bold">*</span>
+                        {idx + 1} - Cargo <span className="text-red-500 font-bold">*</span>
                       </label>
                       <select
                         value={member.cargo}
@@ -155,7 +155,7 @@ export default function Step2GobiernoRL({
                         className={`w-full border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 ${
                           errors[`gjcMembers.${idx}.cargo`]
                             ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20"
-                            : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"
+                            : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"
                         }`}
                         required
                       >
@@ -179,7 +179,7 @@ export default function Step2GobiernoRL({
 
                     <div className="flex flex-col gap-1.5">
                       <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700">
-                        {idx + 1} - GJC Nombre <span className="text-red-500 font-bold">*</span>
+                        {idx + 1} - Nombre <span className="text-red-500 font-bold">*</span>
                       </label>
                       <input
                         type="text"
@@ -189,7 +189,7 @@ export default function Step2GobiernoRL({
                         className={`w-full border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 ${
                           errors[`gjcMembers.${idx}.nombre`]
                             ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20"
-                            : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"
+                            : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"
                         }`}
                         required
                       />
@@ -202,7 +202,7 @@ export default function Step2GobiernoRL({
 
                     <div className="flex flex-col gap-1.5">
                       <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700">
-                        {idx + 1} - GJC Apellidos <span className="text-red-500 font-bold">*</span>
+                        {idx + 1} - Apellidos <span className="text-red-500 font-bold">*</span>
                       </label>
                       <input
                         type="text"
@@ -212,7 +212,7 @@ export default function Step2GobiernoRL({
                         className={`w-full border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 ${
                           errors[`gjcMembers.${idx}.apellidos`]
                             ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20"
-                            : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"
+                            : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"
                         }`}
                         required
                       />
@@ -243,7 +243,7 @@ export default function Step2GobiernoRL({
 
                     <div className="flex flex-col gap-1.5">
                       <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700">
-                        {idx + 1} - GJC Fecha de Nacimiento <span className="text-red-500 font-bold">*</span>
+                        {idx + 1} - Fecha de Nacimiento <span className="text-red-500 font-bold">*</span>
                       </label>
                       <input
                         type="date"
@@ -252,7 +252,7 @@ export default function Step2GobiernoRL({
                         className={`w-full border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 ${
                           errors[`gjcMembers.${idx}.fechaNacimiento`]
                             ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20"
-                            : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"
+                            : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"
                         }`}
                         required
                       />
@@ -265,7 +265,7 @@ export default function Step2GobiernoRL({
 
                     <div className="flex flex-col gap-1.5">
                       <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700">
-                        {idx + 1} - GJC No. de ID (Identificación) <span className="text-red-500 font-bold">*</span>
+                        {idx + 1} - No. de ID (Identificación) <span className="text-red-500 font-bold">*</span>
                       </label>
                       <input
                         type="text"
@@ -275,7 +275,7 @@ export default function Step2GobiernoRL({
                         className={`w-full border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 ${
                           errors[`gjcMembers.${idx}.nroId`]
                             ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20"
-                            : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"
+                            : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"
                         }`}
                         required
                       />
@@ -288,7 +288,7 @@ export default function Step2GobiernoRL({
 
                     <div className="flex flex-col gap-1.5 md:col-span-3">
                       <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700">
-                        {idx + 1} - GJC Dirección <span className="text-red-500 font-bold">*</span>
+                        {idx + 1} - Dirección <span className="text-red-500 font-bold">*</span>
                       </label>
                       <input
                         type="text"
@@ -298,7 +298,7 @@ export default function Step2GobiernoRL({
                         className={`w-full border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 ${
                           errors[`gjcMembers.${idx}.direccion`]
                             ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20"
-                            : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"
+                            : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"
                         }`}
                         required
                       />
@@ -318,15 +318,15 @@ export default function Step2GobiernoRL({
 
       {/* Card: REPRESENTANTE LEGAL O APODERADO */}
       <div className="bg-white rounded-2xl p-6 md:p-8 shadow-xl border border-zinc-200">
-        <h3 className="text-sm font-bold tracking-widest text-[#002b49] uppercase border-b border-zinc-200 pb-3 mb-6 flex items-center justify-between">
-          <span>REPRESENTANTE LEGAL O APODERADO **</span>
+        <h3 className="text-sm font-bold tracking-widest text-[#052B48] uppercase border-b border-zinc-200 pb-3 mb-6 flex items-center justify-between">
+          <span>REPRESENTANTE LEGAL O APODERADO</span>
           <span className="text-[10px] text-zinc-400 lowercase font-normal italic">RL - Datos Personales</span>
         </h3>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-[#1a1c1a]">
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="rlNombre">
-              1 RL - Nombre y Apellido
+              Nombre y Apellido
             </label>
             <input
               type="text"
@@ -335,7 +335,7 @@ export default function Step2GobiernoRL({
               value={formData.rlNombre}
               onChange={onInputChange}
               placeholder="Nombre y Apellido"
-              className={`${errors.rlNombre ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
+              className={`${errors.rlNombre ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
             />
             {errors.rlNombre && (
               <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
@@ -346,7 +346,7 @@ export default function Step2GobiernoRL({
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="rlFechaNacimiento">
-              1 RL - Fecha de Nacimiento <span className="text-red-500 font-bold">*</span>
+              Fecha de Nacimiento <span className="text-red-500 font-bold">*</span>
             </label>
             <input
               type="date"
@@ -354,7 +354,7 @@ export default function Step2GobiernoRL({
               name="rlFechaNacimiento"
               value={formData.rlFechaNacimiento}
               onChange={onInputChange}
-              className={`${errors.rlFechaNacimiento ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
+              className={`${errors.rlFechaNacimiento ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
               required
             />
             {errors.rlFechaNacimiento && (
@@ -366,7 +366,7 @@ export default function Step2GobiernoRL({
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="rlNacionalidad">
-              1 RL - Nacionalidad
+              Nacionalidad
             </label>
             <SearchableSelect
               id="rlNacionalidad"
@@ -384,14 +384,14 @@ export default function Step2GobiernoRL({
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="rlEstadoCivil">
-              1 RL - Estado Civil <span className="text-red-500 font-bold">*</span>
+              Estado Civil <span className="text-red-500 font-bold">*</span>
             </label>
             <select
               id="rlEstadoCivil"
               name="rlEstadoCivil"
               value={formData.rlEstadoCivil || ""}
               onChange={onInputChange}
-              className={`${errors.rlEstadoCivil ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full cursor-pointer`}
+              className={`${errors.rlEstadoCivil ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full cursor-pointer`}
               required
             >
               <option value="">Selecciona estado civil</option>
@@ -410,7 +410,7 @@ export default function Step2GobiernoRL({
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="rlNoIdentificacion">
-              1 RL - No. Identificación
+              No. Identificación
             </label>
             <input
               type="text"
@@ -419,7 +419,7 @@ export default function Step2GobiernoRL({
               value={formData.rlNoIdentificacion}
               onChange={onInputChange}
               placeholder="Cédula o pasaporte"
-              className={`${errors.rlNoIdentificacion ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
+              className={`${errors.rlNoIdentificacion ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
             />
             {errors.rlNoIdentificacion && (
               <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
@@ -430,7 +430,7 @@ export default function Step2GobiernoRL({
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="rlProfesionOcupacion">
-              1 RL - Profesión / Ocupación <span className="text-red-500 font-bold">*</span>
+              Profesión / Ocupación <span className="text-red-500 font-bold">*</span>
             </label>
             <input
               type="text"
@@ -439,7 +439,7 @@ export default function Step2GobiernoRL({
               value={formData.rlProfesionOcupacion}
               onChange={onInputChange}
               placeholder="Profesión u Ocupación"
-              className={`${errors.rlProfesionOcupacion ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
+              className={`${errors.rlProfesionOcupacion ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
               required
             />
             {errors.rlProfesionOcupacion && (
@@ -451,7 +451,7 @@ export default function Step2GobiernoRL({
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="rlActividadEconomica">
-              1 RL - Actividad Económica
+              Actividad Económica
             </label>
             <input
               type="text"
@@ -460,7 +460,7 @@ export default function Step2GobiernoRL({
               value={formData.rlActividadEconomica}
               onChange={onInputChange}
               placeholder="Actividad Económica"
-              className={`${errors.rlActividadEconomica ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
+              className={`${errors.rlActividadEconomica ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
             />
             {errors.rlActividadEconomica && (
               <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
@@ -471,7 +471,7 @@ export default function Step2GobiernoRL({
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="rlDireccion">
-              1 RL - Dirección
+              Dirección
             </label>
             <input
               type="text"
@@ -480,7 +480,7 @@ export default function Step2GobiernoRL({
               value={formData.rlDireccion}
               onChange={onInputChange}
               placeholder="Dirección residencial"
-              className={`${errors.rlDireccion ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
+              className={`${errors.rlDireccion ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
             />
             {errors.rlDireccion && (
               <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
@@ -491,7 +491,7 @@ export default function Step2GobiernoRL({
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="rlPaisResidencia">
-              1 RL - País de Residencia
+              País de Residencia
             </label>
             <SearchableSelect
               id="rlPaisResidencia"
@@ -509,7 +509,7 @@ export default function Step2GobiernoRL({
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="rlTelefono">
-              1 RL - Teléfono
+              Teléfono
             </label>
             <input
               type="tel"
@@ -518,7 +518,7 @@ export default function Step2GobiernoRL({
               value={formData.rlTelefono}
               onChange={onInputChange}
               placeholder="Teléfono de contacto"
-              className={`${errors.rlTelefono ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
+              className={`${errors.rlTelefono ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
             />
             {errors.rlTelefono && (
               <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
@@ -542,7 +542,7 @@ export default function Step2GobiernoRL({
             className={`w-full border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 font-semibold cursor-pointer ${
               errors.rlObjetoInvestigacion
                 ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20"
-                : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"
+                : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"
             }`}
             required
           >

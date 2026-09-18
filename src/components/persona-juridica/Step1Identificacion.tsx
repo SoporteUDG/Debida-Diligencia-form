@@ -33,7 +33,7 @@ export default function Step1Identificacion({
               name="nombreProyecto"
               value={formData.nombreProyecto}
               onChange={onInputChange}
-              className={`${errors.nombreProyecto ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
+              className={`${errors.nombreProyecto ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
               required
             >
               <option value="">Selecciona proyecto</option>
@@ -64,7 +64,7 @@ export default function Step1Identificacion({
               name="formaContacto"
               value={formData.formaContacto}
               onChange={onInputChange}
-              className={`${errors.formaContacto ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
+              className={`${errors.formaContacto ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
             >
               <option value="">Selecciona opción</option>
               <option value="Mercadeo (feria, evento, revista, valla)">Mercadeo (feria, evento, revista, valla)</option>
@@ -94,7 +94,7 @@ export default function Step1Identificacion({
                 value={formData.formaContactoDetalle || ""}
                 onChange={onInputChange}
                 placeholder="Escribe el detalle de cómo nos conoció..."
-                className={`bg-[#f4f6f8] border border-zinc-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[#002b49] focus:ring-1 focus:ring-[#002b49] transition text-zinc-800 ${
+                className={`bg-[#f4f6f8] border border-zinc-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[#052B48] focus:ring-1 focus:ring-[#052B48] transition text-zinc-800 ${
                   errors.formaContactoDetalle ? "border-red-500 bg-red-50/10" : ""
                 }`}
               />
@@ -119,7 +119,7 @@ export default function Step1Identificacion({
                 value={formData.referidoPor || ""}
                 onChange={onInputChange}
                 placeholder="Escribe el nombre de la persona que lo refirió..."
-                className={`bg-[#f4f6f8] border border-zinc-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[#002b49] focus:ring-1 focus:ring-[#002b49] transition text-zinc-800 ${
+                className={`bg-[#f4f6f8] border border-zinc-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[#052B48] focus:ring-1 focus:ring-[#052B48] transition text-zinc-800 ${
                   errors.referidoPor ? "border-red-500 bg-red-50/10" : ""
                 }`}
               />
@@ -135,8 +135,8 @@ export default function Step1Identificacion({
 
       {/* Card B: IDENTIFICACIÓN DEL CLIENTE */}
       <div className="bg-white rounded-2xl p-6 md:p-8 shadow-xl border border-zinc-200">
-        <h3 className="text-sm font-bold tracking-widest text-[#002b49] uppercase border-b border-zinc-200 pb-3 mb-6 flex items-center justify-between">
-          <span>IDENTIFICACIÓN DEL CLIENTE **</span>
+        <h3 className="text-sm font-bold tracking-widest text-[#052B48] uppercase border-b border-zinc-200 pb-3 mb-6 flex items-center justify-between">
+          <span>IDENTIFICACIÓN DEL CLIENTE</span>
           <span className="text-[10px] text-zinc-400 lowercase font-normal italic">Información Registral</span>
         </h3>
 
@@ -152,7 +152,7 @@ export default function Step1Identificacion({
               value={formData.razonSocial}
               onChange={onInputChange}
               placeholder="Ej: Inversiones UDG, S.A."
-              className={`${errors.razonSocial ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
+              className={`${errors.razonSocial ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
               required
             />
             {errors.razonSocial && (
@@ -171,12 +171,13 @@ export default function Step1Identificacion({
               name="tipoSociedad"
               value={formData.tipoSociedad}
               onChange={onInputChange}
-              className={`${errors.tipoSociedad ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
+              className={`${errors.tipoSociedad ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
             >
               <option value="">Selecciona tipo</option>
               <option value="Sociedad Anónima">Sociedad Anónima</option>
               <option value="Sociedad Civil">Sociedad Civil</option>
               <option value="Fundación">Fundación</option>
+              <option value="Fundación de Interés Privado">Fundación de Interés Privado</option>
               <option value="Otros">Otros</option>
             </select>
             {errors.tipoSociedad && (
@@ -185,6 +186,7 @@ export default function Step1Identificacion({
               </span>
             )}
           </div>
+          
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="tipoCliente">
@@ -195,17 +197,37 @@ export default function Step1Identificacion({
               name="tipoCliente"
               value={formData.tipoCliente}
               onChange={onInputChange}
-              className={`${errors.tipoCliente ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
+              className={`${errors.tipoCliente ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
             >
               <option value="">Selecciona tipo</option>
               <option value="Persona Jurídica Nacional">Persona Jurídica Nacional</option>
               <option value="Persona Jurídica Extranjera">Persona Jurídica Extranjera</option>
-              <option value="Operativa">Operativa</option>
-              <option value="No Operativa">No Operativa</option>
             </select>
             {errors.tipoCliente && (
               <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
                 ⚠️ {errors.tipoCliente}
+              </span>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="estadoSociedad">
+              Estado de la Sociedad
+            </label>
+            <select
+              id="estadoSociedad"
+              name="estadoSociedad"
+              value={formData.estadoSociedad}
+              onChange={onInputChange}
+              className={`${errors.estadoSociedad ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
+            >
+              <option value="">Selecciona tipo</option>
+              <option value="Operativa">Operativa</option>
+              <option value="No Operativa">No Operativa</option>
+            </select>
+            {errors.estadoSociedad && (
+              <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
+                ⚠️ {errors.estadoSociedad}
               </span>
             )}
           </div>
@@ -219,7 +241,7 @@ export default function Step1Identificacion({
               name="tipoDocumentoIdentidad"
               value={formData.tipoDocumentoIdentidad}
               onChange={onInputChange}
-              className={`${errors.tipoDocumentoIdentidad ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
+              className={`${errors.tipoDocumentoIdentidad ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
               required
             >
               <option value="">Selecciona documento</option>
@@ -236,6 +258,8 @@ export default function Step1Identificacion({
             )}
           </div>
 
+          
+
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="actividadPrincipal">
               Actividad Principal A La Que Se Dedica Su Empresa
@@ -247,7 +271,7 @@ export default function Step1Identificacion({
               value={formData.actividadPrincipal}
               onChange={onInputChange}
               placeholder="Ej: Comercio, Inversiones"
-              className="bg-[#f4f6f8] border border-zinc-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[#002b49] focus:ring-1 focus:ring-[#002b49] transition text-zinc-800"
+              className="bg-[#f4f6f8] border border-zinc-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[#052B48] focus:ring-1 focus:ring-[#052B48] transition text-zinc-800"
             />
           </div>
 
@@ -262,7 +286,7 @@ export default function Step1Identificacion({
               value={formData.numeroDocumento}
               onChange={onInputChange}
               placeholder="Número del documento elegido arriba"
-              className={`${errors.numeroDocumento ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
+              className={`${errors.numeroDocumento ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
               required
             />
             {errors.numeroDocumento && (
@@ -307,7 +331,7 @@ export default function Step1Identificacion({
               value={formData.numeroIdTributaria}
               onChange={onInputChange}
               placeholder="Si aplica (ej. R.T.N / Tax ID)"
-              className={`${errors.numeroIdTributaria ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
+              className={`${errors.numeroIdTributaria ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
             />
             {errors.numeroIdTributaria && (
               <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
@@ -353,7 +377,7 @@ export default function Step1Identificacion({
               min="0"
               max="100"
               step="any"
-              className={`${errors.porcentajeActividad ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
+              className={`${errors.porcentajeActividad ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
             />
             {errors.porcentajeActividad && (
               <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
@@ -372,7 +396,7 @@ export default function Step1Identificacion({
               name="fechaConstitucion"
               value={formData.fechaConstitucion}
               onChange={onInputChange}
-              className={`${errors.fechaConstitucion ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
+              className={`${errors.fechaConstitucion ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
             />
             {errors.fechaConstitucion && (
               <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
@@ -427,7 +451,7 @@ export default function Step1Identificacion({
               name="fechaNacimiento"
               value={formData.fechaNacimiento}
               onChange={onInputChange}
-              className={`${errors.fechaNacimiento ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
+              className={`${errors.fechaNacimiento ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
               required
             />
             {errors.fechaNacimiento && (
@@ -439,9 +463,11 @@ export default function Step1Identificacion({
         </div>
       </div>
 
+
+
       {/* Card C: PERSONA DE CONTACTO */}
       <div className="bg-white rounded-2xl p-6 md:p-8 shadow-xl border border-zinc-200">
-        <h3 className="text-sm font-bold tracking-widest text-[#002b49] uppercase border-b border-zinc-200 pb-3 mb-6 flex items-center justify-between">
+        <h3 className="text-sm font-bold tracking-widest text-[#052B48] uppercase border-b border-zinc-200 pb-3 mb-6 flex items-center justify-between">
           <span>PERSONA DE CONTACTO **</span>
           <span className="text-[10px] text-zinc-400 lowercase font-normal italic">Representante Operativo</span>
         </h3>
@@ -458,7 +484,7 @@ export default function Step1Identificacion({
               value={formData.contactoNombre}
               onChange={onInputChange}
               placeholder="Nombre"
-              className={`${errors.contactoNombre ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
+              className={`${errors.contactoNombre ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
               required
             />
             {errors.contactoNombre && (
@@ -479,7 +505,7 @@ export default function Step1Identificacion({
               value={formData.contactoApellido}
               onChange={onInputChange}
               placeholder="Apellido"
-              className={`${errors.contactoApellido ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
+              className={`${errors.contactoApellido ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
               required
             />
             {errors.contactoApellido && (
@@ -500,7 +526,7 @@ export default function Step1Identificacion({
               value={formData.contactoId}
               onChange={onInputChange}
               placeholder="Cédula o pasaporte"
-              className={`${errors.contactoId ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
+              className={`${errors.contactoId ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
             />
             {errors.contactoId && (
               <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
@@ -520,7 +546,7 @@ export default function Step1Identificacion({
               value={formData.contactoTelefono}
               onChange={onInputChange}
               placeholder="Celular"
-              className={`${errors.contactoTelefono ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
+              className={`${errors.contactoTelefono ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
               required
             />
             {errors.contactoTelefono && (
@@ -541,7 +567,7 @@ export default function Step1Identificacion({
               value={formData.contactoEmail}
               onChange={onInputChange}
               placeholder="correo@ejemplo.com"
-              className={`${errors.contactoEmail ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
+              className={`${errors.contactoEmail ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
               required
             />
             {errors.contactoEmail && (
@@ -549,14 +575,60 @@ export default function Step1Identificacion({
                 ⚠️ {errors.contactoEmail}
               </span>
             )}
+
           </div>
+          <div className="flex flex-col gap-2">
+            <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="ifContacto">
+              Ocupa un cargo dentro de la sociedad
+            </label>
+            <select
+              id="ifContacto"
+              name="ifContacto"
+              value={formData.ifContacto}
+              onChange={onInputChange}
+              className={`${errors.ifContacto ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
+              required
+            >
+              <option value="">Selecciona opcion</option>
+              <option value="Sí">Sí</option>
+              <option value="No">No</option>
+            </select>
+            {errors.ifContacto && (
+              <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
+                ⚠️ {errors.ifContacto}
+              </span>
+            )}
+          </div>
+          {formData.ifContacto === "Sí" && (  
+            <div className="flex flex-col gap-2 md:col-span-2">
+              <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="contactoCargo">
+                Cargo que ocupa dentro de la sociedad
+              </label>
+              <input
+                type="text"
+                id="contactoCargo"
+                name="contactoCargo"
+                value={formData.contactoCargo}
+                onChange={onInputChange}
+                placeholder="Ej. miembro del directorio"
+                className={`${errors.contactoCargo ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
+                required
+              />
+              {errors.contactoCargo && (
+                <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
+                  ⚠️ {errors.contactoCargo}
+                </span>
+              )}
+
+            </div>
+          )}
         </div>
       </div>
 
       {/* Card D: DATOS GENERALES DE LA EMPRESA */}
       <div className="bg-white rounded-2xl p-6 md:p-8 shadow-xl border border-zinc-200">
-        <h3 className="text-sm font-bold tracking-widest text-[#002b49] uppercase border-b border-zinc-200 pb-3 mb-6 flex items-center justify-between">
-          <span>DATOS GENERALES DE LA EMPRESA **</span>
+        <h3 className="text-sm font-bold tracking-widest text-[#052B48] uppercase border-b border-zinc-200 pb-3 mb-6 flex items-center justify-between">
+          <span>DATOS GENERALES DE LA EMPRESA</span>
           <span className="text-[10px] text-zinc-400 lowercase font-normal italic">Domicilio y Contacto Corporativo</span>
         </h3>
 
@@ -572,7 +644,7 @@ export default function Step1Identificacion({
               onChange={onInputChange}
               rows={3}
               placeholder="Completa la dirección física"
-              className="w-full bg-[#f4f6f8] border border-zinc-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[#002b49] focus:ring-1 focus:ring-[#002b49] transition text-zinc-800 resize-none"
+              className="w-full bg-[#f4f6f8] border border-zinc-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[#052B48] focus:ring-1 focus:ring-[#052B48] transition text-zinc-800 resize-none"
               required
             />
           </div>
@@ -588,7 +660,7 @@ export default function Step1Identificacion({
               value={formData.empresaCiudad}
               onChange={onInputChange}
               placeholder="Ciudad"
-              className={`${errors.empresaCiudad ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
+              className={`${errors.empresaCiudad ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
             />
             {errors.empresaCiudad && (
               <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
@@ -608,7 +680,7 @@ export default function Step1Identificacion({
               value={formData.empresaProvincia}
               onChange={onInputChange}
               placeholder="Provincia / Estado"
-              className={`${errors.empresaProvincia ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
+              className={`${errors.empresaProvincia ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
             />
             {errors.empresaProvincia && (
               <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
@@ -637,14 +709,14 @@ export default function Step1Identificacion({
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="empresaTelefono">
-              Teléfono(s)
+              Teléfono
             </label>
             <div className="flex gap-2">
               <select
                 name="empresaTelefonoCodigo"
                 value={formData.empresaTelefonoCodigo || "+507"}
                 onChange={onInputChange}
-                className="bg-[#f4f6f8] border border-zinc-300 rounded-lg px-2 py-3 text-xs font-semibold text-zinc-700 focus:outline-none focus:border-[#002b49] focus:ring-1 focus:ring-[#002b49] transition text-zinc-800 cursor-pointer max-w-[90px]"
+                className="bg-[#f4f6f8] border border-zinc-300 rounded-lg px-2 py-3 text-xs font-semibold text-zinc-700 focus:outline-none focus:border-[#052B48] focus:ring-1 focus:ring-[#052B48] transition text-zinc-800 cursor-pointer max-w-[90px]"
               >
                 {PHONE_CODES.map((p) => (
                   <option key={p.code + p.country} value={p.code}>
@@ -659,7 +731,7 @@ export default function Step1Identificacion({
                 value={formData.empresaTelefono}
                 onChange={onInputChange}
                 placeholder="Número fijo"
-                className={`${errors.empresaTelefono ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
+                className={`${errors.empresaTelefono ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
               />
             {errors.empresaTelefono && (
               <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
@@ -671,14 +743,14 @@ export default function Step1Identificacion({
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="empresaCelular">
-              Celular(es)
+              Celular
             </label>
             <div className="flex gap-2">
               <select
                 name="empresaCelularCodigo"
                 value={formData.empresaCelularCodigo || "+507"}
                 onChange={onInputChange}
-                className="bg-[#f4f6f8] border border-zinc-300 rounded-lg px-2 py-3 text-xs font-semibold text-zinc-700 focus:outline-none focus:border-[#002b49] focus:ring-1 focus:ring-[#002b49] transition text-zinc-800 cursor-pointer max-w-[90px]"
+                className="bg-[#f4f6f8] border border-zinc-300 rounded-lg px-2 py-3 text-xs font-semibold text-zinc-700 focus:outline-none focus:border-[#052B48] focus:ring-1 focus:ring-[#052B48] transition text-zinc-800 cursor-pointer max-w-[90px]"
               >
                 {PHONE_CODES.map((p) => (
                   <option key={p.code + p.country} value={p.code}>
@@ -693,7 +765,7 @@ export default function Step1Identificacion({
                 value={formData.empresaCelular}
                 onChange={onInputChange}
                 placeholder="Número móvil"
-                className={`${errors.empresaCelular ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
+                className={`${errors.empresaCelular ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
               />
             {errors.empresaCelular && (
               <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
@@ -714,7 +786,7 @@ export default function Step1Identificacion({
               value={formData.empresaEmail}
               onChange={onInputChange}
               placeholder="contacto@empresa.com"
-              className={`${errors.empresaEmail ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
+              className={`${errors.empresaEmail ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
             />
             {errors.empresaEmail && (
               <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">

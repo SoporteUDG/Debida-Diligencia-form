@@ -1,10 +1,12 @@
 "use client";
-
+import SearchableSelect from "@/components/ui/SearchableSelect";
+import { countries } from "@/lib/countries";
 import { FormState } from "@/types/persona-natural";
 
 interface Step3Props {
   formData: FormState;
   onInputChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
+  onSearchableSelectChange: (fieldName: keyof FormState, value: string) => void;
   errors: Record<string, string>;
 }
 
@@ -16,8 +18,14 @@ const MEDIO_PAGO_OPTIONS = [
   "Cheque",
   "Crédito (Financiamiento)",
 ];
+const ORIGEN_PAGO_OPTIONS = [
+  "Propios",
+  "Financiamiento",
+  "Terceros",
+  "Otros",
+];
 
-export default function Step3PerfilFinanciero({ formData, onInputChange, errors = {} }: Step3Props) {
+export default function Step3PerfilFinanciero({ formData, onInputChange, onSearchableSelectChange, errors = {} }: Step3Props) {
   const selectedMedios = (formData.medioPago || "")
     .split(",")
     .map((s) => s.trim())
@@ -39,13 +47,34 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, errors 
     onInputChange(syntheticEvent);
   };
 
+  const selectedFuentes = (formData.fuenteFondosInmueble || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  const toggleFuenteFondos = (option: string) => {
+    let updated: string[];
+    if (selectedFuentes.includes(option)) {
+      updated = selectedFuentes.filter((item) => item !== option);
+    } else {
+      updated = [...selectedFuentes, option];
+    }
+    const syntheticEvent = {
+      target: {
+        name: "fuenteFondosInmueble",
+        value: updated.join(", "),
+      },
+    } as unknown as React.ChangeEvent<HTMLInputElement>;
+    onInputChange(syntheticEvent);
+  };
+
   return (
     <div className="space-y-8">
 
       {/* Card A: PERFIL FINANCIERO */}
       <div className="bg-white rounded-2xl p-6 md:p-8 shadow-xl border border-zinc-200 space-y-6 text-[#1a1c1a] font-sans">
         <div className="text-center md:text-left border-b border-zinc-200 pb-3">
-          <h3 className="text-sm font-bold tracking-widest text-[#002b49] uppercase">
+          <h3 className="text-sm font-bold tracking-widest text-[#052B48] uppercase">
             PERFIL FINANCIERO
           </h3>
           <p className="text-[10px] font-bold text-zinc-500 uppercase mt-1 tracking-wider">
@@ -87,7 +116,7 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, errors 
                   }
                 }}
                 placeholder="5,000.00"
-                className={`${errors.ingresosMensuales ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"} border rounded-lg pl-8 pr-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full font-medium`}
+                className={`${errors.ingresosMensuales ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg pl-8 pr-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full font-medium`}
                 required
               />
             </div>
@@ -120,7 +149,7 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, errors 
                     onClick={() => toggleMedioPago(opt)}
                     className={`flex items-center gap-2.5 p-3 rounded-xl border text-left text-xs font-semibold transition-all duration-150 cursor-pointer select-none ${
                       isSelected
-                        ? "bg-[#002b49] text-white border-[#002b49] shadow-sm ring-1 ring-[#002b49]/30"
+                        ? "bg-[#052B48] text-white border-[#052B48] shadow-sm ring-1 ring-[#052B48]/30"
                         : "bg-[#f4f6f8] text-zinc-700 border-zinc-300 hover:bg-zinc-100 hover:border-zinc-400"
                     }`}
                   >
@@ -147,62 +176,194 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, errors 
             )}
           </div>
 
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-2.5 md:col-span-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="fuenteFondosInmueble">
               Usted Adquiere el Bien Inmueble con Fondos <span className="text-red-500 font-bold">*</span>
             </label>
-            <select
-              id="fuenteFondosInmueble"
-              name="fuenteFondosInmueble"
-              value={formData.fuenteFondosInmueble || ""}
-              onChange={onInputChange}
-              className={`${errors.fuenteFondosInmueble ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
-              required
-            >
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+              {ORIGEN_PAGO_OPTIONS.map((opt) => {
+                const isSelected = selectedFuentes.includes(opt);
+                return (
+                  <button
+                    type="button"
+                    key={opt}
+                    onClick={() => toggleFuenteFondos(opt)}
+                    className={`flex items-center gap-2.5 p-3 rounded-xl border text-left text-xs font-semibold transition-all duration-150 cursor-pointer select-none ${
+                      isSelected
+                        ? "bg-[#052B48] text-white border-[#052B48] shadow-sm ring-1 ring-[#052B48]/30"
+                        : "bg-[#f4f6f8] text-zinc-700 border-zinc-300 hover:bg-zinc-100 hover:border-zinc-400"
+                    }`}
+                  >
+                    <div
+                      className={`w-4 h-4 rounded flex items-center justify-center border transition-colors shrink-0 ${
+                        isSelected ? "bg-[#c8a788] border-[#c8a788] text-white" : "border-zinc-400 bg-white"
+                      }`}
+                    >
+                      {isSelected && (
+                        <svg className="w-3 h-3 stroke-current stroke-[3]" fill="none" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
+                    </div>
+                    <span className="truncate">{opt}</span>
+                  </button>
+                );
+              })}
+            </div>
             {errors.fuenteFondosInmueble && (
               <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
                 ⚠️ {errors.fuenteFondosInmueble}
               </span>
             )}
-              <option value="">-Select-</option>
-              <option value="Propios">Propios</option>
-              <option value="Financiamiento">Financiamiento</option>
-              <option value="Terceros">Terceros</option>
-              <option value="Otros">Otros</option>
-            </select>
           </div>
-
+          {formData.fuenteFondosInmueble.includes("Otros") && (
+            <div className="flex flex-col gap-2.5 md:col-span-2">
+              <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="ifOtroNombre">
+                Especifique otra fuente de fondos <span className="text-red-500 font-bold">*</span>
+              </label>
+              <input
+                type="text"
+                id="ifOtroNombre"
+                name="ifOtroNombre"
+                value={formData.ifOtroNombre || ""}
+                onChange={onInputChange}
+                placeholder="Ej: otros"
+                className={`${errors.ifOtroNombre ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800`}
+                required
+              />
+            </div>
+          )}
+          {formData.fuenteFondosInmueble.includes("Terceros") && (
+            <div className="bg-[#f8fafc] border border-zinc-300/80 rounded-xl p-5 md:p-6 space-y-4 animate-fadeIn shadow-sm md:col-span-2">
+              <h4 className="text-xs font-bold text-[#052B48] uppercase tracking-wider border-b border-zinc-200 pb-2">
+                Identificación de la Persona que Aportará los Fondos (Terceros)
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex flex-col gap-2">
+                  <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="ifTerceroNombre">
+                    Nombre Completo de Tercero
+                  </label>
+                  <input
+                    type="text"
+                    id="ifTerceroNombre"
+                    name="ifTerceroNombre"
+                    value={formData.ifTerceroNombre || ""}
+                    onChange={onInputChange}
+                    placeholder="Nombre "
+                    className={`${errors.ifTerceroNombre ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800`}
+                    required
+                  />
+                  {errors.ifTerceroNombre && (
+                    <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
+                      ⚠️ {errors.ifTerceroNombre}
+                    </span>
+                  )}
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="ifTerceroFuenteDeIngresos">
+                    Fuente de Ingreso
+                  </label>
+                  <input
+                    type="text"
+                    id="ifTerceroFuenteDeIngresos"
+                    name="ifTerceroFuenteDeIngresos"
+                    value={formData.ifTerceroFuenteDeIngresos || ""}
+                    onChange={onInputChange}
+                    placeholder="Fuente de ingresos"
+                    className={`${errors.ifTerceroFuenteDeIngresos ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800`}
+                    required
+                  />
+                  {errors.ifTerceroFuenteDeIngresos && (
+                    <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
+                      ⚠️ {errors.ifTerceroFuenteDeIngresos}
+                    </span>
+                  )}
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="ifTerceroRelacion">
+                    Relación con el Tercero
+                  </label>
+                  <input
+                    type="text"
+                    id="ifTerceroRelacion"
+                    name="ifTerceroRelacion"
+                    value={formData.ifTerceroRelacion || ""}
+                    onChange={onInputChange}
+                    placeholder="Vinculo con el Tercero"
+                    className={`${errors.ifTerceroRelacion ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800`}
+                    required
+                  />
+                  {errors.ifTerceroRelacion && (
+                    <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
+                      ⚠️ {errors.ifTerceroRelacion}
+                    </span>
+                  )}
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="ifTerceroNacionalidad">
+                    Nacionalidad
+                  </label>
+                  <SearchableSelect
+                    options={countries}
+                    value={formData.ifTerceroNacionalidad || ""}
+                    onChange={(value) => onSearchableSelectChange("ifTerceroNacionalidad", value)}
+                    placeholder="Selecciona nacionalidad"
+                    hasError={!!errors.ifTerceroNacionalidad} />
+                  {errors.ifTerceroNacionalidad && (
+                    <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
+                      ⚠️ {errors.ifTerceroNacionalidad}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
           <div className="flex flex-col gap-2 md:col-span-2">
-            <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="montoServiciosAnuales">
-              Montos de Servicios y Productos Aproximados Anuales que Adquirirá <span className="text-red-500 font-bold">*</span>
-            </label>
-            <select
-              id="montoServiciosAnuales"
-              name="montoServiciosAnuales"
-              value={formData.montoServiciosAnuales || ""}
-              onChange={onInputChange}
-              className={`${errors.montoServiciosAnuales ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
-              required
-            >
-            {errors.montoServiciosAnuales && (
-              <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
-                ⚠️ {errors.montoServiciosAnuales}
-              </span>
-            )}
-              <option value="">-Select-</option>
-              <option value="Menos de $5,000">Menos de $5,000</option>
-              <option value="$5,001 a $25,000">$5,001 a $25,000</option>
-              <option value="$25,001 a $50,000">$25,001 a $50,000</option>
-              <option value="$50,001 a $100,000">$50,001 a $100,000</option>
-              <option value="Mas de $100,000">Mas de $100,000</option>
-            </select>
+            <div className="grid grid-cols-4 gap-2 items-center">
+              <label className="col-span-3 text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="montoServiciosAnuales">
+                ¿Tiene previsto adquirir más de una unidad inmobiliaria durante los próximos 12 meses? <span className="text-red-500 font-bold">*</span>
+              </label>
+              <SearchableSelect
+                  options={["Sí", "No"]}
+                  value={formData.montoServiciosAnuales || ""}
+                  onChange={(value) => onSearchableSelectChange("montoServiciosAnuales", value)}
+                  placeholder="Seleccione opción"
+                  hasError={!!errors.montoServiciosAnuales} />
+                {errors.montoServiciosAnuales && (
+                  <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
+                    ⚠️ {errors.montoServiciosAnuales}
+                  </span>
+                )}
+            </div>
           </div>
+          {formData.montoServiciosAnuales === "Sí" && (
+            <div className="flex flex-col gap-2">
+              <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="cantidadServiciosAnuales">
+                Indique la cantidad de Servicios Anuales
+              </label>
+              <input
+                type="number"
+                id="cantidadServiciosAnuales"
+                name="cantidadServiciosAnuales"
+                value={formData.cantidadServiciosAnuales || ""}
+                onChange={onInputChange}
+                placeholder="Ej. 4"
+                className={`${errors.cantidadServiciosAnuales ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800`}
+                required
+              />
+              {errors.cantidadServiciosAnuales && (
+                <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
+                  ⚠️ {errors.cantidadServiciosAnuales}
+                </span>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
       {/* Card C: IDENTIFICACIÓN DEL BENEFICIARIO DEL INMUEBLE */}
       <div className="bg-white rounded-2xl p-6 md:p-8 shadow-xl border border-zinc-200 space-y-6 text-[#1a1c1a] font-sans">
-        <h3 className="text-sm font-bold tracking-widest text-[#002b49] uppercase border-b border-zinc-200 pb-3">
+        <h3 className="text-sm font-bold tracking-widest text-[#052B48] uppercase border-b border-zinc-200 pb-3">
           IDENTIFICACIÓN DEL BENEFICIARIO DEL INMUEBLE
         </h3>
 
@@ -218,7 +379,7 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, errors 
               name="adquiereNombreTercero"
               value={formData.adquiereNombreTercero || ""}
               onChange={onInputChange}
-              className={`${errors.adquiereNombreTercero ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
+              className={`${errors.adquiereNombreTercero ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
               required
             >
             {errors.adquiereNombreTercero && (
@@ -228,9 +389,35 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, errors 
             )}
               <option value="">Selecciona opción</option>
               <option value="No">No</option>
-              <option value="Si">Si</option>
+              <option value="Sí">Sí</option>
             </select>
           </div>
+          {formData.adquiereNombreTercero === "Sí" && (
+            <>
+            <div className="flex flex-col gap-2">
+              <label className="text-xs text-zinc-700 leading-normal font-semibold" htmlFor="nombreTercero">
+                Nombre Completo de la Persona<span className="text-red-500 font-bold">*</span>
+              </label>
+            </div>
+            <div className="flex flex-col gap-2">
+              <input
+                type="text"
+                id="nombreTercero"
+                name="nombreTercero"
+                value={formData.nombreTercero || ""}
+                onChange={onInputChange}
+                placeholder="Ingrese el nombre completo del tercero"
+                className={`${errors.nombreTercero ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800`}
+                required
+              />
+              {errors.nombreTercero && (
+                <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
+                  ⚠️ {errors.nombreTercero}
+                </span>
+              )}
+            </div>
+            </>
+          )}
 
           <div className="flex flex-col gap-2">
             <span className="text-xs text-zinc-700 leading-normal font-semibold">
@@ -242,7 +429,7 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, errors 
               name="destinoInmueble"
               value={formData.destinoInmueble || ""}
               onChange={onInputChange}
-              className={`${errors.destinoInmueble ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
+              className={`${errors.destinoInmueble ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
               required
             >
             {errors.destinoInmueble && (
@@ -262,7 +449,7 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, errors 
 
       {/* Card D: PERSONA EXPUESTA POLÍTICAMENTE (PEP) */}
       <div className="bg-white rounded-2xl p-6 md:p-8 shadow-xl border border-zinc-200 space-y-6 text-[#1a1c1a] font-sans">
-        <h3 className="text-sm font-bold tracking-widest text-[#002b49] uppercase border-b border-zinc-200 pb-3">
+        <h3 className="text-sm font-bold tracking-widest text-[#052B48] uppercase border-b border-zinc-200 pb-3">
           PERSONA EXPUESTA POLÍTICAMENTE (PEP)
         </h3>
 
@@ -280,7 +467,7 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, errors 
               name="esPep"
               value={formData.esPep || ""}
               onChange={onInputChange}
-              className={`${errors.esPep ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full cursor-pointer font-medium`}
+              className={`${errors.esPep ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full cursor-pointer font-medium`}
               required
             >
               <option value="">Selecciona opción</option>
@@ -297,7 +484,7 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, errors 
 
         {(formData.esPep === "Sí" || formData.esPep === "Si") && (
           <div className="bg-[#f8fafc] border border-zinc-300/80 rounded-xl p-5 md:p-6 mt-4 space-y-4 animate-fadeIn shadow-sm">
-            <h4 className="text-xs font-bold text-[#002b49] uppercase tracking-wider border-b border-zinc-200 pb-2">
+            <h4 className="text-xs font-bold text-[#052B48] uppercase tracking-wider border-b border-zinc-200 pb-2">
               Detalles de la Persona Expuesta Políticamente (PEP)
             </h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -313,7 +500,7 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, errors 
                   className={`bg-white border rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 placeholder:text-zinc-400 ${
                     errors.pepNombre
                       ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
-                      : "border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"
+                      : "border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"
                   }`}
                   placeholder="Ej: Juan Pérez"
                 />
@@ -336,7 +523,7 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, errors 
                   className={`bg-white border rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 placeholder:text-zinc-400 ${
                     errors.pepCargo
                       ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
-                      : "border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"
+                      : "border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"
                   }`}
                   placeholder="Ej: Ministro de Estado"
                 />
@@ -359,7 +546,7 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, errors 
                   className={`bg-white border rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 placeholder:text-zinc-400 ${
                     errors.pepInstitucion
                       ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
-                      : "border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"
+                      : "border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"
                   }`}
                   placeholder="Ej: Ministerio de Obras Públicas"
                 />
@@ -381,7 +568,7 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, errors 
                   className={`bg-white border rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 cursor-pointer ${
                     errors.pepRelacion
                       ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
-                      : "border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"
+                      : "border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"
                   }`}
                 >
                   <option value="">Seleccione parentesco</option>

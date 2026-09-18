@@ -41,7 +41,7 @@ export default function Step5Declaracion({ formData, onInputChange, errors = {} 
       canvas.height = 180;
       const ctx = canvas.getContext("2d");
       if (ctx) {
-        ctx.strokeStyle = "#002b49";
+        ctx.strokeStyle = "#052B48";
         ctx.lineWidth = 2.5;
         ctx.lineCap = "round";
         ctx.lineJoin = "round";
@@ -81,7 +81,7 @@ export default function Step5Declaracion({ formData, onInputChange, errors = {} 
         ctx.fillRect(0, 0, 500, 180);
 
         ctx.font = `italic 38px ${fontInlineStyles[typedFontIndex]}`;
-        ctx.fillStyle = "#002b49";
+        ctx.fillStyle = "#052B48";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.fillText(formData.signerName, 250, 90);
@@ -181,14 +181,14 @@ export default function Step5Declaracion({ formData, onInputChange, errors = {} 
       
       {/* SECTION: FIRMA Y DECLARACIÓN DEL CLIENTE */}
       <div className="bg-white rounded-2xl p-6 md:p-8 shadow-xl border border-zinc-200 space-y-6">
-        <h3 className="text-sm font-bold tracking-widest text-[#002b49] uppercase border-b border-zinc-200 pb-3 mb-6">
+        <h3 className="text-sm font-bold tracking-widest text-[#052B48] uppercase border-b border-zinc-200 pb-3 mb-6">
           FIRMA Y DECLARACIÓN DEL CLIENTE
         </h3>
 
         {/* Declaraciones Juradas */}
         <div className="bg-zinc-950/30 border border-zinc-200/80 rounded-xl p-6 text-xs text-zinc-700 space-y-4 max-h-96 overflow-y-auto leading-relaxed font-sans scrollbar-thin">
           <p className="font-semibold text-zinc-900">
-            Declaro de manera voluntaria, libre de cualquier error, fuerza o dolo que todas las afirmaciones y respuestas que he manifestado en este documento son correctas, veraces, completas y autorizo a <strong className="text-[#002b49]">URBAN DEVELOPMENT GROUP</strong> a verificar toda la información detallada. Además, me obligo a informar a <strong className="text-[#002b49]">URBAN DEVELOPMENT GROUP</strong> de cualquier cambio o actualización de información que pueda afectar las afirmaciones y respuestas anotadas en este formulario:
+            Declaro de manera voluntaria, libre de cualquier error, fuerza o dolo que todas las afirmaciones y respuestas que he manifestado en este documento son correctas, veraces, completas y autorizo a <strong className="text-[#052B48]">URBAN DEVELOPMENT GROUP</strong> a verificar toda la información detallada. Además, me obligo a informar a <strong className="text-[#052B48]">URBAN DEVELOPMENT GROUP</strong> de cualquier cambio o actualización de información que pueda afectar las afirmaciones y respuestas anotadas en este formulario:
           </p>
 
           <ol className="list-decimal pl-4 space-y-3 text-zinc-600">
@@ -214,7 +214,7 @@ export default function Step5Declaracion({ formData, onInputChange, errors = {} 
               Declara el firmante que exonera a nuestra empresa de cualquier responsabilidad en caso de que una Autoridad competente nos requiera información relacionada con la relación comercial.
             </li>
             <li>
-              Declara el firmante que se compromete a informar a nuestra empresa de cualquier cambio de la información suministrada en el formulario. <strong className="text-[#002b49]">URBAN DEVELOPMENT GROUP</strong> y sus empresas asociadas, de ahora en adelante denominadas El Grupo, manejará los datos personales proporcionados por usted a través de la página web, formularios digitales o físicos, correos electrónicos, aplicaciones móviles o cualquier medio en el cual usted proporcionen sus datos conforme a lo siguiente:
+              Declara el firmante que se compromete a informar a nuestra empresa de cualquier cambio de la información suministrada en el formulario. <strong className="text-[#052B48]">URBAN DEVELOPMENT GROUP</strong> y sus empresas asociadas, de ahora en adelante denominadas El Grupo, manejará los datos personales proporcionados por usted a través de la página web, formularios digitales o físicos, correos electrónicos, aplicaciones móviles o cualquier medio en el cual usted proporcionen sus datos conforme a lo siguiente:
               
               <div className="mt-2.5 pl-3 border-l-2 border-zinc-200 space-y-2">
                 <span className="font-semibold block text-zinc-700">a) FINALIDAD DEL TRATAMIENTO DE DATOS PERSONALES:</span>
@@ -267,7 +267,7 @@ export default function Step5Declaracion({ formData, onInputChange, errors = {} 
               className={`bg-[#f4f6f8] border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 ${
                 errors.signerName
                   ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
-                  : "border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"
+                  : "border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"
               }`}
               required
             />
@@ -291,7 +291,7 @@ export default function Step5Declaracion({ formData, onInputChange, errors = {} 
               className={`bg-[#f4f6f8] border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 ${
                 errors.signatureDate
                   ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
-                  : "border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"
+                  : "border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"
               }`}
               required
             />
@@ -322,8 +322,8 @@ export default function Step5Declaracion({ formData, onInputChange, errors = {} 
                 }}
                 className={`inline-flex items-center gap-1 text-[11px] font-bold tracking-wider uppercase px-3 py-1.5 rounded-md transition ${
                   signatureMode === "draw"
-                    ? "bg-white text-[#002b49] shadow-sm"
-                    : "text-zinc-500 hover:text-[#002b49]"
+                    ? "bg-white text-[#052B48] shadow-sm"
+                    : "text-zinc-500 hover:text-[#052B48]"
                 }`}
               >
                 <PenTool className="h-3 w-3" />
@@ -337,8 +337,8 @@ export default function Step5Declaracion({ formData, onInputChange, errors = {} 
                 }}
                 className={`inline-flex items-center gap-1 text-[11px] font-bold tracking-wider uppercase px-3 py-1.5 rounded-md transition ${
                   signatureMode === "type"
-                    ? "bg-white text-[#002b49] shadow-sm"
-                    : "text-zinc-500 hover:text-[#002b49]"
+                    ? "bg-white text-[#052B48] shadow-sm"
+                    : "text-zinc-500 hover:text-[#052B48]"
                 }`}
               >
                 <Type className="h-3 w-3" />
@@ -381,14 +381,14 @@ export default function Step5Declaracion({ formData, onInputChange, errors = {} 
                     value={formData.signerName}
                     onChange={onInputChange}
                     placeholder="Escribe tu nombre aquí..."
-                    className="w-full bg-white border border-zinc-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-[#002b49] focus:ring-1 focus:ring-[#002b49] transition text-zinc-800"
+                    className="w-full bg-white border border-zinc-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-[#052B48] focus:ring-1 focus:ring-[#052B48] transition text-zinc-800"
                   />
                 </div>
 
                 <div className="h-[120px] bg-white border border-zinc-200 rounded-lg flex flex-col items-center justify-center relative">
                   {formData.signerName ? (
                     <div 
-                      className="text-4xl text-[#002b49] select-none text-center font-semibold px-4"
+                      className="text-4xl text-[#052B48] select-none text-center font-semibold px-4"
                       style={{ fontFamily: fontInlineStyles[typedFontIndex] }}
                     >
                       {formData.signerName}
@@ -408,8 +408,8 @@ export default function Step5Declaracion({ formData, onInputChange, errors = {} 
                         style={{ fontFamily: fontInlineStyles[idx] }}
                         className={`text-sm px-4 py-1.5 border rounded-md transition ${
                           typedFontIndex === idx
-                            ? "bg-[#002b49] text-white border-transparent"
-                            : "bg-white text-[#002b49] border-zinc-300 hover:bg-zinc-100"
+                            ? "bg-[#052B48] text-white border-transparent"
+                            : "bg-white text-[#052B48] border-zinc-300 hover:bg-zinc-100"
                         }`}
                       >
                         Estilo {idx + 1}

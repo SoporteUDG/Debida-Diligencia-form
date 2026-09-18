@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useEffect, useState } from "react";
 import { BfMember, FormState, GjcMember, INITIAL_FORM_STATE } from "@/types/persona-juridica";
@@ -513,6 +514,7 @@ export default function PersonaJuridicaPage() {
         stepErrors[path] = err.message;
       });
       setErrors(stepErrors);
+      console.log("Validation errors for step", step, stepErrors);
       return false;
     }
 
@@ -527,7 +529,11 @@ export default function PersonaJuridicaPage() {
       window.scrollTo({ top: 0, behavior: "smooth" });
     } else {
       setTimeout(() => {
-        const firstError = document.querySelector(".text-red-500");
+        const errorElements = document.querySelectorAll(".text-red-500");
+        const firstError = Array.from(errorElements).find(element =>
+          element.textContent?.includes("⚠️")
+        );
+        console.log("Scrolling to first error:", firstError, currentStep);
         if (firstError) {
           firstError.scrollIntoView({ behavior: "smooth", block: "center" });
         }
@@ -806,7 +812,7 @@ export default function PersonaJuridicaPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#002b49] text-[#1a1c1a] flex flex-col justify-between selection:bg-[#c8a788]/30 selection:text-white font-sans">
+    <div className="min-h-screen bg-[#052B48] text-[#1a1c1a] flex flex-col justify-between selection:bg-[#c8a788]/30 selection:text-white font-sans">
       
       {/* Editorial Header */}
       <Header isSaving={saveStatus === "saving"} lastSaved={lastSaved} saveStatus={saveStatus} />
@@ -919,10 +925,14 @@ export default function PersonaJuridicaPage() {
 
       {/* Luxury Brand Footer */}
       <footer className="border-t border-zinc-900/60 bg-black/30 py-8 text-center text-xs text-zinc-500 font-sans text-white">
-        <div className="max-w-6xl mx-auto px-6 flex flex-col items-center justify-center text-center gap-2">
-          <p className="font-serif text-[11px] font-medium tracking-[0.1em] text-zinc-300">
-            URBAN DEVELOPMENT GROUP (UDG)
-          </p>
+        <div className="max-w-6xl mx-auto px-6 flex flex-row items-center justify-center text-center gap-2">
+          <Image src="/UDG_LOGO.png"
+            alt="Logo UDG"
+            width={60}
+            height={30}
+            className="object-contain h-8 md:h-8 w-auto opacity-50"
+            priority
+          />
           <p className="text-[10px] text-zinc-500">
             © {new Date().getFullYear()} UDG Group. Todos los derechos reservados de conformidad con la ley de protección de datos.
           </p>

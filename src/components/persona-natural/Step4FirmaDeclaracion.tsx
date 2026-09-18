@@ -41,7 +41,7 @@ export default function Step4FirmaDeclaracion({ formData, onInputChange, errors 
       canvas.height = 180;
       const ctx = canvas.getContext("2d");
       if (ctx) {
-        ctx.strokeStyle = "#002b49";
+        ctx.strokeStyle = "#052B48";
         ctx.lineWidth = 2.5;
         ctx.lineCap = "round";
         ctx.lineJoin = "round";
@@ -81,7 +81,7 @@ export default function Step4FirmaDeclaracion({ formData, onInputChange, errors 
         ctx.fillRect(0, 0, 500, 180);
 
         ctx.font = `italic 38px ${fontInlineStyles[typedFontIndex]}`;
-        ctx.fillStyle = "#002b49";
+        ctx.fillStyle = "#052B48";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.fillText(formData.signerName, 250, 90);
@@ -182,7 +182,7 @@ export default function Step4FirmaDeclaracion({ formData, onInputChange, errors 
       {/* Declaración y Firma */}
       <div className="bg-white rounded-2xl p-6 md:p-8 shadow-xl border border-zinc-200 space-y-6 text-[#1a1c1a] font-sans">
         <div className="border-b border-zinc-250 pb-4">
-          <h2 className="text-xl font-serif text-[#002b49] font-bold tracking-wide">
+          <h2 className="text-xl font-serif text-[#052B48] font-bold tracking-wide">
             FIRMA Y DECLARACIÓN DEL CLIENTE
           </h2>
         </div>
@@ -235,7 +235,7 @@ export default function Step4FirmaDeclaracion({ formData, onInputChange, errors 
               className={`bg-[#f4f6f8] border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 ${
                 errors.signerName
                   ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
-                  : "border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"
+                  : "border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"
               }`}
               required
             />
@@ -259,7 +259,7 @@ export default function Step4FirmaDeclaracion({ formData, onInputChange, errors 
               className={`bg-[#f4f6f8] border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 ${
                 errors.signatureDate
                   ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
-                  : "border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"
+                  : "border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"
               }`}
               required
             />
@@ -290,8 +290,8 @@ export default function Step4FirmaDeclaracion({ formData, onInputChange, errors 
                 }}
                 className={`inline-flex items-center gap-1 text-[11px] font-bold tracking-wider uppercase px-3 py-1.5 rounded-md transition ${
                   signatureMode === "draw"
-                    ? "bg-white text-[#002b49] shadow-sm"
-                    : "text-zinc-500 hover:text-[#002b49]"
+                    ? "bg-white text-[#052B48] shadow-sm"
+                    : "text-zinc-500 hover:text-[#052B48]"
                 }`}
               >
                 <PenTool className="h-3 w-3" />
@@ -305,8 +305,8 @@ export default function Step4FirmaDeclaracion({ formData, onInputChange, errors 
                 }}
                 className={`inline-flex items-center gap-1 text-[11px] font-bold tracking-wider uppercase px-3 py-1.5 rounded-md transition ${
                   signatureMode === "type"
-                    ? "bg-white text-[#002b49] shadow-sm"
-                    : "text-zinc-500 hover:text-[#002b49]"
+                    ? "bg-white text-[#052B48] shadow-sm"
+                    : "text-zinc-500 hover:text-[#052B48]"
                 }`}
               >
                 <Type className="h-3 w-3" />
@@ -348,14 +348,14 @@ export default function Step4FirmaDeclaracion({ formData, onInputChange, errors 
                     value={formData.signerName}
                     onChange={onInputChange}
                     placeholder="Escribe tu nombre aquí..."
-                    className="w-full bg-white border border-zinc-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-[#002b49] focus:ring-1 focus:ring-[#002b49] transition text-zinc-800"
+                    className="w-full bg-white border border-zinc-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-[#052B48] focus:ring-1 focus:ring-[#052B48] transition text-zinc-800"
                   />
                 </div>
 
                 <div className="h-[120px] bg-white border border-zinc-200 rounded-lg flex flex-col items-center justify-center relative">
                   {formData.signerName ? (
                     <div 
-                      className="text-4xl text-[#002b49] select-none text-center font-semibold px-4"
+                      className="text-4xl text-[#052B48] select-none text-center font-semibold px-4"
                       style={{ fontFamily: fontInlineStyles[typedFontIndex] }}
                     >
                       {formData.signerName}
@@ -375,8 +375,8 @@ export default function Step4FirmaDeclaracion({ formData, onInputChange, errors 
                         style={{ fontFamily: fontInlineStyles[idx] }}
                         className={`text-sm px-4 py-1.5 border rounded-md transition ${
                           typedFontIndex === idx
-                            ? "bg-[#002b49] text-white border-transparent"
-                            : "bg-white text-[#002b49] border-zinc-300 hover:bg-zinc-100"
+                            ? "bg-[#052B48] text-white border-transparent"
+                            : "bg-white text-[#052B48] border-zinc-300 hover:bg-zinc-100"
                         }`}
                       >
                         Estilo {idx + 1}

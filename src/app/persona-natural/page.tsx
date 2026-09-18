@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useEffect, useState } from "react";
 import { FormState, INITIAL_FORM_STATE } from "@/types/persona-natural";
@@ -222,10 +223,19 @@ export default function PersonaNaturalPage() {
   };
 
   const handleSearchableSelectChange = (fieldName: keyof FormState, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [fieldName]: value
-    }));
+    setFormData(prev => {
+      const updated = {
+        ...prev,
+        [fieldName]: value,
+      };
+
+      // Especial to Clear selection when hidding fields based on other selections (Es propietario o no)
+      if (fieldName === "esPropietario" && value === "No") {
+        updated.usaFondos = "No";
+      }
+
+      return updated;
+    });
 
     if (errors[fieldName]) {
       setErrors(prev => {
@@ -234,6 +244,7 @@ export default function PersonaNaturalPage() {
         return copy;
       });
     }
+
   };
 
   const handleFileUpload = (fieldName: keyof FormState, file: File) => {
@@ -743,6 +754,7 @@ export default function PersonaNaturalPage() {
                       formData={formData}
                       onInputChange={handleInputChange}
                       errors={errors}
+                      onSearchableSelectChange={handleSearchableSelectChange}
                     />
                   </div>
                 </div>
@@ -786,10 +798,14 @@ export default function PersonaNaturalPage() {
 
       {/* Luxury Brand Footer */}
       <footer className="border-t border-zinc-900/60 bg-black/30 py-8 text-center text-xs text-zinc-500 font-sans text-white">
-        <div className="max-w-6xl mx-auto px-6 flex flex-col items-center justify-center text-center gap-2">
-          <p className="font-serif text-[11px] font-medium tracking-[0.1em] text-zinc-300">
-            URBAN DEVELOPMENT GROUP (UDG)
-          </p>
+        <div className="max-w-6xl mx-auto px-6 flex flex-row items-center justify-center text-center gap-2">
+          <Image src="/UDG_LOGO.png"
+            alt="Logo UDG"
+            width={60}
+            height={30}
+            className="object-contain h-8 md:h-8 w-auto opacity-50"
+            priority
+          />
           <p className="text-[10px] text-zinc-500">
             © {new Date().getFullYear()} UDG Group. Todos los derechos reservados de conformidad con la ley de protección de datos.
           </p>

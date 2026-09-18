@@ -40,9 +40,12 @@ export interface FormState {
   actividadLaboralOtros: string;
   direccionLaboral: string;
   cargoDesempena: string;
+  esPropietario: string;
+  usaFondos: string;
 
   // Step 2: Actividades Económicas o Profesionales
   actEconPrincipal: string;
+  otroActEcon: string;
   pctDedicacionPrincipal: string;
   jurisdiccionPrincipal: string;
   actEconSecundaria: string;
@@ -53,8 +56,16 @@ export interface FormState {
   ingresosMensuales: string;
   medioPago: string;
   fuenteFondosInmueble: string;
+  ifOtroNombre: string, //depende de fuenteFondosInmueble
+  ifTerceroNombre: string,//depende de fuenteFondosInmueble
+  ifTerceroNacionalidad: string,//depende de fuenteFondosInmueble
+  ifTerceroFuenteDeIngresos: string,//depende de fuenteFondosInmueble
+  ifTerceroRelacion: string,//depende de fuenteFondosInmueble
   montoServiciosAnuales: string;
+  cantidadServiciosAnuales: string;//depende de montoServiciosAnuales 
+
   adquiereNombreTercero: string;
+  nombreTercero: string;
   destinoInmueble: string;
   esPep: string;
   pepNombre: string;
@@ -66,8 +77,8 @@ export interface FormState {
   idFile: string;
   origenFondosFile: string;
   proofAddressFile: string;
-  hasEstadoCuenta: boolean;
-  hasCertificacionBancaria: boolean;
+  hasEstadoCuenta: string;
+  hasCertificacionBancaria: string;
   otrosAdjuntosFile: string;
 
   // Step 5: Terms & Sign
@@ -119,8 +130,11 @@ export const INITIAL_FORM_STATE: FormState = {
   actividadLaboralOtros: "",
   direccionLaboral: "",
   cargoDesempena: "",
+  esPropietario: "",
+  usaFondos: "",
 
   actEconPrincipal: "",
+  otroActEcon: "",
   pctDedicacionPrincipal: "",
   jurisdiccionPrincipal: "",
   actEconSecundaria: "",
@@ -130,8 +144,16 @@ export const INITIAL_FORM_STATE: FormState = {
   ingresosMensuales: "",
   medioPago: "",
   fuenteFondosInmueble: "",
+  ifOtroNombre: "",
+  ifTerceroNombre: "",
+  ifTerceroNacionalidad: "",
+  ifTerceroFuenteDeIngresos: "",
+  ifTerceroRelacion: "",
   montoServiciosAnuales: "",
+  cantidadServiciosAnuales: "",
+
   adquiereNombreTercero: "",
+  nombreTercero: "",
   destinoInmueble: "",
   esPep: "",
   pepNombre: "",
@@ -142,8 +164,8 @@ export const INITIAL_FORM_STATE: FormState = {
   idFile: "",
   origenFondosFile: "",
   proofAddressFile: "",
-  hasEstadoCuenta: false,
-  hasCertificacionBancaria: false,
+  hasEstadoCuenta: "",
+  hasCertificacionBancaria: "",
   otrosAdjuntosFile: "",
 
   termsAccepted: false,

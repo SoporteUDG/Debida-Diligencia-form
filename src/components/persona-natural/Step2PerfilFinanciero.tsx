@@ -82,7 +82,7 @@ export default function Step2PerfilFinanciero({
       
       {/* Card A: JURISDICCIÓN / UBICACIÓN GEOGRÁFICA */}
       <div className="bg-white rounded-2xl p-6 md:p-8 shadow-xl border border-zinc-200 space-y-6 text-[#1a1c1a] font-sans">
-        <h3 className="text-sm font-bold tracking-widest text-[#002b49] uppercase border-b border-zinc-200 pb-3">
+        <h3 className="text-sm font-bold tracking-widest text-[#052B48] uppercase border-b border-zinc-200 pb-3">
           JURISDICCIÓN / UBICACIÓN GEOGRÁFICA
         </h3>
 
@@ -98,7 +98,7 @@ export default function Step2PerfilFinanciero({
               value={formData.direccionResidencial || ""}
               onChange={onInputChange}
               placeholder="Ej: Calle 50, Edificio Royal Tower, Apto 12B"
-              className={`${errors.direccionResidencial ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800`}
+              className={`${errors.direccionResidencial ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800`}
               required
             />
             {errors.direccionResidencial && (
@@ -119,7 +119,7 @@ export default function Step2PerfilFinanciero({
               value={formData.ciudad || ""}
               onChange={onInputChange}
               placeholder="Ej: Panamá"
-              className={`${errors.ciudad ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800`}
+              className={`${errors.ciudad ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800`}
             />
             {errors.ciudad && (
               <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
@@ -139,7 +139,7 @@ export default function Step2PerfilFinanciero({
               value={formData.provinciaEstado || ""}
               onChange={onInputChange}
               placeholder="Ej: Panamá"
-              className={`${errors.provinciaEstado ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800`}
+              className={`${errors.provinciaEstado ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800`}
             />
             {errors.provinciaEstado && (
               <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
@@ -176,7 +176,7 @@ export default function Step2PerfilFinanciero({
               value={formData.email || ""}
               onChange={onInputChange}
               placeholder="correo@ejemplo.com"
-              className={`${errors.email ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800`}
+              className={`${errors.email ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800`}
               required
             />
             {errors.email && (
@@ -195,7 +195,7 @@ export default function Step2PerfilFinanciero({
                 name="telefonoCodigo"
                 value={formData.telefonoCodigo || "+507"}
                 onChange={onInputChange}
-                className="bg-[#f4f6f8] border border-zinc-300 rounded-lg px-2 py-3 text-xs focus:outline-none focus:border-[#002b49] focus:ring-1 focus:ring-[#002b49] transition text-zinc-800 w-28"
+                className="bg-[#f4f6f8] border border-zinc-300 rounded-lg px-2 py-3 text-xs focus:outline-none focus:border-[#052B48] focus:ring-1 focus:ring-[#052B48] transition text-zinc-800 w-28"
               >
                 {PHONE_CODES.map((item) => (
                   <option key={item.code} value={item.code}>
@@ -210,7 +210,7 @@ export default function Step2PerfilFinanciero({
                 value={formData.telefono || ""}
                 onChange={onInputChange}
                 placeholder="200-0000"
-                className={`${errors.telefono ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800`}
+                className={`${errors.telefono ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800`}
               />
             {errors.telefono && (
               <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
@@ -229,7 +229,7 @@ export default function Step2PerfilFinanciero({
                 name="celularCodigo"
                 value={formData.celularCodigo || "+507"}
                 onChange={onInputChange}
-                className="bg-[#f4f6f8] border border-zinc-300 rounded-lg px-2 py-3 text-xs focus:outline-none focus:border-[#002b49] focus:ring-1 focus:ring-[#002b49] transition text-zinc-800 w-28"
+                className="bg-[#f4f6f8] border border-zinc-300 rounded-lg px-2 py-3 text-xs focus:outline-none focus:border-[#052B48] focus:ring-1 focus:ring-[#052B48] transition text-zinc-800 w-28"
               >
                 {PHONE_CODES.map((item) => (
                   <option key={item.code} value={item.code}>
@@ -244,7 +244,7 @@ export default function Step2PerfilFinanciero({
                 value={formData.celular || ""}
                 onChange={onInputChange}
                 placeholder="6000-0000"
-                className={`${errors.celular ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800`}
+                className={`${errors.celular ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800`}
                 required
               />
             {errors.celular && (
@@ -259,7 +259,7 @@ export default function Step2PerfilFinanciero({
 
       {/* Card B: Datos Laborales */}
       <div className="bg-white rounded-2xl p-6 md:p-8 shadow-xl border border-zinc-200 space-y-6 text-[#1a1c1a] font-sans">
-        <h3 className="text-sm font-bold tracking-widest text-[#002b49] uppercase border-b border-zinc-200 pb-3">
+        <h3 className="text-sm font-bold tracking-widest text-[#052B48] uppercase border-b border-zinc-200 pb-3">
           Datos Laborales
         </h3>
 
@@ -301,7 +301,7 @@ export default function Step2PerfilFinanciero({
           {/* Conditional field for specifying custom profession */}
           {formData.profession === "Otros" && (
             <div className="flex flex-col gap-2 md:col-span-2">
-              <label className="text-[11px] font-bold tracking-wider uppercase text-[#002b49]" htmlFor="profesionOtros">
+              <label className="text-[11px] font-bold tracking-wider uppercase text-[#052B48]" htmlFor="profesionOtros">
                 Especificar Profesión u Oficio <span className="text-red-500 font-bold">*</span>
               </label>
               <input
@@ -311,7 +311,7 @@ export default function Step2PerfilFinanciero({
                 value={formData.profesionOtros || ""}
                 onChange={onInputChange}
                 placeholder="Escribe tu profesión u oficio aquí..."
-                className={`${errors.profesionOtros ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800`}
+                className={`${errors.profesionOtros ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800`}
                 required
               />
             {errors.profesionOtros && (
@@ -333,7 +333,7 @@ export default function Step2PerfilFinanciero({
               value={formData.employer || ""}
               onChange={onInputChange}
               placeholder="Ej: Corporación de Servicios S.A."
-              className={`${errors.employer ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800`}
+              className={`${errors.employer ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800`}
               required
             />
             {errors.employer && (
@@ -363,7 +363,7 @@ export default function Step2PerfilFinanciero({
           {/* Conditional field for specifying custom activity */}
           {formData.actividadLaboral === "OTROS" && (
             <div className="flex flex-col gap-2 md:col-span-2">
-              <label className="text-[11px] font-bold tracking-wider uppercase text-[#002b49]" htmlFor="actividadLaboralOtros">
+              <label className="text-[11px] font-bold tracking-wider uppercase text-[#052B48]" htmlFor="actividadLaboralOtros">
                 Especificar Actividad u Ocupación <span className="text-red-500 font-bold">*</span>
               </label>
               <input
@@ -373,7 +373,7 @@ export default function Step2PerfilFinanciero({
                 value={formData.actividadLaboralOtros || ""}
                 onChange={onInputChange}
                 placeholder="Escribe tu actividad laboral aquí..."
-                className={`${errors.actividadLaboralOtros ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800`}
+                className={`${errors.actividadLaboralOtros ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800`}
                 required
               />
             {errors.actividadLaboralOtros && (
@@ -395,7 +395,7 @@ export default function Step2PerfilFinanciero({
               value={formData.direccionLaboral || ""}
               onChange={onInputChange}
               placeholder="Ej: Vía España, Torre Delta, Piso 5"
-              className={`${errors.direccionLaboral ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800`}
+              className={`${errors.direccionLaboral ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800`}
             />
             {errors.direccionLaboral && (
               <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
@@ -415,7 +415,7 @@ export default function Step2PerfilFinanciero({
               value={formData.cargoDesempena || ""}
               onChange={onInputChange}
               placeholder="Ej: Gerente Operativo"
-              className={`${errors.cargoDesempena ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800`}
+              className={`${errors.cargoDesempena ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800`}
             />
             {errors.cargoDesempena && (
               <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
@@ -423,13 +423,51 @@ export default function Step2PerfilFinanciero({
               </span>
             )}
           </div>
+          <div className="flex flex-col gap-2">
+            <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="esPropietario">
+              ¿Es propietario, accionista o mantiene participación dentro de esta sociedad?
+            </label>
+            <SearchableSelect
+              options={["No", "Propietario", "Accionista", "Miembro de la sociedad"]}
+              value={formData.esPropietario || "No"}
+              onChange={(value) => onSearchableSelectChange("esPropietario", value)}
+              placeholder="No"
+              hasError={!!errors.esPropietario}
+            />
+            {errors.esPropietario && (
+              <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
+                ⚠️ {errors.esPropietario}
+              </span>
+            )}
+          </div>
+          {/* Conditional field for specifying custom porpietary */}
+          {formData.esPropietario !== "No"  && (
+            <div className="flex flex-col gap-2">
+              <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="usaFondos">
+                ¿Los fondos utilizados en la relación comercial provendrán de dicha sociedad?
+              </label>
+              <SearchableSelect
+                options={["No", "Sí"]}
+                value={formData.usaFondos || ""}
+                onChange={(value) => onSearchableSelectChange("usaFondos", value)}
+                placeholder="No"
+                hasError={!!errors.usaFondos}
+              />
+              {errors.usaFondos && (
+                <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
+                  ⚠️ {errors.usaFondos}
+                </span>
+              )}
+            </div>
+          )}
+          
         </div>
       </div>
 
       {/* Card C: ACTIVIDADES ECONÓMICAS O PROFESIONALES */}
       <div className="bg-white rounded-2xl p-6 md:p-8 shadow-xl border border-zinc-200 space-y-6 text-[#1a1c1a] font-sans">
         <div className="border-b border-zinc-200 pb-3">
-          <h3 className="text-sm font-bold tracking-widest text-[#002b49] uppercase">
+          <h3 className="text-sm font-bold tracking-widest text-[#052B48] uppercase">
             ACTIVIDADES ECONÓMICAS O PROFESIONALES
           </h3>
           <p className="text-[10px] text-zinc-550 italic mt-1 font-sans leading-normal">
@@ -441,24 +479,45 @@ export default function Step2PerfilFinanciero({
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="flex flex-col gap-2">
               <label className="text-[10px] font-bold tracking-wider uppercase text-zinc-500" htmlFor="actEconPrincipal">
-                Principal
+                Fuente de Ingreso Principal
               </label>
-              <input
-                type="text"
-                id="actEconPrincipal"
-                name="actEconPrincipal"
+              <SearchableSelect
+                options={["Asalariado", "Trabajador independiente", "Ingresos provenientes de empresas propias", "Otros"]}
                 value={formData.actEconPrincipal || ""}
-                onChange={onInputChange}
-                placeholder="Ej: Salario"
-                className={`${errors.actEconPrincipal ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800`}
+                onChange={(value) => onSearchableSelectChange("actEconPrincipal", value)}
+                placeholder="Elija actividad principal"
+                hasError={!!errors.actEconPrincipal}
               />
+              
             {errors.actEconPrincipal && (
               <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
                 ⚠️ {errors.actEconPrincipal}
               </span>
             )}
             </div>
-            
+            {/* Conditional field for specifying other activities */}
+            {formData.actEconPrincipal === "Otros" && (
+            <div className="flex flex-col gap-2">
+              <label className="text-[10px] font-bold tracking-wider uppercase text-zinc-500" htmlFor="otroActEcon">
+                Especifique Otra Actividad Económica
+              </label>
+                <input
+                  type="text"
+                  id="otroActEcon"
+                  name="otroActEcon"
+                  value={formData.otroActEcon || ""}
+                  onChange={onInputChange}
+                  placeholder="Ej: Salario"
+                  className={`${errors.otroActEcon ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800`}
+                />
+              
+            {errors.otroActEcon && (
+              <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
+                ⚠️ {errors.otroActEcon}
+              </span>
+            )}
+            </div>
+            )}
             <div className="flex flex-col gap-2">
               <label className="text-[10px] font-bold tracking-wider uppercase text-zinc-500" htmlFor="pctDedicacionPrincipal">
                 Porcentaje de Dedicación
@@ -478,7 +537,7 @@ export default function Step2PerfilFinanciero({
                   }
                 }}
                 placeholder="Ej: 80%"
-                className={`${errors.pctDedicacionPrincipal ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800`}
+                className={`${errors.pctDedicacionPrincipal ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800`}
               />
             {errors.pctDedicacionPrincipal && (
               <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
@@ -498,7 +557,7 @@ export default function Step2PerfilFinanciero({
                 value={formData.jurisdiccionPrincipal || ""}
                 onChange={onInputChange}
                 placeholder="Ej: Panamá"
-                className={`${errors.jurisdiccionPrincipal ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800`}
+                className={`${errors.jurisdiccionPrincipal ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800`}
               />
             {errors.jurisdiccionPrincipal && (
               <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
@@ -513,17 +572,17 @@ export default function Step2PerfilFinanciero({
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="flex flex-col gap-2">
               <label className="text-[10px] font-bold tracking-wider uppercase text-zinc-500" htmlFor="actEconSecundaria">
-                Otras Actividades
+                Otros Ingresos
               </label>
               <input
-                type="text"
-                id="actEconSecundaria"
-                name="actEconSecundaria"
-                value={formData.actEconSecundaria || ""}
-                onChange={onInputChange}
-                placeholder="Ej: Asesorías"
-                className={`${errors.actEconSecundaria ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800`}
-              />
+                  type="text"
+                  id="actEconSecundaria"
+                  name="actEconSecundaria"
+                  value={formData.actEconSecundaria || ""}
+                  onChange={onInputChange}
+                  placeholder="Ej: Asesorias"
+                  className={`${errors.actEconSecundaria ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800`}
+                />
             {errors.actEconSecundaria && (
               <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
                 ⚠️ {errors.actEconSecundaria}
@@ -550,7 +609,7 @@ export default function Step2PerfilFinanciero({
                   }
                 }}
                 placeholder="Ej: 20%"
-                className={`${errors.pctDedicacionSecundaria ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800`}
+                className={`${errors.pctDedicacionSecundaria ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800`}
               />
             {errors.pctDedicacionSecundaria && (
               <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
@@ -570,7 +629,7 @@ export default function Step2PerfilFinanciero({
                 value={formData.jurisdiccionSecundaria || ""}
                 onChange={onInputChange}
                 placeholder="Ej: Panamá"
-                className={`${errors.jurisdiccionSecundaria ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800`}
+                className={`${errors.jurisdiccionSecundaria ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800`}
               />
             {errors.jurisdiccionSecundaria && (
               <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">

@@ -30,6 +30,7 @@ export interface FormState {
   // Step 1: Identificación del Cliente
   razonSocial: string;
   tipoSociedad: string;
+  estadoSociedad: string;
   tipoCliente: string;
   tipoDocumentoIdentidad: string;
   actividadPrincipal: string;
@@ -49,6 +50,8 @@ export interface FormState {
   contactoId: string;
   contactoTelefono: string;
   contactoEmail: string;
+  ifContacto: string;
+  contactoCargo: string;
 
   // Step 1: Datos Generales
   empresaDireccion: string;
@@ -106,6 +109,7 @@ export interface FormState {
   serviciosPublicosFile: string;
   certBancariaFile: string;
   certRegistroFile: string;
+  certComprasFile: string;
 
   checkedCopiaId: boolean;
   checkedOrigenFondos: boolean;
@@ -133,6 +137,7 @@ export const INITIAL_FORM_STATE: FormState = {
   
   razonSocial: "",
   tipoSociedad: "",
+  estadoSociedad: "",
   tipoCliente: "",
   tipoDocumentoIdentidad: "",
   actividadPrincipal: "",
@@ -151,6 +156,8 @@ export const INITIAL_FORM_STATE: FormState = {
   contactoId: "",
   contactoTelefono: "",
   contactoEmail: "",
+  ifContacto: "",
+  contactoCargo: "",
   
   empresaDireccion: "",
   empresaCiudad: "",
@@ -237,6 +244,7 @@ export const INITIAL_FORM_STATE: FormState = {
   serviciosPublicosFile: "",
   certBancariaFile: "",
   certRegistroFile: "",
+  certComprasFile: "",
 
   checkedCopiaId: false,
   checkedOrigenFondos: false,

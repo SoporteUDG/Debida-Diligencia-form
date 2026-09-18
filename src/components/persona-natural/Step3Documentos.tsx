@@ -23,29 +23,31 @@ export default function Step3Documentos({
   errors = {},
 }: Step3Props) {
   
+
   // Helper render for document file upload field
-  const renderUploadField = (fieldName: keyof FormState, label: string, isRequired = true) => {
+  const renderUploadField = (fieldName: keyof FormState, label: string, description: string, isRequired = true) => {
     const hasFile = !!formData[fieldName];
     const status = uploadStatus[fieldName] || "idle";
     const progress = uploadProgress[fieldName] || 0;
     const fileName = formData[fieldName] as string;
     const hasError = !!errors[fieldName];
-
+    
     return (
       <div className="flex flex-col gap-2">
         <label className="text-xs font-semibold text-zinc-700 leading-normal">
           {label} {isRequired && <span className="text-red-500 font-bold">*</span>}
         </label>
+        <label className="text-[11px] text-zinc-500 leading-normal">{description}</label>
         
         <div className={`border rounded-xl p-4 flex items-center justify-between gap-4 min-h-[72px] transition-all duration-200 ${
           hasError 
             ? "bg-red-50/10 border-red-500 hover:border-red-600" 
-            : "bg-[#f4f6f8] border-zinc-300 hover:border-[#002b49]/20"
+            : "bg-[#f4f6f8] border-zinc-300 hover:border-[#052B48]/20"
         }`}>
           {status === "idle" && !hasFile && (
             <div className="flex items-center justify-between w-full">
-              <span className="text-xs text-zinc-400 font-medium">Choose File</span>
-              <label className="bg-[#002b49] text-white px-3.5 py-1.5 rounded-lg text-xs font-bold hover:bg-[#081827] transition cursor-pointer flex items-center gap-1.5 active:scale-95">
+              <span className="text-xs text-zinc-400 font-medium">Choose File (.pdf, .jpeg)</span>
+              <label className="bg-[#052B48] text-white px-3.5 py-1.5 rounded-lg text-xs font-bold hover:bg-[#081827] transition cursor-pointer flex items-center gap-1.5 active:scale-95">
                 <UploadCloud className="h-3.5 w-3.5" />
                 Cargar
                 <input
@@ -113,10 +115,20 @@ export default function Step3Documentos({
   return (
     <div className="bg-white rounded-2xl p-6 md:p-8 shadow-xl border border-zinc-200 text-[#1a1c1a] font-sans">
       <div className="border-b border-zinc-250 pb-4 mb-6">
-        <h3 className="text-sm font-bold tracking-widest text-[#002b49] uppercase">
-          DOCUMENTOS ENTREGADOS
+        <h3 className="text-sm font-bold tracking-widest text-[#052B48] uppercase mb-4">
+          DOCUMENTOS ADJUNTOS
         </h3>
+        <div className="bg-[#f4f6f8] p-5 rounded-xl border border-zinc-200 text-xs leading-relaxed text-zinc-700 space-y-2">
+          <p className="font-bold text-[#052B48]">
+            ESTIMADOS CLIENTES
+          </p>
+          <p>
+            Entendemos la importancia de su privacidad. Por ello, toda la información personal y los documentos que comparta con nosotros serán manejados bajo los más altos estándares de seguridad y confidencialidad. Sus datos se utilizarán exclusivamente para nuestro proceso de debida diligencia. Como Sujeto No Financiero y en estricto cumplimiento de la Ley 23 del 27 de abril de 2015, garantizamos la reserva y custodia legal de su expediente, el cual no será compartido con terceros salvo requerimiento expreso de las autoridades supervisoras.
+          </p>
+        </div>
       </div>
+
+      
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         
@@ -124,66 +136,34 @@ export default function Step3Documentos({
         <div className="space-y-6">
           {renderUploadField(
             "idFile",
-            "Copia de Documento de Identidad Personal",
+            `Documento de ${formData.tipoIdentificacion} (Solo admite un archivo)`,
+            "",
             true
           )}
-
           {renderUploadField(
-            "origenFondosFile",
-            "Origen de Fondo (Declaración de Renta, Carta de Trabajo, Ficha del Seguro Social, etc.)",
+            "hasCertificacionBancaria",
+            "Certificación bancaria que incluya cifras promedio en la cuenta. (Solo admite un archivo)",
+            "",
             false
           )}
 
-          {renderUploadField(
-            "proofAddressFile",
-            "Factura o Copia de un Servicio Público y/o Servicio de Utilidad (estado de cuenta de luz, agua, teléfono o celular)",
-            false
-          )}
         </div>
 
         {/* Right Column */}
         <div className="space-y-6">
+          {renderUploadField(
+            "hasEstadoCuenta",
+            "Estado de Cuenta Bancario de los últimos 6 meses",
+            "",
+            false
+          )}
           
-          <div className="space-y-4 pt-1">
-            
-            {/* Checkbox 1 */}
-            <label className="flex items-start gap-3 cursor-pointer group select-none">
-              <input
-                type="checkbox"
-                name="hasEstadoCuenta"
-                checked={formData.hasEstadoCuenta || false}
-                onChange={onInputChange}
-                className="w-4 h-4 rounded border-zinc-300 text-[#002b49] focus:ring-[#002b49] transition cursor-pointer mt-0.5"
-              />
-              <span className="text-xs font-medium text-zinc-700 leading-normal group-hover:text-zinc-950 transition">
-                Copia de Estado de Cuenta Bancario de los Últimos 6 (seis) Meses
-              </span>
-            </label>
-
-            {/* Checkbox 2 */}
-            <label className="flex items-start gap-3 cursor-pointer group select-none">
-              <input
-                type="checkbox"
-                name="hasCertificacionBancaria"
-                checked={formData.hasCertificacionBancaria || false}
-                onChange={onInputChange}
-                className="w-4 h-4 rounded border-zinc-300 text-[#002b49] focus:ring-[#002b49] transition cursor-pointer mt-0.5"
-              />
-              <span className="text-xs font-medium text-zinc-700 leading-normal group-hover:text-zinc-950 transition">
-                Certificación bancaria que incluya las cifras promedio de la cuenta.
-              </span>
-            </label>
-
-          </div>
-
-          <div className="pt-2">
-            {renderUploadField(
-              "otrosAdjuntosFile",
-              "Otros Adjuntos",
-              false
-            )}
-          </div>
-
+          {renderUploadField(
+            "origenFondosFile",
+            "Sustento de Ingresos",
+            "Adjunte los archivos que sustenteten el origen de sus fondos: Carta de Trabajo,  Ficha de Seguro social, Declaración de Renta más reciente, Comprobante de Pago entre otros.",
+            false
+          )}
         </div>
 
       </div>

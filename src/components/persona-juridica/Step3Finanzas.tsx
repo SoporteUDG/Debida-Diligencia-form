@@ -27,8 +27,8 @@ export default function Step3Finanzas({
       
       {/* SECTION 1: BENEFICIARIO (S) FINAL (ES) */}
       <div className="bg-white rounded-2xl p-6 md:p-8 shadow-xl border border-zinc-200 text-center">
-        <h3 className="text-base md:text-lg font-serif font-bold tracking-widest text-[#002b49] uppercase border-b border-zinc-200 pb-3 mb-4">
-          BENEFICIARIO (S) FINAL (ES) **
+        <h3 className="text-base md:text-lg font-serif font-bold tracking-widest text-[#052B48] uppercase border-b border-zinc-200 pb-3 mb-4">
+          BENEFICIARIO (S) FINAL (ES) 
         </h3>
         <p className="text-xs text-red-600 italic leading-relaxed max-w-3xl mx-auto">
           Persona o personas naturales que, directa o indirectamente, poseen, controlan y/o ejercen influencia significativa sobre la relación de cuenta, relación contractual y/o de negocios o la persona natural en cuyo nombre o beneficio se realiza una transacción, lo cual incluye también a las personas naturales que ejercen control final sobre una persona jurídica.
@@ -48,8 +48,8 @@ export default function Step3Finanzas({
             className="bg-white rounded-2xl p-6 md:p-8 shadow-xl border border-zinc-200 relative animate-fadeIn space-y-6"
           >
             <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
-              <span className="text-xs font-bold uppercase tracking-wider text-[#002b49]">
-                {idx + 1}. BF - Beneficiario Final
+              <span className="text-xs font-bold uppercase tracking-wider text-[#052B48]">
+                {idx + 1}. Beneficiario Final
               </span>
               {((formData.bfMembers || [])).length > 1 && (
                 <button
@@ -66,7 +66,7 @@ export default function Step3Finanzas({
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-[#1a1c1a]">
               <div className="flex flex-col gap-2">
                 <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700">
-                  {idx + 1}. BF - Nombre Completo (Solo persona natural que ejerce control final sobre la persona jurídica)
+                  {idx + 1}. - Nombre Completo (Solo persona natural que ejerce control final sobre la persona jurídica)
                 </label>
                 <input
                   type="text"
@@ -76,7 +76,7 @@ export default function Step3Finanzas({
                   className={`border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full ${
                     errors[`bfMembers.${idx}.nombreCompleto`]
                       ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20"
-                      : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"
+                      : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"
                   }`}
                 />
                 {errors[`bfMembers.${idx}.nombreCompleto`] && (
@@ -88,7 +88,7 @@ export default function Step3Finanzas({
 
               <div className="flex flex-col gap-2">
                 <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700">
-                  {idx + 1}. BF - No. Identificación
+                  {idx + 1}. - No. Identificación
                 </label>
                 <input
                   type="text"
@@ -98,7 +98,7 @@ export default function Step3Finanzas({
                   className={`border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full ${
                     errors[`bfMembers.${idx}.noIdentificacion`]
                       ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20"
-                      : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"
+                      : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"
                   }`}
                 />
                 {errors[`bfMembers.${idx}.noIdentificacion`] && (
@@ -110,7 +110,7 @@ export default function Step3Finanzas({
 
               <div className="flex flex-col gap-2">
                 <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700">
-                  {idx + 1}. BF - Nacionalidad
+                  {idx + 1}. - Nacionalidad
                 </label>
                 <SearchableSelect
                   value={bf.nacionalidad}
@@ -128,7 +128,7 @@ export default function Step3Finanzas({
 
               <div className="flex flex-col gap-2">
                 <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700">
-                  {idx + 1}. BF - Fecha En La Que Adquiere Condición de Beneficiario Final
+                  {idx + 1}. - Fecha En La Que Adquiere Condición de Beneficiario Final
                 </label>
                 <input
                   type="date"
@@ -137,7 +137,7 @@ export default function Step3Finanzas({
                   className={`border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full ${
                     errors[`bfMembers.${idx}.fechaAdquisicion`]
                       ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20"
-                      : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"
+                      : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"
                   }`}
                 />
                 {errors[`bfMembers.${idx}.fechaAdquisicion`] && (
@@ -149,7 +149,7 @@ export default function Step3Finanzas({
 
               <div className="flex flex-col gap-2">
                 <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700">
-                  {idx + 1}. BF - % de Participación
+                  {idx + 1}. - % de Participación
                 </label>
                 <input
                   type="number"
@@ -167,7 +167,7 @@ export default function Step3Finanzas({
                   className={`border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full ${
                     errors[`bfMembers.${idx}.porcentajeParticipacion`]
                       ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20"
-                      : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"
+                      : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"
                   }`}
                 />
                 {errors[`bfMembers.${idx}.porcentajeParticipacion`] && (
@@ -179,7 +179,7 @@ export default function Step3Finanzas({
 
               <div className="flex flex-col gap-2">
                 <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700">
-                  {idx + 1}. BF - País de Nacimiento
+                  {idx + 1}. - País de Nacimiento
                 </label>
                 <SearchableSelect
                   value={bf.paisNacimiento}
@@ -197,7 +197,7 @@ export default function Step3Finanzas({
 
               <div className="flex flex-col gap-2 md:col-span-3">
                 <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700">
-                  {idx + 1}. BF - Dirección
+                  {idx + 1}. - Dirección
                 </label>
                 <input
                   type="text"
@@ -207,7 +207,7 @@ export default function Step3Finanzas({
                   className={`border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full ${
                     errors[`bfMembers.${idx}.direccion`]
                       ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20"
-                      : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"
+                      : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"
                   }`}
                 />
                 {errors[`bfMembers.${idx}.direccion`] && (
@@ -225,7 +225,7 @@ export default function Step3Finanzas({
         <button
           type="button"
           onClick={onAddBfMember}
-          className="inline-flex items-center gap-1.5 text-xs text-white bg-[#002b49] border border-[#c8a788]/40 px-4 py-2 rounded-lg hover:bg-[#081827] transition cursor-pointer font-semibold"
+          className="inline-flex items-center gap-1.5 text-xs text-white bg-[#052B48] border border-[#c8a788]/40 px-4 py-2 rounded-lg hover:bg-[#081827] transition cursor-pointer font-semibold"
         >
           <Plus className="h-4 w-4" />
           Agregar Beneficiario Final
@@ -235,7 +235,7 @@ export default function Step3Finanzas({
       {/* SECTION 2: PERFIL FINANCIERO */}
       <div className="space-y-6">
         <div className="bg-white rounded-2xl p-6 md:p-8 shadow-xl border border-zinc-200 text-center space-y-4">
-          <h3 className="text-base md:text-lg font-serif font-bold tracking-widest text-[#002b49] uppercase border-b border-zinc-200 pb-3">
+          <h3 className="text-base md:text-lg font-serif font-bold tracking-widest text-[#052B48] uppercase border-b border-zinc-200 pb-3">
             PERFIL FINANCIERO
           </h3>
           <p className="text-xs md:text-sm font-semibold tracking-wider text-zinc-800 italic uppercase">
@@ -279,7 +279,7 @@ export default function Step3Finanzas({
                   className={`w-full border rounded-lg pl-8 pr-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 font-medium ${
                     errors.ingresosMensuales
                       ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20"
-                      : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"
+                      : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"
                   }`}
                 />
               </div>
@@ -335,7 +335,7 @@ export default function Step3Finanzas({
                       }}
                       className={`flex items-center gap-2.5 p-3 rounded-xl border text-left text-xs font-semibold transition-all duration-150 cursor-pointer select-none ${
                         isSelected
-                          ? "bg-[#002b49] text-white border-[#002b49] shadow-sm ring-1 ring-[#002b49]/30"
+                          ? "bg-[#052B48] text-white border-[#052B48] shadow-sm ring-1 ring-[#052B48]/30"
                           : "bg-[#f4f6f8] text-zinc-700 border-zinc-300 hover:bg-zinc-100 hover:border-zinc-400"
                       }`}
                     >
@@ -400,7 +400,7 @@ export default function Step3Finanzas({
                       }}
                       className={`flex items-center gap-2.5 p-3 rounded-xl border text-left text-xs font-semibold transition-all duration-150 cursor-pointer select-none ${
                         isSelected
-                          ? "bg-[#002b49] text-white border-[#002b49] shadow-sm ring-1 ring-[#002b49]/30"
+                          ? "bg-[#052B48] text-white border-[#052B48] shadow-sm ring-1 ring-[#052B48]/30"
                           : "bg-[#f4f6f8] text-zinc-700 border-zinc-300 hover:bg-zinc-100 hover:border-zinc-400"
                       }`}
                     >
@@ -429,7 +429,7 @@ export default function Step3Finanzas({
 
             {((formData.fuenteFondosInmueble || "").includes("Terceros")) && (
               <div className="bg-[#f8fafc] border border-zinc-300/80 rounded-xl p-5 md:p-6 space-y-4 animate-fadeIn shadow-sm md:col-span-2">
-                <h4 className="text-xs font-bold text-[#002b49] uppercase tracking-wider border-b border-zinc-200 pb-2">
+                <h4 className="text-xs font-bold text-[#052B48] uppercase tracking-wider border-b border-zinc-200 pb-2">
                   Identificación de la Persona que Aportará los Fondos (Terceros)
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -446,7 +446,7 @@ export default function Step3Finanzas({
                       className={`bg-white border rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 placeholder:text-zinc-400 ${
                         errors.terceroNombre
                           ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
-                          : "border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"
+                          : "border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"
                       }`}
                     />
                     {errors.terceroNombre && (
@@ -488,7 +488,7 @@ export default function Step3Finanzas({
                       className={`bg-white border rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 placeholder:text-zinc-400 ${
                         errors.terceroVinculo
                           ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
-                          : "border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"
+                          : "border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"
                       }`}
                     />
                     {errors.terceroVinculo && (
@@ -509,7 +509,7 @@ export default function Step3Finanzas({
                       className={`bg-white border rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 placeholder:text-zinc-400 ${
                         errors.terceroFuenteFondos
                           ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
-                          : "border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"
+                          : "border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"
                       }`}
                     />
                     {errors.terceroFuenteFondos && (
@@ -534,7 +534,7 @@ export default function Step3Finanzas({
                     className={`w-full border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 font-semibold cursor-pointer ${
                       errors.adquiereMasUnidades
                         ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20"
-                        : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"
+                        : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"
                     }`}
                     required
                   >
@@ -583,7 +583,7 @@ export default function Step3Finanzas({
                       className={`w-full bg-white border rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 ${
                         errors.cantidadUnidadesInmobiliarias
                           ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
-                          : "border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"
+                          : "border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"
                       }`}
                       required
                     />
@@ -602,12 +602,12 @@ export default function Step3Finanzas({
 
       {/* SECTION 3: PERSONA EXPUESTA POLÍTICAMENTE (PEP) */}
       <div className="bg-white rounded-2xl p-6 md:p-8 shadow-xl border border-zinc-200 text-zinc-800 space-y-6">
-        <h3 className="text-base md:text-lg font-serif font-bold tracking-widest text-[#002b49] uppercase border-b border-zinc-200 pb-3">
+        <h3 className="text-base md:text-lg font-serif font-bold tracking-widest text-[#052B48] uppercase border-b border-zinc-200 pb-3">
           PERSONA EXPUESTA POLÍTICAMENTE (PEP)
         </h3>
 
         <div className="bg-[#f4f6f8] p-5 rounded-xl border border-zinc-200 text-xs leading-relaxed text-zinc-700 space-y-2">
-          <p className="font-bold text-[#002b49]">
+          <p className="font-bold text-[#052B48]">
             DEFINICIÓN –
           </p>
           <p>
@@ -627,7 +627,7 @@ export default function Step3Finanzas({
               className={`w-full border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 font-semibold cursor-pointer ${
                 errors.esPep
                   ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20"
-                  : "bg-[#f4f6f8] border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"
+                  : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"
               }`}
               required
             >
@@ -645,7 +645,7 @@ export default function Step3Finanzas({
 
         {(formData.esPep === "Sí" || formData.esPep === "Si") && (
           <div className="bg-[#f8fafc] border border-zinc-300/80 rounded-xl p-5 md:p-6 mt-4 space-y-4 animate-fadeIn shadow-sm">
-            <h4 className="text-xs font-bold text-[#002b49] uppercase tracking-wider border-b border-zinc-200 pb-2">
+            <h4 className="text-xs font-bold text-[#052B48] uppercase tracking-wider border-b border-zinc-200 pb-2">
               Detalles de la Persona Expuesta Políticamente (PEP)
             </h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -661,7 +661,7 @@ export default function Step3Finanzas({
                   className={`bg-white border rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 placeholder:text-zinc-400 ${
                     errors.pepNombre
                       ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
-                      : "border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"
+                      : "border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"
                   }`}
                   placeholder="Ej: Juan Pérez"
                 />
@@ -684,7 +684,7 @@ export default function Step3Finanzas({
                   className={`bg-white border rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 placeholder:text-zinc-400 ${
                     errors.pepCargo
                       ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
-                      : "border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"
+                      : "border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"
                   }`}
                   placeholder="Ej: Ministro de Estado"
                 />
@@ -707,7 +707,7 @@ export default function Step3Finanzas({
                   className={`bg-white border rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 placeholder:text-zinc-400 ${
                     errors.pepInstitucion
                       ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
-                      : "border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"
+                      : "border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"
                   }`}
                   placeholder="Ej: Ministerio de Obras Públicas"
                 />
@@ -729,7 +729,7 @@ export default function Step3Finanzas({
                   className={`bg-white border rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 cursor-pointer ${
                     errors.pepRelacion
                       ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
-                      : "border-zinc-300 focus:border-[#002b49] focus:ring-[#002b49]/20"
+                      : "border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"
                   }`}
                 >
                   <option value="">Seleccione parentesco</option>
