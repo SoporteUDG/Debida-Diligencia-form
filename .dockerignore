@@ -1,0 +1,23 @@
+# node_modules del host (binarios de Windows: sharp, engines de Prisma)
+node_modules
+.next
+out
+build
+
+# pnpm: generado localmente por pnpm >=10, incompatible con pnpm 9 de la imagen
+pnpm-workspace.yaml
+.env
+.git
+.gitignore
+*.tsbuildinfo
+next-env.d.ts
+
+tmp
+scratch
+coverage
+
+*.md
+Dockerfile
+.dockerignore
+npm-debug.log*
+.pnpm-debug.log*

@@ -41,3 +41,6 @@ yarn-error.log*
 next-env.d.ts
 
 /src/generated/prisma
+
+# pnpm (regenerado por pnpm >=10; rompe el build con pnpm 9 en Docker)
+pnpm-workspace.yaml
