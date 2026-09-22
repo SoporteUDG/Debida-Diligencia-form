@@ -12,6 +12,14 @@ const requiredString = (fieldName: string) =>
   z.string({ message: `${fieldName} es requerido(a)` })
     .trim()
     .min(1, `${fieldName} es requerido(a)`);
+const requiredFileList = (fieldName: string) =>
+  z.array(z.string(), { message: `${fieldName} es requerido(a)` })
+    .refine(
+      (files) => files.some((f) => f.trim() !== ""),
+      `Debe adjuntar al menos un (1) archivo de ${fieldName}`
+    );
+// Optional multi-file list (any number of files, blanks ignored)
+const optionalFileList = z.array(z.string()).optional();
 
 // Optional string validator
 const optionalString = z.string().trim().optional();
@@ -300,10 +308,9 @@ export const naturalStep1Schema = z.object({
 export const naturalStep2Schema = z.object({
   idFile: requiredString("Copia de ID"),
   proofAddressFile: optionalString,
-  origenFondosFile: optionalString,
-  hasEstadoCuenta: optionalString,
+  origenFondosFile: optionalFileList,
+  hasEstadoCuenta: optionalFileList,
   hasCertificacionBancaria: optionalString,
-  otrosAdjuntosFile: optionalString,
 });
 
 // Paso 3: Declaración y Firma (Anterior Paso 5)
@@ -408,11 +415,13 @@ export const juridicaStep1Schema = z.object({
   fechaVencimientoId: idExpirationDateValidator("Fecha de Vencimiento de Identificación"),
   numeroIdTributaria: requiredString("No. ID Tributaria"),
   paisTributacion: requiredString("País de Tributación"),
-  porcentajeActividad: percentageValidator("Porcentaje de Actividad Comercial", true),
+  //delete
+
   fechaConstitucion: pastOrTodayDateValidator("Fecha de Constitución"),
   paisOpera: requiredString("País donde Opera"),
   paisInscripcion: requiredString("País de Inscripción"),
-  fechaNacimiento: pastOrTodayDateValidator("Fecha de Nacimiento (Registro)"),
+
+  //delete
 
   // Contact Person
   contactoNombre: requiredString("Nombre de Contacto"),
@@ -565,22 +574,16 @@ export const juridicaStep1Schema = z.object({
 
 // Paso 2: Documentos (Anterior Paso 4)
 export const juridicaStep2Schema = z.object({
+
   avisoOperacionesFile: requiredString("Copia de Certificado de Aviso de Operaciones"),
-  copiaIdFile: requiredString("Copia de Cédula o Pasaporte"),
-  origenFondosFile: optionalString,
-  pactoSocialFile: optionalString,
+  origenFondosFile: requiredFileList("Aunque sea un Archivo de Origen de Fondos"),
+  pactoSocialFile: requiredFileList("Aunque sea un Archivo de Pacto Social"),
   serviciosPublicosFile: optionalString,
   certBancariaFile: optionalString,
   certRegistroFile: optionalString,
   certComprasFile: optionalString,
   
-  checkedCopiaId: z.boolean().default(false),
-  checkedOrigenFondos: z.boolean().default(false),
-  checkedPactoSocial: z.boolean().default(false),
-  checkedAvisoOperaciones: z.boolean().default(false),
-  checkedServiciosPublicos: z.boolean().default(false),
-  checkedCertBancaria: z.boolean().default(false),
-  checkedCertRegistro: z.boolean().default(false),
+
 });
 
 // Paso 3: Declaración y Firma (Anterior Paso 5)

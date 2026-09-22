@@ -18,10 +18,10 @@ export default function Step1Identificacion({
   errors = {},
 }: Step1Props) {
   return (
-    <div className="space-y-8">
+    <div className={`space-y-2 bg-white rounded-2xl shadow-xl border border-zinc-200`}>
       
       {/* Card A: Proyecto e Información de Contacto Inicial */}
-      <div className="bg-white rounded-2xl p-6 md:p-8 shadow-xl border border-zinc-200">
+      <div className="p-6 md:p-8">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700 flex items-center gap-1" htmlFor="nombreProyecto">
@@ -134,7 +134,7 @@ export default function Step1Identificacion({
       </div>
 
       {/* Card B: IDENTIFICACIÓN DEL CLIENTE */}
-      <div className="bg-white rounded-2xl p-6 md:p-8 shadow-xl border border-zinc-200">
+      <div className="p-6 md:p-8">
         <h3 className="text-sm font-bold tracking-widest text-[#052B48] uppercase border-b border-zinc-200 pb-3 mb-6 flex items-center justify-between">
           <span>IDENTIFICACIÓN DEL CLIENTE</span>
           <span className="text-[10px] text-zinc-400 lowercase font-normal italic">Información Registral</span>
@@ -271,7 +271,7 @@ export default function Step1Identificacion({
               value={formData.actividadPrincipal}
               onChange={onInputChange}
               placeholder="Ej: Comercio, Inversiones"
-              className="bg-[#f4f6f8] border border-zinc-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[#052B48] focus:ring-1 focus:ring-[#052B48] transition text-zinc-800"
+              className={`bg-[#f4f6f8] border border-zinc-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[#052B48] focus:ring-1 focus:ring-[#052B48] transition text-zinc-800`}
             />
           </div>
 
@@ -359,34 +359,6 @@ export default function Step1Identificacion({
           </div>
 
           <div className="flex flex-col gap-2">
-            <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="porcentajeActividad">
-              % De Actividad Dedica (si aplica)
-            </label>
-            <input
-              type="number"
-              id="porcentajeActividad"
-              name="porcentajeActividad"
-              value={formData.porcentajeActividad}
-              onChange={onInputChange}
-              onKeyDown={(e) => {
-                if (["e", "E", "+", "-"].includes(e.key)) {
-                  e.preventDefault();
-                }
-              }}
-              placeholder="0"
-              min="0"
-              max="100"
-              step="any"
-              className={`${errors.porcentajeActividad ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
-            />
-            {errors.porcentajeActividad && (
-              <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
-                ⚠️ {errors.porcentajeActividad}
-              </span>
-            )}
-          </div>
-
-          <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="fechaConstitucion">
               Fecha de Constitución
             </label>
@@ -441,34 +413,15 @@ export default function Step1Identificacion({
             )}
           </div>
 
-          <div className="flex flex-col gap-2">
-            <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="fechaNacimiento">
-              Fecha de Nacimiento <span className="text-red-500 font-bold">*</span>
-            </label>
-            <input
-              type="date"
-              id="fechaNacimiento"
-              name="fechaNacimiento"
-              value={formData.fechaNacimiento}
-              onChange={onInputChange}
-              className={`${errors.fechaNacimiento ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
-              required
-            />
-            {errors.fechaNacimiento && (
-              <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
-                ⚠️ {errors.fechaNacimiento}
-              </span>
-            )}
-          </div>
         </div>
       </div>
 
 
 
       {/* Card C: PERSONA DE CONTACTO */}
-      <div className="bg-white rounded-2xl p-6 md:p-8 shadow-xl border border-zinc-200">
+      <div className="p-6 md:p-8">
         <h3 className="text-sm font-bold tracking-widest text-[#052B48] uppercase border-b border-zinc-200 pb-3 mb-6 flex items-center justify-between">
-          <span>PERSONA DE CONTACTO **</span>
+          <span>PERSONA DE CONTACTO</span>
           <span className="text-[10px] text-zinc-400 lowercase font-normal italic">Representante Operativo</span>
         </h3>
 
@@ -626,7 +579,7 @@ export default function Step1Identificacion({
       </div>
 
       {/* Card D: DATOS GENERALES DE LA EMPRESA */}
-      <div className="bg-white rounded-2xl p-6 md:p-8 shadow-xl border border-zinc-200">
+      <div className="p-6 md:p-8">
         <h3 className="text-sm font-bold tracking-widest text-[#052B48] uppercase border-b border-zinc-200 pb-3 mb-6 flex items-center justify-between">
           <span>DATOS GENERALES DE LA EMPRESA</span>
           <span className="text-[10px] text-zinc-400 lowercase font-normal italic">Domicilio y Contacto Corporativo</span>
@@ -644,7 +597,7 @@ export default function Step1Identificacion({
               onChange={onInputChange}
               rows={3}
               placeholder="Completa la dirección física"
-              className="w-full bg-[#f4f6f8] border border-zinc-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[#052B48] focus:ring-1 focus:ring-[#052B48] transition text-zinc-800 resize-none"
+              className={`w-full bg-[#f4f6f8] border border-zinc-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[#052B48] focus:ring-1 focus:ring-[#052B48] transition text-zinc-800 resize-none`}
               required
             />
           </div>
@@ -716,7 +669,7 @@ export default function Step1Identificacion({
                 name="empresaTelefonoCodigo"
                 value={formData.empresaTelefonoCodigo || "+507"}
                 onChange={onInputChange}
-                className="bg-[#f4f6f8] border border-zinc-300 rounded-lg px-2 py-3 text-xs font-semibold text-zinc-700 focus:outline-none focus:border-[#052B48] focus:ring-1 focus:ring-[#052B48] transition text-zinc-800 cursor-pointer max-w-[90px]"
+                className={`bg-[#f4f6f8] border border-zinc-300 rounded-lg px-2 py-3 text-xs font-semibold text-zinc-700 focus:outline-none focus:border-[#052B48] focus:ring-1 focus:ring-[#052B48] transition text-zinc-800 cursor-pointer max-w-[90px]`}
               >
                 {PHONE_CODES.map((p) => (
                   <option key={p.code + p.country} value={p.code}>
@@ -750,7 +703,7 @@ export default function Step1Identificacion({
                 name="empresaCelularCodigo"
                 value={formData.empresaCelularCodigo || "+507"}
                 onChange={onInputChange}
-                className="bg-[#f4f6f8] border border-zinc-300 rounded-lg px-2 py-3 text-xs font-semibold text-zinc-700 focus:outline-none focus:border-[#052B48] focus:ring-1 focus:ring-[#052B48] transition text-zinc-800 cursor-pointer max-w-[90px]"
+                className={`bg-[#f4f6f8] border border-zinc-300 rounded-lg px-2 py-3 text-xs font-semibold text-zinc-700 focus:outline-none focus:border-[#052B48] focus:ring-1 focus:ring-[#052B48] transition text-zinc-800 cursor-pointer max-w-[90px]`}
               >
                 {PHONE_CODES.map((p) => (
                   <option key={p.code + p.country} value={p.code}>

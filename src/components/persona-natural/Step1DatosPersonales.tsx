@@ -19,10 +19,10 @@ export default function Step1DatosPersonales({
   errors = {},
 }: Step1Props) {
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 bg-white rounded-2xl ">
       
       {/* Card A: Proyecto e Información de Contacto Inicial */}
-      <div className="bg-white rounded-2xl p-6 md:p-8 shadow-xl border border-zinc-200">
+      <div className="p-6 md:p-8">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700 flex items-center gap-1" htmlFor="nombreProyecto">
@@ -162,7 +162,7 @@ export default function Step1DatosPersonales({
       </div>
 
       {/* Card B: IDENTIFICACIÓN DEL CLIENTE ** */}
-      <div className="bg-white rounded-2xl p-6 md:p-8 shadow-xl border border-zinc-200 space-y-6 text-[#1a1c1a] font-sans">
+      <div className="p-6 md:p-8 space-y-6 text-[#1a1c1a] font-sans">
         <h3 className="text-sm font-bold tracking-widest text-[#052B48] uppercase border-b border-zinc-200 pb-3 font-sans">
           IDENTIFICACIÓN DEL CLIENTE
         </h3>

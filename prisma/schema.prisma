@@ -176,8 +176,18 @@ model Document {
   updatedAt    DateTime       @updatedAt
   deletedAt    DateTime?
 
+  // Document "slot" identity (e.g. "copiaIdFile") - previously only encoded in `name`
+  documentType String?
+
+  // Attribution to a specific dynamic person, when applicable.
+  // personId matches GjcMember.id / BfMember.id (client-generated UUIDs, preserved
+  // through submission - see submit/route.ts), or the literal "rl" for the legal rep.
+  personType   String? // "GJC" | "BF" | "RL"
+  personId     String?
+
   @@index([formId])
   @@index([draftId])
+  @@index([draftId, documentType, personType, personId])
 }
 
 // 7. GjcMember (Gobierno y Junta Directiva)

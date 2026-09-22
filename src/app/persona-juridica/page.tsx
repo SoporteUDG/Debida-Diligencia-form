@@ -2,9 +2,13 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import { useSearchParams } from "next/navigation";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useEffect, useState } from "react";
-import { BfMember, FormState, GjcMember, INITIAL_FORM_STATE } from "@/types/persona-juridica";
+import { BfMember, DocumentTarget, FormState, GjcMember, INITIAL_FORM_STATE } from "@/types/persona-juridica";
+
+import { docKey, isDocumentUploaded, staticDocumentFields } from "@/components/persona-juridica/Step4Documentos";
+
 
 import dynamic from "next/dynamic";
 import Header from "@/components/persona-juridica/Header";
@@ -103,6 +107,7 @@ export default function PersonaJuridicaPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [validationSummary, setValidationSummary] = useState<{ step: number; message: string }[] | null>(null);
+
 
   useEffect(() => {
     setIsMounted(true);
@@ -349,19 +354,20 @@ export default function PersonaJuridicaPage() {
     triggerSaveIndicator();
   };
 
-  const handleFileUpload = (fieldName: keyof FormState, file: File) => {
-    setUploadStatus(prev => ({ ...prev, [fieldName]: "uploading" }));
-    setUploadProgress(prev => ({ ...prev, [fieldName]: 10 }));
+  const handleFileUpload = (target: DocumentTarget, file: File) => {
+    const key = docKey(target);
+    setUploadStatus(prev => ({ ...prev, [key]: "uploading" }));
+    setUploadProgress(prev => ({ ...prev, [key]: 10 }));
 
     // Start a smooth visual progress simulation while upload happens
     const progressInterval = setInterval(() => {
       setUploadProgress(prev => {
-        const current = prev[fieldName] || 10;
+        const current = prev[key] || 10;
         if (current >= 90) {
           clearInterval(progressInterval);
           return prev;
         }
-        return { ...prev, [fieldName]: current + 15 };
+        return { ...prev, [key]: current + 15 };
       });
     }, 200);
 
@@ -370,7 +376,11 @@ export default function PersonaJuridicaPage() {
     reader.onload = async () => {
       try {
         const base64Data = (reader.result as string).split(",")[1];
-        
+
+        // documentType stays the semantic slot name (used for the Zoho subfolder);
+        // personType/personId travel alongside it so the backend can attribute the file.
+        const documentType = target.kind === "static" ? target.field : target.documentType;
+
         const response = await fetch("/api/trpc/documents.uploadDocument", {
           method: "POST",
           headers: {
@@ -381,8 +391,11 @@ export default function PersonaJuridicaPage() {
             fileName: file.name,
             fileType: file.type,
             fileData: base64Data,
-            documentType: fieldName,
+            documentType,
             draftId: draftToken,
+            ...(target.kind === "person"
+              ? { personType: target.personType, personId: target.personId }
+              : {}),
           }),
         });
 
@@ -400,12 +413,43 @@ export default function PersonaJuridicaPage() {
         }
 
         // Set success states
-        setUploadProgress(prev => ({ ...prev, [fieldName]: 100 }));
-        setUploadStatus(prev => ({ ...prev, [fieldName]: "success" }));
-        setFormData(prev => ({ ...prev, [fieldName]: data.document.name }));
+        setUploadProgress(prev => ({ ...prev, [key]: 100 }));
+        setUploadStatus(prev => ({ ...prev, [key]: "success" }));
+
+        if (target.kind === "static") {
+          const isMultiField = staticDocumentFields.find(d => d.field === target.field)?.multiple;
+          if (isMultiField) {
+            setFormData(prev => ({
+              ...prev,
+              [target.field]: [...((prev[target.field] as string[]) || []), data.document.name],
+            }));
+            // Reset to idle (skip the "success" state) so the "Agregar otro archivo"
+            // button reappears immediately, letting the user keep adding files.
+            setUploadStatus(prevStatus => ({ ...prevStatus, [key]: "idle" }));
+          } else {
+            setFormData(prev => ({ ...prev, [target.field]: data.document.name }));
+          }
+        } else {
+          setFormData(prev => ({
+            ...prev,
+            personDocuments: [
+              // replace any existing entry for this exact person+documentType, then add the new one
+              ...prev.personDocuments.filter(
+                d => !(d.personType === target.personType && d.personId === target.personId && d.documentType === target.documentType)
+              ),
+              {
+                personType: target.personType,
+                personId: target.personId,
+                documentType: target.documentType,
+                fileName: data.document.name,
+              },
+            ],
+          }));
+        }
+
         setErrors(prev => {
           const copy = { ...prev };
-          delete copy[fieldName];
+          delete copy[key];
           return copy;
         });
         triggerSaveIndicator();
@@ -413,28 +457,36 @@ export default function PersonaJuridicaPage() {
       } catch (error: any) {
         clearInterval(progressInterval);
         console.error("[Juridica Page] Error uploading file:", error);
-        setUploadStatus(prev => ({ ...prev, [fieldName]: "idle" }));
-        setUploadProgress(prev => ({ ...prev, [fieldName]: 0 }));
-        setErrors(prev => ({ ...prev, [fieldName]: error.message || "Fallo en la carga del archivo" }));
+        setUploadStatus(prev => ({ ...prev, [key]: "idle" }));
+        setUploadProgress(prev => ({ ...prev, [key]: 0 }));
+        setErrors(prev => ({ ...prev, [key]: error.message || "Fallo en la carga del archivo" }));
         alert(error.message || "Fallo al subir el archivo.");
       }
     };
     reader.onerror = () => {
       clearInterval(progressInterval);
-      setUploadStatus(prev => ({ ...prev, [fieldName]: "idle" }));
-      setUploadProgress(prev => ({ ...prev, [fieldName]: 0 }));
+      setUploadStatus(prev => ({ ...prev, [key]: "idle" }));
+      setUploadProgress(prev => ({ ...prev, [key]: 0 }));
       alert("Error al leer el archivo local.");
     };
   };
 
-  const handleRemoveFile = async (fieldName: keyof FormState) => {
-    const fileName = formData[fieldName];
-    if (!fileName) return;
+  const handleRemoveFile = async (target: DocumentTarget) => {
+    const key = docKey(target);
+    const hadFile =
+      target.kind === "static" && target.fileName
+        ? ((formData[target.field] as string[]) || []).includes(target.fileName)
+        : isDocumentUploaded(formData, target);
+    if (!hadFile) return;
 
     if (confirm("¿Estás seguro de que deseas eliminar este documento cargado?")) {
       try {
-        setUploadStatus(prev => ({ ...prev, [fieldName]: "uploading" }));
-        setUploadProgress(prev => ({ ...prev, [fieldName]: 50 }));
+        setUploadStatus(prev => ({ ...prev, [key]: "uploading" }));
+        setUploadProgress(prev => ({ ...prev, [key]: 50 }));
+
+        // fieldName still identifies the document *type* for the backend's lookup;
+        // personType/personId narrow it to the specific person when applicable.
+        const fieldName = target.kind === "static" ? target.field : target.documentType;
 
         const response = await fetch("/api/trpc/documents.deleteDocument", {
           method: "POST",
@@ -444,7 +496,11 @@ export default function PersonaJuridicaPage() {
           },
           body: JSON.stringify({
             draftId: draftToken,
-            fieldName: fieldName,
+            fieldName,
+            ...(target.kind === "person"
+              ? { personType: target.personType, personId: target.personId }
+              : {}),
+            ...(target.kind === "static" && target.fileName ? { fileName: target.fileName } : {}),
           }),
         });
 
@@ -454,15 +510,32 @@ export default function PersonaJuridicaPage() {
         }
 
         // Reset states on success
-        setFormData(prev => ({ ...prev, [fieldName]: "" }));
-        setUploadStatus(prev => ({ ...prev, [fieldName]: "idle" }));
-        setUploadProgress(prev => ({ ...prev, [fieldName]: 0 }));
+        if (target.kind === "static") {
+          const isMultiField = staticDocumentFields.find(d => d.field === target.field)?.multiple;
+          if (isMultiField && target.fileName) {
+            setFormData(prev => ({
+              ...prev,
+              [target.field]: ((prev[target.field] as string[]) || []).filter(f => f !== target.fileName),
+            }));
+          } else {
+            setFormData(prev => ({ ...prev, [target.field]: isMultiField ? [] : "" }));
+          }
+        } else {
+          setFormData(prev => ({
+            ...prev,
+            personDocuments: prev.personDocuments.filter(
+              d => !(d.personType === target.personType && d.personId === target.personId && d.documentType === target.documentType)
+            ),
+          }));
+        }
+        setUploadStatus(prev => ({ ...prev, [key]: "idle" }));
+        setUploadProgress(prev => ({ ...prev, [key]: 0 }));
         triggerSaveIndicator();
 
       } catch (error: any) {
         console.error("[Juridica Page] Error deleting file:", error);
-        setUploadStatus(prev => ({ ...prev, [fieldName]: "success" }));
-        setUploadProgress(prev => ({ ...prev, [fieldName]: 100 }));
+        setUploadStatus(prev => ({ ...prev, [key]: "success" }));
+        setUploadProgress(prev => ({ ...prev, [key]: 100 }));
         alert(error.message || "Fallo al eliminar el archivo.");
       }
     }
@@ -545,7 +618,10 @@ export default function PersonaJuridicaPage() {
     const isFinalValid = validateStep(3);
     if (!isFinalValid) {
       setTimeout(() => {
-        const firstError = document.querySelector(".text-red-500");
+        const errorElements = document.querySelectorAll(".text-red-500");
+        const firstError = Array.from(errorElements).find(element =>
+          element.textContent?.includes("⚠️")
+        );
         if (firstError) {
           firstError.scrollIntoView({ behavior: "smooth", block: "center" });
         }
@@ -596,14 +672,9 @@ export default function PersonaJuridicaPage() {
       { key: "rlDireccion", label: "Dirección del Representante Legal", step: 1 },
       { key: "rlPaisResidencia", label: "País de Residencia del Representante Legal", step: 1 },
       { key: "rlTelefono", label: "Teléfono del Representante Legal", step: 1 },
-      { key: "actividadComercial", label: "Descripción de Actividad Comercial", step: 1 },
-      { key: "origenFondos", label: "Origen de Fondos de la Empresa", step: 1 },
-      { key: "destinoFondos", label: "Destino de Fondos de la Empresa", step: 1 },
-      { key: "volumenVentas", label: "Volumen Estimado de Ventas", step: 1 },
-      { key: "bancoReferencia", label: "Banco de Referencia", step: 1 },
+      
       { key: "origenFondosFile", label: "Documento: Origen de Fondos", step: 2 },
       { key: "pactoSocialFile", label: "Documento: Copia de Pacto Social", step: 2 },
-      { key: "serviciosPublicosFile", label: "Documento: Factura de Servicios Públicos", step: 2 },
       { key: "certBancariaFile", label: "Documento: Certificación Bancaria", step: 2 },
       { key: "certRegistroFile", label: "Documento: Certificado de Registro Público", step: 2 }
     ];

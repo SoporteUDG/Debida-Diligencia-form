@@ -75,9 +75,9 @@ export interface FormState {
 
   // Step 4: Documents
   idFile: string;
-  origenFondosFile: string;
+  origenFondosFile: string[]; // multi-file field
   proofAddressFile: string;
-  hasEstadoCuenta: string;
+  hasEstadoCuenta: string[]; // multi-file field
   hasCertificacionBancaria: string;
   otrosAdjuntosFile: string;
 
@@ -162,9 +162,9 @@ export const INITIAL_FORM_STATE: FormState = {
   pepRelacion: "",
 
   idFile: "",
-  origenFondosFile: "",
+  origenFondosFile: [],
   proofAddressFile: "",
-  hasEstadoCuenta: "",
+  hasEstadoCuenta: [],
   hasCertificacionBancaria: "",
   otrosAdjuntosFile: "",
 

@@ -8,7 +8,8 @@ interface Step3Props {
   uploadStatus: Record<string, "idle" | "uploading" | "success">;
   uploadProgress: Record<string, number>;
   onFileUpload: (fieldName: keyof FormState, file: File) => void;
-  onRemoveFile: (fieldName: keyof FormState) => void;
+  // fileName is passed for multi-file fields to remove one specific entry
+  onRemoveFile: (fieldName: keyof FormState, fileName?: string) => void;
   onInputChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
   errors: Record<string, string>;
 }
@@ -25,28 +26,54 @@ export default function Step3Documentos({
   
 
   // Helper render for document file upload field
-  const renderUploadField = (fieldName: keyof FormState, label: string, description: string, isRequired = true) => {
-    const hasFile = !!formData[fieldName];
+  const renderUploadField = (fieldName: keyof FormState, label: string, description: string, isRequired = true, multiple = false) => {
+    const rawValue = formData[fieldName] as string | string[];
+    const fileList: string[] = multiple ? (Array.isArray(rawValue) ? rawValue.filter(Boolean) : []) : [];
+    const hasFile = multiple ? fileList.length > 0 : !!rawValue;
     const status = uploadStatus[fieldName] || "idle";
     const progress = uploadProgress[fieldName] || 0;
-    const fileName = formData[fieldName] as string;
+    const fileName = multiple ? undefined : (rawValue as string);
     const hasError = !!errors[fieldName];
-    
+
     return (
       <div className="flex flex-col gap-2">
         <label className="text-xs font-semibold text-zinc-700 leading-normal">
           {label} {isRequired && <span className="text-red-500 font-bold">*</span>}
         </label>
         <label className="text-[11px] text-zinc-500 leading-normal">{description}</label>
-        
+
+        {/* Multi-file: list of uploaded files, each removable on its own */}
+        {multiple && fileList.length > 0 && (
+          <ul className="space-y-1">
+            {fileList.map((fname) => (
+              <li key={fname} className="flex items-center justify-between gap-2 text-xs text-zinc-700 font-medium">
+                <span className="inline-flex items-center gap-1.5 truncate">
+                  <FileCheck2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                  <span className="truncate">{fname}</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => onRemoveFile(fieldName, fname)}
+                  className="p-1 text-zinc-500 hover:text-red-500 hover:bg-red-50 rounded transition cursor-pointer shrink-0"
+                  title="Quitar archivo"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+
         <div className={`border rounded-xl p-4 flex items-center justify-between gap-4 min-h-[72px] transition-all duration-200 ${
-          hasError 
-            ? "bg-red-50/10 border-red-500 hover:border-red-600" 
+          hasError
+            ? "bg-red-50/10 border-red-500 hover:border-red-600"
             : "bg-[#f4f6f8] border-zinc-300 hover:border-[#052B48]/20"
         }`}>
-          {status === "idle" && !hasFile && (
+          {status === "idle" && (multiple || !hasFile) && (
             <div className="flex items-center justify-between w-full">
-              <span className="text-xs text-zinc-400 font-medium">Choose File (.pdf, .jpeg)</span>
+              <span className="text-xs text-zinc-400 font-medium">
+                {multiple && hasFile ? "Agregar otro archivo (.pdf, .jpeg)" : "Choose File (.pdf, .jpeg)"}
+              </span>
               <label className="bg-[#052B48] text-white px-3.5 py-1.5 rounded-lg text-xs font-bold hover:bg-[#081827] transition cursor-pointer flex items-center gap-1.5 active:scale-95">
                 <UploadCloud className="h-3.5 w-3.5" />
                 Cargar
@@ -59,6 +86,7 @@ export default function Step3Documentos({
                     if (file) {
                       onFileUpload(fieldName, file);
                     }
+                    e.target.value = ""; // allow re-selecting the same filename again
                   }}
                 />
               </label>
@@ -80,7 +108,8 @@ export default function Step3Documentos({
             </div>
           )}
 
-          {(status === "success" || (status === "idle" && hasFile)) && (
+          {/* Single-file: "Cargado" badge with remove button */}
+          {!multiple && (status === "success" || (status === "idle" && hasFile)) && (
             <div className="flex items-center justify-between w-full">
               <div className="flex items-center gap-2 max-w-[70%]">
                 <FileCheck2 className="h-4 w-4 text-emerald-600 flex-shrink-0" />
@@ -153,16 +182,18 @@ export default function Step3Documentos({
         <div className="space-y-6">
           {renderUploadField(
             "hasEstadoCuenta",
-            "Estado de Cuenta Bancario de los últimos 6 meses",
+            "Estado de Cuenta Bancario de los últimos 6 meses (Múltiples archivos)",
             "",
-            false
+            false,
+            true
           )}
-          
+
           {renderUploadField(
             "origenFondosFile",
-            "Sustento de Ingresos",
+            "Sustento de Ingresos (Múltiples archivos)",
             "Adjunte los archivos que sustenteten el origen de sus fondos: Carta de Trabajo,  Ficha de Seguro social, Declaración de Renta más reciente, Comprobante de Pago entre otros.",
-            false
+            false,
+            true
           )}
         </div>
 

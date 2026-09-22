@@ -73,7 +73,8 @@ export async function POST(request: NextRequest) {
             create: [
               ...(naturalData.idFile ? [{ name: "Copia ID", fileType: "pdf", url: naturalData.idFile }] : []),
               ...(naturalData.proofAddressFile ? [{ name: "Prueba de Domicilio", fileType: "pdf", url: naturalData.proofAddressFile }] : []),
-              ...(naturalData.origenFondosFile ? [{ name: "Origen de Fondos", fileType: "pdf", url: naturalData.origenFondosFile }] : []),
+              ...(naturalData.origenFondosFile || []).filter(f => f.trim() !== "").map(f => ({ name: "Origen de Fondos", fileType: "pdf", url: f })),
+              ...(naturalData.hasEstadoCuenta || []).filter(f => f.trim() !== "").map(f => ({ name: "Estado de Cuenta", fileType: "pdf", url: f })),
               ...(naturalData.otrosAdjuntosFile ? [{ name: "Otros Adjuntos", fileType: "pdf", url: naturalData.otrosAdjuntosFile }] : []),
             ]
           }
@@ -114,7 +115,10 @@ export async function POST(request: NextRequest) {
             }
           },
           gjcMembers: {
+
+            // id: m.id preserves the client-generated UUID 
             create: (juridicaData.gjcMembers || []).map((m: any) => ({
+              id: m.id,
               cargo: m.cargo,
               nombre: m.nombre,
               apellidos: m.apellidos,
@@ -124,8 +128,11 @@ export async function POST(request: NextRequest) {
               direccion: m.direccion,
             }))
           },
+
           bfMembers: {
+            // preserve the client-generated id.
             create: (juridicaData.bfMembers || []).map((m: any) => ({
+              id: m.id,
               nombreCompleto: m.nombreCompleto,
               noIdentificacion: m.noIdentificacion,
               nacionalidad: m.nacionalidad,
@@ -139,13 +146,14 @@ export async function POST(request: NextRequest) {
             create: [
               ...(juridicaData.copiaIdFile ? [{ name: "Copia ID Dignatarios", fileType: "pdf", url: juridicaData.copiaIdFile }] : []),
               ...(juridicaData.avisoOperacionesFile ? [{ name: "Aviso de Operaciones", fileType: "pdf", url: juridicaData.avisoOperacionesFile }] : []),
-              ...(juridicaData.origenFondosFile ? [{ name: "Origen de Fondos", fileType: "pdf", url: juridicaData.origenFondosFile }] : []),
+              ...(juridicaData.origenFondosFile || []).filter(f => f.trim() !== "").map(f => ({ name: "Origen de Fondos", fileType: "pdf", url: f })),
               ...(juridicaData.serviciosPublicosFile ? [{ name: "Factura Servicios Públicos", fileType: "pdf", url: juridicaData.serviciosPublicosFile }] : []),
-              ...(juridicaData.pactoSocialFile ? [{ name: "Pacto Social", fileType: "pdf", url: juridicaData.pactoSocialFile }] : []),
+              ...(juridicaData.pactoSocialFile || []).filter(f => f.trim() !== "").map(f => ({ name: "Pacto Social", fileType: "pdf", url: f })),
               ...(juridicaData.certBancariaFile ? [{ name: "Certificación Bancaria", fileType: "pdf", url: juridicaData.certBancariaFile }] : []),
               ...(juridicaData.certRegistroFile ? [{ name: "Certificado Registro Público", fileType: "pdf", url: juridicaData.certRegistroFile }] : []),
             ]
           }
+
         }
       });
       dbFormId = dbForm.id;

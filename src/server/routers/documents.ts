@@ -78,6 +78,8 @@ export const documentsRouter = router({
         documentType: z.string().min(1, "Tipo de documento requerido"),
         draftId: z.string().optional(),
         formId: z.string().optional(),
+        personType: z.enum(["GJC", "BF", "RL"]).optional(),
+        personId: z.string().optional(),
       })
     )
     .mutation(async ({ input, ctx }) => {
@@ -152,10 +154,13 @@ export const documentsRouter = router({
             `${contact.lastName}_${contact.firstName}_${contact.crmId}`
           );
           const documentTypeNormalized = sanitizeStr(input.documentType);
+          const personSuffix = input.personType && input.personId
+            ? `_${input.personType}_${sanitizeStr(input.personId)}`
+            : "";
 
-          // Rename convention: {APELLIDO_NOMBRE_ID}_{TIPO_DOCUMENTO}_{TIMESTAMP}.{EXTENSION}
+          // Rename convention: {APELLIDO_NOMBRE_ID}_{TIPO_DOCUMENTO}[_{PERSON_TYPE}_{PERSON_ID}]_{TIMESTAMP}.{EXTENSION}
           const timestamp = Date.now();
-          const finalFileName = `${apellidoNombreId}_${documentTypeNormalized}_${timestamp}.${ext}`;
+          const finalFileName = `${apellidoNombreId}_${documentTypeNormalized}${personSuffix}_${timestamp}.${ext}`;
 
           // Stage 5-7: Zoho WorkDrive Integration sequence wrapped with retry and fallback logic
           let zohoFileId = "PENDING_SYNC";
@@ -259,6 +264,9 @@ export const documentsRouter = router({
               url: shareLinkUrl,
               zohoFileId,
               status: "PENDING",
+              documentType: input.documentType,
+              personType: input.personType ?? null,
+              personId: input.personId ?? null,
             },
           });
 
@@ -276,6 +284,8 @@ export const documentsRouter = router({
               zohoFileId,
               draftId: input.draftId || null,
               formId: input.formId || null,
+              personType: input.personType || null,
+              personId: input.personId || null,
             },
           });
 
@@ -307,6 +317,10 @@ export const documentsRouter = router({
       z.object({
         draftId: z.string().min(1, "draftId requerido"),
         fieldName: z.string().min(1, "fieldName requerido"),
+        personType: z.enum(["GJC", "BF", "RL"]).optional(),
+        personId: z.string().optional(),
+        // For multi-file slots: delete only this file instead of every file in the slot
+        fileName: z.string().optional(),
       })
     )
     .mutation(async ({ input, ctx }) => {
@@ -325,14 +339,16 @@ export const documentsRouter = router({
           });
         }
 
-        // Find documents linked to this draft containing _fieldName_ in the file name
+        // Find documents linked to this draft matching this exact slot -
+        // and, when provided, this exact person - rather than guessing from the filename.
         const documents = await ctx.prisma.document.findMany({
           where: {
             draftId: draft.id,
-            name: {
-              contains: `_${input.fieldName}_`,
-            },
+            documentType: input.fieldName,
+            personType: input.personType ?? null,
+            personId: input.personId ?? null,
             deletedAt: null,
+            ...(input.fileName ? { name: input.fileName } : {}),
           },
         });
 
@@ -369,6 +385,8 @@ export const documentsRouter = router({
               fileName: doc.name,
               fieldName: input.fieldName,
               draftId: input.draftId,
+              personType: input.personType || null,
+              personId: input.personId || null,
             },
           });
         }
@@ -376,7 +394,15 @@ export const documentsRouter = router({
         // Also clean the fieldName in the draft's data JSON payload
         const draftData = { ...(draft.data as any) || {} };
         if (input.fieldName in draftData) {
-          draftData[input.fieldName] = "";
+          const current = draftData[input.fieldName];
+          if (Array.isArray(current)) {
+            // Multi-file slot: drop just the removed file (or all when no fileName given)
+            draftData[input.fieldName] = input.fileName
+              ? current.filter((f: string) => f !== input.fileName)
+              : [];
+          } else {
+            draftData[input.fieldName] = "";
+          }
           await ctx.prisma.draft.update({
             where: { token: input.draftId },
             data: {
@@ -395,7 +421,7 @@ export const documentsRouter = router({
         });
       }
     }),
-
+    
   getDraftDocuments: tokenProcedure
     .input(
       z.object({

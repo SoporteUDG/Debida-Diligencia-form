@@ -22,7 +22,10 @@ export async function generatePDF(
   documents?: any[]
 ) {
   const isNatural = type === "natural";
-  const clientName = isNatural 
+  // Multi-file slots hold string[]; render as a comma-separated list ("" when empty)
+  const fileList = (val: unknown): string =>
+    Array.isArray(val) ? val.filter((f) => typeof f === "string" && f.trim() !== "").join(", ") : (val as string) || "";
+  const clientName = isNatural
     ? `${data.firstName || ""} ${data.lastName || ""}`.trim() || "Cliente Natural"
     : data.razonSocial || "Empresa Registrada";
 
@@ -76,17 +79,19 @@ export async function generatePDF(
             <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Teléfono / Celular:</td>
             <td style="color: #1f2937; padding: 4px 0;">${data.telefono || ""} / ${data.celular || ""}</td>
             <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Profesión / Ocupación:</td>
-            <td style="color: #1f2937; padding: 4px 0;">${data.profession || "-"}</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.profession === "Otros" ? data.profesionOtros : data.profession || "-"}</td>
           </tr>
           <tr>
             <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Patrono / Empleador:</td>
-            <td style="color: #1f2937; padding: 4px 0;">${data.employer || "-"}</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.employer || "-"}${data.actividadLaboral === "Otros" ? ` (${data.actividadLaboralOtros})` : ` (${data.actividadLaboral})`}</td>
             <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Cargo Desempeñado:</td>
             <td style="color: #1f2937; padding: 4px 0;">${data.cargoDesempena || "-"}</td>
           </tr>
           <tr>
             <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Dirección Laboral:</td>
-            <td colspan="3" style="color: #1f2937; padding: 4px 0;">${data.direccionLaboral || "-"}</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.direccionLaboral || "-"}</td>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Participacion en la entidad:</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.esPropietario || "-"}</td>
           <tr>
             <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Estado Civil:</td>
             <td style="color: #1f2937; padding: 4px 0;">${data.estadoCivil || "-"}</td>
@@ -107,11 +112,42 @@ export async function generatePDF(
         </h3>
         <table style="width: 100%; border-collapse: collapse; font-size: 9px; line-height: 1.6;">
           <tr>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Actividad Económica Principal:</td>
+            <td style="color: #1f2937; padding: 4px 0;">${(data.actEconPrincipal === "Otros" ? data.otroActEcon : data.actEconPrincipal) || "-"}</td>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">% Dedicación:</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.pctDedicacionPrincipal || "100"}%</td>
+          </tr>
+          <tr>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Jurisdicción Principal:</td>
+            <td colspan="3" style="color: #1f2937; padding: 4px 0;">${data.jurisdiccionPrincipal || "-"}</td>
+          </tr>
+          <tr>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Actividad Económica Principal:</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.actEconSecundaria || "-"}</td>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">% Dedicación:</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.pctDedicacionSecundaria || "100"}%</td>
+          </tr>
+          <tr>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Jurisdicción Principal:</td>
+            <td colspan="3" style="color: #1f2937; padding: 4px 0;">${data.jurisdiccionSecundaria || "-"}</td>
+          </tr>
+          <tr>
             <td style="width: 25%; font-weight: bold; color: #4b5563; padding: 4px 0;">Ingresos Mensuales Promedio:</td>
             <td style="color: #1f2937; padding: 4px 0;">${data.ingresosMensuales || "-"}</td>
             <td style="width: 25%; font-weight: bold; color: #4b5563; padding: 4px 0;">Fuente de Fondos:</td>
-            <td style="color: #1f2937; padding: 4px 0;">${data.fuenteFondosInmueble || "-"}</td>
+            <td style="color: #1f2937; padding: 4px 0;">${(data.fuenteFondosInmueble.includes("Otros") ? data.ifOtroNombre : data.fuenteFondosInmueble) || "-"}</td>
           </tr>
+          ${data.fuenteFondosInmueble.includes("Terceros") ? `
+          <tr>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Detalles Tercero:</td>
+            <td colspan="3" style="color: #1f2937; padding: 4px 0;">
+              <strong>Nombre:</strong> ${data.ifTerceroNombre || "-"} | 
+              <strong>Ingresos:</strong> ${data.ifTerceroFuenteDeIngresos || "-"} | 
+              <strong>Nacionalidad:</strong> ${data.ifTerceroNacionalidad || "-"} | 
+              <strong>Relación:</strong> ${data.ifTerceroRelacion || "-"}
+            </td>
+          </tr>
+          ` : ""}
           <tr>
             <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Monto Servicios Anuales:</td>
             <td style="color: #1f2937; padding: 4px 0;">${data.montoServiciosAnuales || "-"}</td>
@@ -119,10 +155,15 @@ export async function generatePDF(
             <td style="color: #1f2937; padding: 4px 0;">${data.destinoInmueble || "Adquisición de Inmueble"}</td>
           </tr>
           <tr>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">¿Previsto >1 Unidad (12m)?:</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.montoServiciosAnuales || "No"}${data.montoServiciosAnuales === "Sí" ? ` (${data.cantidadServiciosAnuales} unidades)` : ""}</td>
+          </tr>
+
+
+          <tr>
             <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">¿Persona PEP? (Expuesta Políticamente):</td>
             <td style="color: #1f2937; padding: 4px 0; font-weight: bold;">${data.esPep || "No"}</td>
-            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">¿Adquiere a Nombre de Tercero?:</td>
-            <td style="color: #1f2937; padding: 4px 0;">${data.adquiereNombreTercero || "No"}</td>
+            
           </tr>
           ${data.esPep === "Sí" ? `
           <tr>
@@ -136,14 +177,10 @@ export async function generatePDF(
           </tr>
           ` : ""}
           <tr>
-            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Actividad Económica Principal:</td>
-            <td style="color: #1f2937; padding: 4px 0;">${data.actEconPrincipal || "-"}</td>
-            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">% Dedicación:</td>
-            <td style="color: #1f2937; padding: 4px 0;">${data.pctDedicacionPrincipal || "100"}%</td>
-          </tr>
-          <tr>
-            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Jurisdicción Principal:</td>
-            <td colspan="3" style="color: #1f2937; padding: 4px 0;">${data.jurisdiccionPrincipal || "-"}</td>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">¿Adquiere a Nombre de Tercero?:</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.adquiereNombreTercero || "No"}${data.adquiereNombreTercero === "Sí" ? ` - ${data.nombreTercero}` : ""}</td>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Propósito, Uso y Destino del Inmueble:</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.destinoInmueble || "-"}</td>
           </tr>
         </table>
       </div>
@@ -161,7 +198,7 @@ export async function generatePDF(
             <td style="width: 25%; font-weight: bold; color: #4b5563; padding: 4px 0;">Razón Social:</td>
             <td style="color: #1f2937; padding: 4px 0;">${data.razonSocial || "-"}</td>
             <td style="width: 25%; font-weight: bold; color: #4b5563; padding: 4px 0;">R.U.C. / Registro:</td>
-            <td style="color: #1f2937; padding: 4px 0;">${data.ruc || "-"}</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.numeroDocumento || "-"}</td>
           </tr>
           <tr>
             <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Fecha Constitución:</td>
@@ -172,14 +209,18 @@ export async function generatePDF(
           <tr>
             <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">País donde Opera:</td>
             <td style="color: #1f2937; padding: 4px 0;">${data.paisOpera || "-"}</td>
+          </tr>
+          <tr>
             <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Tipo de Sociedad:</td>
             <td style="color: #1f2937; padding: 4px 0;">${data.tipoSociedad || "-"}</td>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Estado de la Sociedad:</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.estadoSociedad || "-"}</td>
           </tr>
           <tr>
             <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Tipo de Cliente:</td>
             <td style="color: #1f2937; padding: 4px 0;">${data.tipoCliente || "-"}</td>
             <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Actividad Principal:</td>
-            <td style="color: #1f2937; padding: 4px 0;">${data.actividadPrincipal || "-"} (${data.porcentajeActividad || "100"}%)</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.actividadPrincipal || "-"}</td>
           </tr>
           <tr>
             <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">País Tributación:</td>
@@ -219,6 +260,8 @@ export async function generatePDF(
           <tr>
             <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Vencimiento ID:</td>
             <td style="color: #1f2937; padding: 4px 0;">${data.fechaVencimientoId ? `${data.fechaVencimientoId} ${new Date(data.fechaVencimientoId) < new Date() ? "(⚠️ VENCIDO)" : ""}` : "No registrada"}</td>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Nacionalidad RL:</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.rlNacionalidad || "-"}</td>
           <tr>
             <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Fecha Nacimiento RL:</td>
             <td style="color: #1f2937; padding: 4px 0;">${data.rlFechaNacimiento || "-"}</td>
@@ -242,7 +285,7 @@ export async function generatePDF(
             <td colspan="3" style="color: #1f2937; padding: 4px 0;">${data.rlDireccion || "-"}</td>
           </tr>
           <tr>
-            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Propósito de la Relación:</td>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">involucrado en AML:</td>
             <td colspan="3" style="color: #1f2937; padding: 4px 0;">${data.rlObjetoInvestigacion || "-"}</td>
           </tr>
         </table>
@@ -321,14 +364,17 @@ export async function generatePDF(
           <tr>
             <td style="width: 25%; font-weight: bold; color: #4b5563; padding: 4px 0;">Ingresos Mensuales:</td>
             <td style="color: #1f2937; padding: 4px 0;">${data.ingresosMensuales || "-"}</td>
-            <td style="width: 25%; font-weight: bold; color: #4b5563; padding: 4px 0;">Volumen Ventas Anual:</td>
-            <td style="color: #1f2937; padding: 4px 0;">${data.volumenVentas || "-"}</td>
           </tr>
+          
           <tr>
             <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Medio de Pago:</td>
             <td style="color: #1f2937; padding: 4px 0;">${data.medioPago || "-"}</td>
             <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Fondos de Adquisición:</td>
             <td style="color: #1f2937; padding: 4px 0;">${data.fuenteFondosInmueble || "-"}</td>
+          </tr>
+          <tr>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">¿Previsto >1 Unidad (12m)?:</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.adquiereMasUnidades || "No"}${data.cantidadUnidadesInmobiliarias ? ` (${data.cantidadUnidadesInmobiliarias} unidades)` : ""}</td>
           </tr>
           ${data.fuenteFondosInmueble && data.fuenteFondosInmueble.includes("Terceros") ? `
           <tr>
@@ -342,22 +388,8 @@ export async function generatePDF(
           </tr>
           ` : ""}
           <tr>
-            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">¿Previsto >1 Unidad (12m)?:</td>
-            <td style="color: #1f2937; padding: 4px 0;">${data.adquiereMasUnidades || "No"}${data.cantidadUnidadesInmobiliarias ? ` (${data.cantidadUnidadesInmobiliarias} unidades)` : ""}</td>
-            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Banco de Referencia:</td>
-            <td style="color: #1f2937; padding: 4px 0;">${data.bancoReferencia || "-"}</td>
-          </tr>
-          <tr>
-            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Fuente / Origen Fondos:</td>
-            <td style="color: #1f2937; padding: 4px 0;">${data.origenFondos || "-"}</td>
-            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Destino de Fondos:</td>
-            <td style="color: #1f2937; padding: 4px 0;">${data.destinoFondos || "-"}</td>
-          </tr>
-          <tr>
             <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">¿Persona PEP? (Junta/Propietarios):</td>
             <td style="color: #1f2937; padding: 4px 0; font-weight: bold;">${data.esPep || "No"}</td>
-            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Actividad Comercial:</td>
-            <td style="color: #1f2937; padding: 4px 0;">${data.actividadComercial || "-"}</td>
           </tr>
           ${data.esPep === "Sí" ? `
           <tr>
@@ -437,34 +469,82 @@ export async function generatePDF(
             </tr>
             <tr style="border-bottom: 1px solid #e5e7eb;">
               <td style="padding: 4px;">Origen de Fondos (Carta Laboral, Declaración de Renta, etc.)</td>
-              <td style="padding: 4px; text-align: center; font-weight: bold; color: ${data.origenFondosFile ? "#059669" : "#dc2626"};">${data.origenFondosFile ? "SÍ" : "NO"}</td>
-              <td style="padding: 4px; color: #6b7280; font-size: 8px;">${data.origenFondosFile || "-"}</td>
+              <td style="padding: 4px; text-align: center; font-weight: bold; color: ${fileList(data.origenFondosFile) ? "#059669" : "#dc2626"};">${fileList(data.origenFondosFile) ? "SÍ" : "NO"}</td>
+              <td style="padding: 4px; color: #6b7280; font-size: 8px;">${fileList(data.origenFondosFile) || "-"}</td>
             </tr>
             <tr style="border-bottom: 1px solid #e5e7eb;">
-              <td style="padding: 4px;">Comprobante de Domicilio (Recibo de Agua, Luz, Telefonía)</td>
-              <td style="padding: 4px; text-align: center; font-weight: bold; color: ${data.proofAddressFile ? "#059669" : "#dc2626"};">${data.proofAddressFile ? "SÍ" : "NO"}</td>
-              <td style="padding: 4px; color: #6b7280; font-size: 8px;">${data.proofAddressFile || "-"}</td>
+              <td style="padding: 4px;">Estado de Cuenta Bancario</td>
+              <td style="padding: 4px; text-align: center; font-weight: bold; color: ${fileList(data.hasEstadoCuenta) ? "#059669" : "#dc2626"};">${fileList(data.hasEstadoCuenta) ? "SÍ" : "NO"}</td>
+              <td style="padding: 4px; color: #6b7280; font-size: 8px;">${fileList(data.hasEstadoCuenta) || "-"}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e5e7eb;">
+              <td style="padding: 4px;">Certificación bancaria</td>
+              <td style="padding: 4px; text-align: center; font-weight: bold; color: ${data.hasCertificacionBancaria ? "#059669" : "#dc2626"};">${data.hasCertificacionBancaria ? "SÍ" : "NO"}</td>
+              <td style="padding: 4px; color: #6b7280; font-size: 8px;">${data.hasCertificacionBancaria || "-"}</td>
             </tr>
           ` : `
             <tr style="border-bottom: 1px solid #e5e7eb;">
-              <td style="padding: 4px;">Copia del Pacto Social Registrado y Enmiendas</td>
-              <td style="padding: 4px; text-align: center; font-weight: bold; color: ${data.pactoSocialFile ? "#059669" : "#dc2626"};">${data.pactoSocialFile ? "SÍ" : "NO"}</td>
-              <td style="padding: 4px; color: #6b7280; font-size: 8px;">${data.pactoSocialFile || "-"}</td>
+              <td style="padding: 4px;">${("Documento de identificacion de Representante Legal - "+data.rlNombre) || "-"} </td>
+              <td style="padding: 4px; text-align: center; font-weight: bold; color: ${data.personDocuments.find((d:any) => d.personType === "RL")?.fileName ? "#059669" : "#dc2626"};">${data.personDocuments.find((d:any) => d.personType === "RL")?.fileName ? "SÍ" : "NO"}</td>
+              <td style="padding: 4px; color: #6b7280; font-size: 8px;">${data.personDocuments.find((d:any) => d.personType === "RL")?.fileName || "-"}</td>
             </tr>
+          
+            ${data.bfMembers && data.bfMembers.length > 0 ? data.bfMembers.map((m: any) => `
+              <tr style="border-bottom: 1px solid #e5e7eb;">
+                <td style="padding: 4px;">${("Documento de identificacion del Beneficiarios - "+m.nombreCompleto) || "-"} </td>
+                <td style="padding: 4px; text-align: center; font-weight: bold; color: ${data.personDocuments.find((d:any) => d.personType === "BF" && d.personId === m.id)?.fileName ? "#059669" : "#dc2626"};">${data.personDocuments.find((d:any) => d.personType === "BF" && d.personId === m.id)?.fileName ? "SÍ" : "NO"}</td>
+                <td style="padding: 4px; color: #6b7280; font-size: 8px;">${data.personDocuments.find((d:any) => d.personType === "BF" && d.personId === m.id)?.fileName || "-"}</td>
+              </tr>
+            `).join("") 
+            : `
+              <tr>
+                <td colspan="4" style="padding: 8px; text-align: center; color: #9ca3af; font-style: italic;">Ningún beneficiario final registrado.</td>
+              </tr>
+            `}
+            ${data.gjcMembers && data.gjcMembers.length > 0 ? data.gjcMembers.map((m: any) => `
+              <tr style="border-bottom: 1px solid #e5e7eb;">
+                <td style="padding: 4px;">${("Documento de identificacion del miembros - "+m.nombreCompleto )|| "-"} </td>
+                <td style="padding: 4px; text-align: center; font-weight: bold; color: ${data.personDocuments.find((d:any) => d.personType === "GJC" && d.personId === m.id)?.fileName ? "#059669" : "#dc2626"};">${data.personDocuments.find((d:any) => d.personType === "GJC" && d.personId === m.id)?.fileName ? "SÍ" : "NO"}</td>
+                <td style="padding: 4px; color: #6b7280; font-size: 8px;">${data.personDocuments.find((d:any) => d.personType === "GJC" && d.personId === m.id)?.fileName || "-"}</td>
+              </tr>
+            `).join("") 
+            : `
+              <tr>
+                <td colspan="4" style="padding: 8px; text-align: center; color: #9ca3af; font-style: italic;">Ningún beneficiario final registrado.</td>
+              </tr>
+            `}
             <tr style="border-bottom: 1px solid #e5e7eb;">
-              <td style="padding: 4px;">Aviso de Operaciones de la Empresa (si aplica)</td>
-              <td style="padding: 4px; text-align: center; font-weight: bold; color: ${data.avisoOperacionesFile ? "#059669" : "#6b7280"};">${data.avisoOperacionesFile ? "SÍ" : "NO"}</td>
+              <td style="padding: 4px;">Certificado de Aviso de Operaciones o Equivalente</td>
+              <td style="padding: 4px; text-align: center; font-weight: bold; color: ${data.avisoOperacionesFile ? "#059669" : "#dc2626"};">${data.avisoOperacionesFile ? "SÍ" : "NO"}</td>
               <td style="padding: 4px; color: #6b7280; font-size: 8px;">${data.avisoOperacionesFile || "-"}</td>
             </tr>
             <tr style="border-bottom: 1px solid #e5e7eb;">
-              <td style="padding: 4px;">Factura de Servicios Públicos que acredite Dirección Física</td>
-              <td style="padding: 4px; text-align: center; font-weight: bold; color: ${data.serviciosPublicosFile ? "#059669" : "#dc2626"};">${data.serviciosPublicosFile ? "SÍ" : "NO"}</td>
-              <td style="padding: 4px; color: #6b7280; font-size: 8px;">${data.serviciosPublicosFile || "-"}</td>
+              <td style="padding: 4px;">Origen de Fondos</td>
+              <td style="padding: 4px; text-align: center; font-weight: bold; color: ${fileList(data.origenFondosFile) ? "#059669" : "#6b7280"};">${fileList(data.origenFondosFile) ? "SÍ" : "NO"}</td>
+              <td style="padding: 4px; color: #6b7280; font-size: 8px;">${fileList(data.origenFondosFile) || "-"}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e5e7eb;">
+              <td style="padding: 4px;">Copia del Pacto Social Registrado y Enmiendas</td>
+              <td style="padding: 4px; text-align: center; font-weight: bold; color: ${fileList(data.pactoSocialFile) ? "#059669" : "#dc2626"};">${fileList(data.pactoSocialFile) ? "SÍ" : "NO"}</td>
+              <td style="padding: 4px; color: #6b7280; font-size: 8px;">${fileList(data.pactoSocialFile) || "-"}</td>
             </tr>
             <tr style="border-bottom: 1px solid #e5e7eb;">
               <td style="padding: 4px;">Certificación de Cuenta Bancaria o Referencia</td>
               <td style="padding: 4px; text-align: center; font-weight: bold; color: ${data.certBancariaFile ? "#059669" : "#dc2626"};">${data.certBancariaFile ? "SÍ" : "NO"}</td>
               <td style="padding: 4px; color: #6b7280; font-size: 8px;">${data.certBancariaFile || "-"}</td>
+            </tr>
+            
+            
+            
+            <tr style="border-bottom: 1px solid #e5e7eb;">
+              <td style="padding: 4px;">Certificado de Registro Público</td>
+              <td style="padding: 4px; text-align: center; font-weight: bold; color: ${data.certRegistroFile ? "#059669" : "#dc2626"};">${data.certRegistroFile ? "SÍ" : "NO"}</td>
+              <td style="padding: 4px; color: #6b7280; font-size: 8px;">${data.certRegistroFile || "-"}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e5e7eb;">
+              <td style="padding: 4px;">Persona Autorizada de Fondos Corporativos</td>
+              <td style="padding: 4px; text-align: center; font-weight: bold; color: ${data.certComprasFile ? "#059669" : "#dc2626"};">${data.certComprasFile ? "SÍ" : "NO"}</td>
+              <td style="padding: 4px; color: #6b7280; font-size: 8px;">${data.certComprasFile || "-"}</td>
             </tr>
           `}
         </tbody>

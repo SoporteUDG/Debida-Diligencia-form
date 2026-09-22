@@ -78,10 +78,10 @@ export default function Step2PerfilFinanciero({
   errors = {},
 }: Step2Props) {
   return (
-    <div className="space-y-8">
+    <div className="bg-white rounded-2xl shadow-xl border border-zinc-200  space-y-8">
       
       {/* Card A: JURISDICCIÓN / UBICACIÓN GEOGRÁFICA */}
-      <div className="bg-white rounded-2xl p-6 md:p-8 shadow-xl border border-zinc-200 space-y-6 text-[#1a1c1a] font-sans">
+      <div className="p-6 md:p-8  space-y-6 text-[#1a1c1a] font-sans">
         <h3 className="text-sm font-bold tracking-widest text-[#052B48] uppercase border-b border-zinc-200 pb-3">
           JURISDICCIÓN / UBICACIÓN GEOGRÁFICA
         </h3>
@@ -258,7 +258,7 @@ export default function Step2PerfilFinanciero({
       </div>
 
       {/* Card B: Datos Laborales */}
-      <div className="bg-white rounded-2xl p-6 md:p-8 shadow-xl border border-zinc-200 space-y-6 text-[#1a1c1a] font-sans">
+      <div className="p-6 md:p-8 space-y-6 text-[#1a1c1a] font-sans">
         <h3 className="text-sm font-bold tracking-widest text-[#052B48] uppercase border-b border-zinc-200 pb-3">
           Datos Laborales
         </h3>
@@ -465,7 +465,7 @@ export default function Step2PerfilFinanciero({
       </div>
 
       {/* Card C: ACTIVIDADES ECONÓMICAS O PROFESIONALES */}
-      <div className="bg-white rounded-2xl p-6 md:p-8 shadow-xl border border-zinc-200 space-y-6 text-[#1a1c1a] font-sans">
+      <div className="p-6 md:p-8 space-y-6 text-[#1a1c1a] font-sans">
         <div className="border-b border-zinc-200 pb-3">
           <h3 className="text-sm font-bold tracking-widest text-[#052B48] uppercase">
             ACTIVIDADES ECONÓMICAS O PROFESIONALES

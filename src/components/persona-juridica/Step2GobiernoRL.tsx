@@ -43,10 +43,10 @@ export default function Step2GobiernoRL({
   const hasIncompleteMembers = members.some(m => !isMemberComplete(m));
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-4 bg-white rounded-2xl shadow-xl">
       
       {/* Card: GOBIERNO CORPORATIVO */}
-      <div className="bg-white rounded-2xl p-6 md:p-8 shadow-xl border border-zinc-200 space-y-6">
+      <div className="p-6 md:p-8 space-y-6">
         <div className="border-b border-zinc-200 pb-3 flex items-center justify-between">
           <div>
             <h3 className="text-sm font-bold tracking-widest text-[#052B48] uppercase">
@@ -98,7 +98,7 @@ export default function Step2GobiernoRL({
             </button>
           </div>
         ) : (
-          <div className="space-y-8">
+          <div className="space-y-8 pb-8 border-b border-zinc-200">
             {members.map((member, idx) => {
               const complete = isMemberComplete(member);
 
@@ -317,7 +317,7 @@ export default function Step2GobiernoRL({
       </div>
 
       {/* Card: REPRESENTANTE LEGAL O APODERADO */}
-      <div className="bg-white rounded-2xl p-6 md:p-8 shadow-xl border border-zinc-200">
+      <div className="p-6 md:p-8">
         <h3 className="text-sm font-bold tracking-widest text-[#052B48] uppercase border-b border-zinc-200 pb-3 mb-6 flex items-center justify-between">
           <span>REPRESENTANTE LEGAL O APODERADO</span>
           <span className="text-[10px] text-zinc-400 lowercase font-normal italic">RL - Datos Personales</span>
@@ -530,7 +530,11 @@ export default function Step2GobiernoRL({
       </div>
 
       {/* Card: PREGUNTA LEGAL AML */}
-      <div className="bg-white rounded-2xl p-6 md:p-8 shadow-xl border border-zinc-200 text-zinc-800 space-y-4">
+      <div className="p-6 md:p-8 shadow-xl space-y-4">
+        <h3 className="text-sm font-bold tracking-widest text-[#052B48] uppercase border-b border-zinc-200 pb-3 mb-6 flex items-center justify-between">
+          <span>PREGUNTA LEGAL AML</span>
+          <span className="text-[10px] text-zinc-400 lowercase font-normal italic">Requerido</span>
+        </h3>
         <p className="text-xs md:text-sm font-medium leading-relaxed text-zinc-700">
           Indique si el Representante Legal, Apoderado o la Sociedad misma son o han sido objeto de investigación, indagación, condena por actividad ilícita, delitos de blanqueo de capitales o financiamiento de terrorismo, fraude o corrupción pública o algunos de los delitos establecidos en el ART.254-A del código penal.
         </p>

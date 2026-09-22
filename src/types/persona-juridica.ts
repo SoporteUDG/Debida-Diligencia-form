@@ -20,6 +20,19 @@ export interface BfMember {
   direccion: string;
 }
 
+interface PersonDocument {
+  personType: "GJC" | "BF" | "RL";
+  personId: string;      
+  documentType: "copiaIdFile"; // room to grow if you ever add more per-person doc types
+  fileName: string;
+}
+
+export type DocumentTarget =
+  | { kind: "static"; field: keyof FormState; fileName?: string }
+  | { kind: "person"; personType: "GJC" | "BF" | "RL"; personId: string; documentType: "copiaIdFile" };
+
+
+
 export interface FormState {
   // Step 1: Initial Info
   nombreProyecto: string;
@@ -102,22 +115,15 @@ export interface FormState {
   bancoReferencia: string;
   
   // Step 4: Documents
-  copiaIdFile: string;
-  origenFondosFile: string;
-  pactoSocialFile: string;
+  personDocuments: PersonDocument[];
+  origenFondosFile: string[]; // multi-file field
+  pactoSocialFile: string[];
   avisoOperacionesFile: string;
   serviciosPublicosFile: string;
   certBancariaFile: string;
   certRegistroFile: string;
   certComprasFile: string;
 
-  checkedCopiaId: boolean;
-  checkedOrigenFondos: boolean;
-  checkedPactoSocial: boolean;
-  checkedAvisoOperaciones: boolean;
-  checkedServiciosPublicos: boolean;
-  checkedCertBancaria: boolean;
-  checkedCertRegistro: boolean;
   
   // Step 5: Terms and Signature
   termsAccepted: boolean;
@@ -237,22 +243,15 @@ export const INITIAL_FORM_STATE: FormState = {
   bancoReferencia: "",
   
   // Step 4
-  copiaIdFile: "",
-  origenFondosFile: "",
-  pactoSocialFile: "",
+  personDocuments: [],
+  origenFondosFile: [""],
+  pactoSocialFile: [""],
   avisoOperacionesFile: "",
   serviciosPublicosFile: "",
   certBancariaFile: "",
   certRegistroFile: "",
   certComprasFile: "",
 
-  checkedCopiaId: false,
-  checkedOrigenFondos: false,
-  checkedPactoSocial: false,
-  checkedAvisoOperaciones: false,
-  checkedServiciosPublicos: false,
-  checkedCertBancaria: false,
-  checkedCertRegistro: false,
   
   // Step 5
   termsAccepted: false,

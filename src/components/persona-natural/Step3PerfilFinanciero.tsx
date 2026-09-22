@@ -69,24 +69,24 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, onSearc
   };
 
   return (
-    <div className="space-y-8">
+    <div className="bg-white rounded-2xl shadow-xl border border-zinc-200 space-y-8">
 
       {/* Card A: PERFIL FINANCIERO */}
-      <div className="bg-white rounded-2xl p-6 md:p-8 shadow-xl border border-zinc-200 space-y-6 text-[#1a1c1a] font-sans">
-        <div className="text-center md:text-left border-b border-zinc-200 pb-3">
-          <h3 className="text-sm font-bold tracking-widest text-[#052B48] uppercase">
-            PERFIL FINANCIERO
+      <div className="p-6 md:p-8 space-y-6 text-[#1a1c1a] font-sans">
+        <div className="text-center">
+          <h3 className="text-sm font-bold tracking-widest text-[#052B48] uppercase border-b border-zinc-200 pb-3 mb-6 flex items-center justify-between">
+            <span>PERFIL FINANCIERO</span>
           </h3>
-          <p className="text-[10px] font-bold text-zinc-500 uppercase mt-1 tracking-wider">
-            DECLARO QUE TODAS LAS ACTIVIDADES QUE EJERZO SON DE ORIGEN LICITO Y LEGAL
+          <p className="text-xs md:text-sm font-semibold tracking-wider text-zinc-800 italic uppercase">
+            DECLARO QUE TODAS LAS ACTIVIDADES QUE EJERZO SON DE ORIGEN LÍCITO Y LEGAL
           </p>
         </div>
 
-        <div className="flex flex-col gap-2 max-w-md">
-          <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="ingresosMensuales">
+        <div className="max-w-md mx-auto pt-4 text-left">
+          <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700 block mb-2" htmlFor="ingresosMensuales">
             Ingresos Mensuales Aproximados Son de <span className="text-red-500 font-bold">*</span>
           </label>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <div className="relative w-full">
               <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500 font-bold text-sm select-none">$</span>
               <input
@@ -94,7 +94,7 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, onSearc
                 inputMode="decimal"
                 id="ingresosMensuales"
                 name="ingresosMensuales"
-                value={formData.ingresosMensuales || ""}
+                value={formData.ingresosMensuales}
                 onChange={(e) => {
                   const val = e.target.value.replace(/[^0-9.,]/g, "");
                   const syntheticEvent = {
@@ -115,12 +115,15 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, onSearc
                     e.preventDefault();
                   }
                 }}
-                placeholder="5,000.00"
-                className={`${errors.ingresosMensuales ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg pl-8 pr-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full font-medium`}
-                required
+                placeholder="Monto estimado mensual"
+                className={`w-full border rounded-lg pl-8 pr-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 font-medium ${
+                  errors.ingresosMensuales
+                    ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20"
+                    : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"
+                }`}
               />
             </div>
-            <span className="text-sm font-semibold text-zinc-650">USD</span>
+            <span className="text-xs font-bold text-zinc-600 tracking-wider">USD</span>
           </div>
           {errors.ingresosMensuales && (
             <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
@@ -131,7 +134,7 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, onSearc
       </div>
 
       {/* Card B: MEDIO DE PAGO / FONDOS */}
-      <div className="bg-white rounded-2xl p-6 md:p-8 shadow-xl border border-zinc-200 space-y-6 text-[#1a1c1a] font-sans">
+      <div className=" p-6 md:p-8 space-y-6 text-[#1a1c1a] font-sans">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
           <div className="flex flex-col gap-2.5 md:col-span-2">
@@ -362,7 +365,7 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, onSearc
       </div>
 
       {/* Card C: IDENTIFICACIÓN DEL BENEFICIARIO DEL INMUEBLE */}
-      <div className="bg-white rounded-2xl p-6 md:p-8 shadow-xl border border-zinc-200 space-y-6 text-[#1a1c1a] font-sans">
+      <div className="p-6 md:p-8 space-y-6 text-[#1a1c1a] font-sans">
         <h3 className="text-sm font-bold tracking-widest text-[#052B48] uppercase border-b border-zinc-200 pb-3">
           IDENTIFICACIÓN DEL BENEFICIARIO DEL INMUEBLE
         </h3>
@@ -448,7 +451,7 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, onSearc
       </div>
 
       {/* Card D: PERSONA EXPUESTA POLÍTICAMENTE (PEP) */}
-      <div className="bg-white rounded-2xl p-6 md:p-8 shadow-xl border border-zinc-200 space-y-6 text-[#1a1c1a] font-sans">
+      <div className="p-6 md:p-8 space-y-6 text-[#1a1c1a] font-sans">
         <h3 className="text-sm font-bold tracking-widest text-[#052B48] uppercase border-b border-zinc-200 pb-3">
           PERSONA EXPUESTA POLÍTICAMENTE (PEP)
         </h3>

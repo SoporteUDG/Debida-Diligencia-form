@@ -1,6 +1,6 @@
 import { router, publicProcedure, tokenProcedure, adminProcedure } from "../trpc";
 import { z } from "zod";
-import { reactivateToken, generateToken, signUuid, revokeToken } from "@/lib/tokenService";
+import { reactivateToken, generateToken, signUuid, revokeToken, verifySignature } from "@/lib/tokenService";
 import { documentsRouter } from "./documents";
 import { naturalFormSchema, juridicaFormSchema } from "@/lib/validation";
 import { syncFormToCrm } from "@/lib/crmSyncService";
@@ -893,6 +893,143 @@ export const appRouter = router({
         clientUrl,
         draftId: draft.id,
         debidaCrmId: targetCrmId,
+      };
+    }),
+
+  // 4.9 Public read-only view of an expediente, resolved from the client's form link.
+  // Ignores the token's used/expired state on purpose: the link is only used to *look* at data,
+  // never to edit it (editing still goes through tokenProcedure + reactivar).
+  getFormView: publicProcedure
+    .input(
+      z.object({
+        link: z.string().min(1, "Se requiere el enlace del formulario"),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      // 1. Extract the raw token from a full URL or accept a bare token
+      let rawToken = input.link.trim();
+      if (rawToken.includes("token=") || rawToken.includes("t=")) {
+        try {
+          const url = new URL(rawToken.startsWith("http") ? rawToken : `https://x/${rawToken.replace(/^\/+/, "")}`);
+          rawToken = url.searchParams.get("token") || url.searchParams.get("t") || "";
+        } catch {
+          const match = rawToken.match(/(?:token|t)=([^&#?]+)/);
+          rawToken = match ? decodeURIComponent(match[1]) : "";
+        }
+      }
+
+      if (!rawToken) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "No se pudo extraer el token del enlace proporcionado" });
+      }
+
+      // 2. Resolve the token UUID (same formats verifyToken accepts), skipping used/expiry checks
+      let tokenUuid = rawToken;
+      let tokenContactId: string | null = null;
+      const isLocalDraft = rawToken.startsWith("draft-nat-") || rawToken.startsWith("draft-jur-");
+
+      if (!isLocalDraft) {
+        if (rawToken.includes(".")) {
+          const parts = rawToken.split(".");
+          if (parts.length !== 2 || !verifySignature(parts[0], parts[1])) {
+            throw new TRPCError({ code: "UNAUTHORIZED", message: "Enlace inválido: la firma del token no es válida" });
+          }
+          tokenUuid = parts[0];
+        }
+
+        const dbToken = await ctx.prisma.token.findUnique({ where: { token: tokenUuid } });
+        if (!dbToken) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Enlace no reconocido: el token no existe" });
+        }
+        tokenContactId = dbToken.crmContactId;
+      }
+
+      // 3. Locate the draft and (if submitted) the persisted form
+      const draft = await ctx.prisma.draft.findUnique({
+        where: { token: tokenUuid },
+        include: {
+          crmContact: true,
+          documents: { where: { deletedAt: null }, orderBy: { createdAt: "asc" } },
+        },
+      });
+
+      const draftData = (draft?.data || {}) as any;
+      const submittedFormId: string | undefined = draftData.submittedFormId;
+      const contactId = draft?.crmContactId || tokenContactId;
+
+      // A draft that has not been submitted is shown as-is (work in progress). A submitted draft
+      // resolves to its form. With no draft at all, fall back to the contact's latest submission
+      // (covers drafts removed after submission).
+      const formInclude = {
+        signature: true,
+        legalRepresentative: true,
+        gjcMembers: true,
+        bfMembers: true,
+        documents: { where: { deletedAt: null }, orderBy: { createdAt: "asc" as const } },
+        crmContact: true,
+      };
+      const form = submittedFormId
+        ? await ctx.prisma.form.findFirst({ where: { id: submittedFormId, deletedAt: null }, include: formInclude })
+        : !draft && contactId
+          ? await ctx.prisma.form.findFirst({
+              where: { crmContactId: contactId, deletedAt: null },
+              orderBy: { submittedAt: "desc" },
+              include: formInclude,
+            })
+          : null;
+
+      if (!draft && !form) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "No se encontró ningún expediente asociado a este enlace" });
+      }
+
+      // 4. Build the read-only payload. conclusionesVerificacion is internal-only, never exposed here.
+      const source = form ? (form.data as any) : draftData;
+      const { conclusionesVerificacion: _omit, completed: _c, submittedFormId: _s, ...data } = source || {};
+      const type = (form?.type || draft?.type || "NATURAL").toLowerCase() as "natural" | "juridica";
+      const clientName = form
+        ? form.clientName
+        : type === "natural"
+          ? `${data.firstName || ""} ${data.lastName || ""}`.trim() || "Cliente Natural"
+          : data.razonSocial || "Empresa Registrada";
+
+      const mapDoc = (d: any) => ({
+        id: d.id,
+        name: d.name,
+        fileType: d.fileType,
+        documentType: d.documentType,
+        personType: d.personType,
+        personId: d.personId,
+        status: d.status,
+        createdAt: d.createdAt.toISOString(),
+      });
+
+      await logAuditEvent({
+        action: "FORM_VIEW",
+        entityName: form ? "Form" : "Draft",
+        entityId: form?.id || draft?.id || null,
+        ipAddress: ctx.ip,
+        userAgent: ctx.userAgent,
+        details: { tokenUuid, status: form ? "SUBMITTED" : "DRAFT" },
+      });
+
+      return {
+        success: true,
+        type,
+        status: form ? form.status : "DRAFT",
+        step: form ? null : draft?.step ?? null,
+        formId: form?.id || null,
+        clientName,
+        projectName: form?.projectName || data.nombreProyecto || "General UDG",
+        submittedAt: form?.submittedAt ? form.submittedAt.toISOString() : null,
+        updatedAt: (form?.updatedAt || draft?.updatedAt || new Date()).toISOString(),
+        data,
+        documents: (form?.documents || draft?.documents || []).map(mapDoc),
+        signature: form?.signature
+          ? {
+              signerName: form.signature.signerName,
+              signatureDate: form.signature.signatureDate.toISOString(),
+              firmaImage: form.signature.firmaImage,
+            }
+          : null,
       };
     }),
 

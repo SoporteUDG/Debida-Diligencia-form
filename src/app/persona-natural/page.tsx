@@ -73,12 +73,20 @@ const groupByStep = (items: ValidationSummaryItem[]) => {
   return groups;
 };
 
+// Document slots that hold several files (array of file names)
+const MULTI_FILE_FIELDS: (keyof FormState)[] = ["origenFondosFile", "hasEstadoCuenta"];
+
 const normalizeFormData = (dbData: any): FormState => {
   const normalized = { ...INITIAL_FORM_STATE, ...dbData };
   for (const key of Object.keys(normalized)) {
     if ((normalized as any)[key] === null || (normalized as any)[key] === undefined) {
       (normalized as any)[key] = (INITIAL_FORM_STATE as any)[key] ?? "";
     }
+  }
+  // Older drafts stored these as a single string; coerce to array
+  for (const key of MULTI_FILE_FIELDS) {
+    const val = (normalized as any)[key];
+    if (typeof val === "string") (normalized as any)[key] = val ? [val] : [];
   }
   return normalized;
 };
@@ -299,8 +307,18 @@ export default function PersonaNaturalPage() {
 
         // Set success states
         setUploadProgress(prev => ({ ...prev, [fieldName]: 100 }));
-        setUploadStatus(prev => ({ ...prev, [fieldName]: "success" }));
-        setFormData(prev => ({ ...prev, [fieldName]: data.document.name }));
+        if (MULTI_FILE_FIELDS.includes(fieldName)) {
+          setFormData(prev => ({
+            ...prev,
+            [fieldName]: [...((prev[fieldName] as string[]) || []), data.document.name],
+          }));
+          // Back to idle (skip "success") so the upload button reappears
+          // immediately and the user can keep adding files.
+          setUploadStatus(prev => ({ ...prev, [fieldName]: "idle" }));
+        } else {
+          setUploadStatus(prev => ({ ...prev, [fieldName]: "success" }));
+          setFormData(prev => ({ ...prev, [fieldName]: data.document.name }));
+        }
         setErrors(prev => {
           const copy = { ...prev };
           delete copy[fieldName];
@@ -324,9 +342,12 @@ export default function PersonaNaturalPage() {
     };
   };
 
-  const handleRemoveFile = async (fieldName: keyof FormState) => {
-    const fileName = formData[fieldName];
-    if (!fileName) return;
+  const handleRemoveFile = async (fieldName: keyof FormState, fileName?: string) => {
+    const isMultiField = MULTI_FILE_FIELDS.includes(fieldName);
+    const hadFile = isMultiField && fileName
+      ? ((formData[fieldName] as string[]) || []).includes(fileName)
+      : !!formData[fieldName];
+    if (!hadFile) return;
 
     if (confirm("¿Estás seguro de que deseas eliminar este documento cargado?")) {
       try {
@@ -342,6 +363,7 @@ export default function PersonaNaturalPage() {
           body: JSON.stringify({
             draftId: draftToken,
             fieldName: fieldName,
+            ...(isMultiField && fileName ? { fileName } : {}),
           }),
         });
 
@@ -351,7 +373,14 @@ export default function PersonaNaturalPage() {
         }
 
         // Reset states on success
-        setFormData(prev => ({ ...prev, [fieldName]: "" }));
+        if (isMultiField && fileName) {
+          setFormData(prev => ({
+            ...prev,
+            [fieldName]: ((prev[fieldName] as string[]) || []).filter(f => f !== fileName),
+          }));
+        } else {
+          setFormData(prev => ({ ...prev, [fieldName]: isMultiField ? [] : "" }));
+        }
         setUploadStatus(prev => ({ ...prev, [fieldName]: "idle" }));
         setUploadProgress(prev => ({ ...prev, [fieldName]: 0 }));
 
@@ -424,7 +453,11 @@ export default function PersonaNaturalPage() {
       window.scrollTo({ top: 0, behavior: "smooth" });
     } else {
       setTimeout(() => {
-        const firstError = document.querySelector(".text-red-500");
+        const errorElements = document.querySelectorAll(".text-red-500");
+        const firstError = Array.from(errorElements).find(element =>
+          element.textContent?.includes("⚠️")
+        );
+        console.log("Scrolling to first error:", firstError, currentStep);
         if (firstError) {
           firstError.scrollIntoView({ behavior: "smooth", block: "center" });
         }
@@ -436,7 +469,10 @@ export default function PersonaNaturalPage() {
     const isFinalValid = validateStep(3);
     if (!isFinalValid) {
       setTimeout(() => {
-        const firstError = document.querySelector(".text-red-500");
+        const errorElements = document.querySelectorAll(".text-red-500");
+        const firstError = Array.from(errorElements).find(element =>
+          element.textContent?.includes("⚠️")
+        );
         if (firstError) {
           firstError.scrollIntoView({ behavior: "smooth", block: "center" });
         }
@@ -482,8 +518,6 @@ export default function PersonaNaturalPage() {
       { key: "actEconPrincipal", label: "Actividad Económica Principal", step: 1 },
       { key: "actEconSecundaria", label: "Actividad Económica Secundaria", step: 1 },
       { key: "origenFondosFile", label: "Documento: Origen de Fondos", step: 2 },
-      { key: "proofAddressFile", label: "Documento: Factura de Servicios Públicos", step: 2 },
-      { key: "otrosAdjuntosFile", label: "Documento: Otros Adjuntos", step: 2 }
     ];
 
     if (formData.esPep === "Sí") {
@@ -497,6 +531,7 @@ export default function PersonaNaturalPage() {
 
     const emptyOptionals = optionalFieldsToCheck.filter(field => {
       const val = formData[field.key as keyof FormState];
+      if (Array.isArray(val)) return val.filter(f => typeof f === "string" && f.trim() !== "").length === 0;
       return !val || (typeof val === "string" && val.trim() === "");
     });
 

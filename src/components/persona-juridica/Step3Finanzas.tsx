@@ -23,20 +23,26 @@ export default function Step3Finanzas({
   errors = {},
 }: Step3Props) {
   return (
-    <div className="space-y-8">
+    <div className="space-y-4 bg-white rounded-2xl ">
       
       {/* SECTION 1: BENEFICIARIO (S) FINAL (ES) */}
-      <div className="bg-white rounded-2xl p-6 md:p-8 shadow-xl border border-zinc-200 text-center">
+      <div className="p-6 md:p-8 text-center">
         <h3 className="text-base md:text-lg font-serif font-bold tracking-widest text-[#052B48] uppercase border-b border-zinc-200 pb-3 mb-4">
           BENEFICIARIO (S) FINAL (ES) 
         </h3>
         <p className="text-xs text-red-600 italic leading-relaxed max-w-3xl mx-auto">
           Persona o personas naturales que, directa o indirectamente, poseen, controlan y/o ejercen influencia significativa sobre la relación de cuenta, relación contractual y/o de negocios o la persona natural en cuyo nombre o beneficio se realiza una transacción, lo cual incluye también a las personas naturales que ejercen control final sobre una persona jurídica.
         </p>
+        <h3 className="text-base md:text-lg font-serif font-bold tracking-widest text-[#052B48] uppercase border-b border-zinc-200 pb-3 mb-4">
+        </h3>
       </div>
 
       {/* Dynamic or Fixed BF Cards */}
-      <div className="space-y-6">
+      <div className="p-6 md:p-8 space-y-4">
+        <h3 className="text-sm font-bold tracking-widest text-[#052B48] uppercase border-b border-zinc-200 pb-3 mb-6 flex items-center justify-between">
+          <span>Beneficiarios</span>
+          <span className="text-[10px] text-zinc-400 lowercase font-normal italic">Pueden ser multiples</span>
+        </h3>
         {errors.bfMembers && (
           <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-800 text-xs mb-4">
             ⚠️ {errors.bfMembers}
@@ -219,24 +225,23 @@ export default function Step3Finanzas({
             </div>
           </div>
         ))}
-      </div>
-
-      <div className="flex justify-end">
-        <button
-          type="button"
-          onClick={onAddBfMember}
-          className="inline-flex items-center gap-1.5 text-xs text-white bg-[#052B48] border border-[#c8a788]/40 px-4 py-2 rounded-lg hover:bg-[#081827] transition cursor-pointer font-semibold"
-        >
-          <Plus className="h-4 w-4" />
-          Agregar Beneficiario Final
-        </button>
-      </div>
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={onAddBfMember}
+            className="inline-flex items-center gap-1.5 text-xs text-white bg-[#052B48] border border-[#c8a788]/40 px-4 py-2 rounded-lg hover:bg-[#081827] transition cursor-pointer font-semibold"
+          >
+            <Plus className="h-4 w-4" />
+            Agregar Beneficiario Final
+          </button>
+        </div>
+      </div>  
 
       {/* SECTION 2: PERFIL FINANCIERO */}
       <div className="space-y-6">
-        <div className="bg-white rounded-2xl p-6 md:p-8 shadow-xl border border-zinc-200 text-center space-y-4">
-          <h3 className="text-base md:text-lg font-serif font-bold tracking-widest text-[#052B48] uppercase border-b border-zinc-200 pb-3">
-            PERFIL FINANCIERO
+        <div className="p-6 md:p-8 text-center">
+          <h3 className="text-sm font-bold tracking-widest text-[#052B48] uppercase border-b border-zinc-200 pb-3 mb-6 flex items-center justify-between">
+            <span>PERFIL FINANCIERO</span>
           </h3>
           <p className="text-xs md:text-sm font-semibold tracking-wider text-zinc-800 italic uppercase">
             DECLARO QUE TODAS LAS ACTIVIDADES QUE EJERZO SON DE ORIGEN LÍCITO Y LEGAL
@@ -293,7 +298,7 @@ export default function Step3Finanzas({
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl p-6 md:p-8 shadow-xl border border-zinc-200">
+        <div className="p-6 md:p-8">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-[#1a1c1a]">
             <div className="flex flex-col gap-2.5 md:col-span-2">
               <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700">
@@ -601,9 +606,9 @@ export default function Step3Finanzas({
       </div>
 
       {/* SECTION 3: PERSONA EXPUESTA POLÍTICAMENTE (PEP) */}
-      <div className="bg-white rounded-2xl p-6 md:p-8 shadow-xl border border-zinc-200 text-zinc-800 space-y-6">
-        <h3 className="text-base md:text-lg font-serif font-bold tracking-widest text-[#052B48] uppercase border-b border-zinc-200 pb-3">
-          PERSONA EXPUESTA POLÍTICAMENTE (PEP)
+      <div className="p-6 md:p-8 text-zinc-800 space-y-6">
+        <h3 className="text-sm font-bold tracking-widest text-[#052B48] uppercase border-b border-zinc-200 pb-3 mb-6 flex items-center justify-between">
+          <span>PERSONA EXPUESTA POLÍTICAMENTE (PEP)</span>
         </h3>
 
         <div className="bg-[#f4f6f8] p-5 rounded-xl border border-zinc-200 text-xs leading-relaxed text-zinc-700 space-y-2">

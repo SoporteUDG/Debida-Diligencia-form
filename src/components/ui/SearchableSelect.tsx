@@ -11,6 +11,7 @@ interface SearchableSelectProps {
   placeholder?: string;
   className?: string;
   hasError?: boolean;
+disabled?: boolean;
 }
 
 export default function SearchableSelect({
@@ -21,6 +22,7 @@ export default function SearchableSelect({
   placeholder = "Selecciona una opción...",
   className = "",
   hasError = false,
+  disabled = false,
 }: SearchableSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -52,15 +54,11 @@ export default function SearchableSelect({
       <button
         type="button"
         id={id}
-        onClick={() => {
-          setIsOpen(!isOpen);
-          setSearch(""); // Reset search on open
-        }}
-        className={`w-full border rounded-lg px-4 py-3 text-sm text-left flex items-center justify-between text-zinc-800 focus:outline-none focus:ring-1 transition cursor-pointer ${
-          hasError
-            ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20"
-            : "bg-[#f4f6f8] border-zinc-350 focus:border-[#002b49] focus:ring-[#002b49]/20"
-        }`}
+        disabled={disabled} 
+        onClick={() => { if (disabled) return; 
+          setIsOpen(!isOpen); 
+          setSearch(""); }}
+        className={`w-full border rounded-lg px-4 py-3 text-sm text-left flex items-center justify-between text-zinc-800 focus:outline-none focus:ring-1 transition ${ disabled ? "bg-zinc-100 border-zinc-300 text-zinc-400 cursor-not-allowed opacity-70" : hasError ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20 cursor-pointer" : "bg-[#f4f6f8] border-zinc-350 focus:border-[#002b49] focus:ring-[#002b49]/20 cursor-pointer" }`}
       >
         <span className={value ? "text-zinc-800" : "text-zinc-450"}>
           {value || placeholder}
@@ -68,7 +66,7 @@ export default function SearchableSelect({
         <ChevronDown className={`h-4 w-4 text-zinc-400 transition-transform ${isOpen ? "rotate-180" : ""}`} />
       </button>
 
-      {isOpen && (
+      {isOpen && !disabled && (
         <div className="absolute z-50 mt-1 w-full bg-white border border-zinc-300 rounded-lg shadow-2xl overflow-hidden animate-fadeIn text-zinc-800">
           {/* Search Input */}
           <div className="p-2 border-b border-zinc-200 flex items-center gap-2 bg-[#f4f6f8]">
