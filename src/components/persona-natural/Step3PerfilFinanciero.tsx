@@ -69,10 +69,10 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, onSearc
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-xl border border-zinc-200 space-y-8">
+    <div className="bg-white rounded-2xl shadow-xl border border-zinc-200">
 
       {/* Card A: PERFIL FINANCIERO */}
-      <div className="p-6 md:p-8 space-y-6 text-[#1a1c1a] font-sans">
+      <div className="px-6 md:px-8 pt-6 space-y-6 text-[#1a1c1a] font-sans">
         <div className="text-center">
           <h3 className="text-sm font-bold tracking-widest text-[#052B48] uppercase border-b border-zinc-200 pb-3 mb-6 flex items-center justify-between">
             <span>PERFIL FINANCIERO</span>
@@ -134,7 +134,7 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, onSearc
       </div>
 
       {/* Card B: MEDIO DE PAGO / FONDOS */}
-      <div className=" p-6 md:p-8 space-y-6 text-[#1a1c1a] font-sans">
+      <div className="px-6 md:px-8 pt-6 space-y-6 text-[#1a1c1a] font-sans">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
           <div className="flex flex-col gap-2.5 md:col-span-2">
@@ -365,7 +365,7 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, onSearc
       </div>
 
       {/* Card C: IDENTIFICACIÓN DEL BENEFICIARIO DEL INMUEBLE */}
-      <div className="p-6 md:p-8 space-y-6 text-[#1a1c1a] font-sans">
+      <div className="px-6 md:px-8 pt-6 space-y-6 text-[#1a1c1a] font-sans">
         <h3 className="text-sm font-bold tracking-widest text-[#052B48] uppercase border-b border-zinc-200 pb-3">
           IDENTIFICACIÓN DEL BENEFICIARIO DEL INMUEBLE
         </h3>
@@ -451,7 +451,7 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, onSearc
       </div>
 
       {/* Card D: PERSONA EXPUESTA POLÍTICAMENTE (PEP) */}
-      <div className="p-6 md:p-8 space-y-6 text-[#1a1c1a] font-sans">
+      <div className="px-6 md:px-8 py-6 space-y-6 text-[#1a1c1a] font-sans">
         <h3 className="text-sm font-bold tracking-widest text-[#052B48] uppercase border-b border-zinc-200 pb-3">
           PERSONA EXPUESTA POLÍTICAMENTE (PEP)
         </h3>

@@ -1148,7 +1148,7 @@ export function mapFormToCrmPayload(clientType: "NATURAL" | "JURIDICA", formData
     }
     if (formData.medioPago) payload["Medio_de_Pago"] = formData.medioPago;
     if (formData.propositoInmueble) payload["Prop_sito_del_inmueble"] = formData.propositoInmueble;
-    if (formData.ingresosMensuales) payload["Monto_anual_estimado"] = formData.ingresosMensuales;
+    if (formData.ingresosMensuales) payload["Monto_mensual_estimado"] = formData.ingresosMensuales;
     payload["A_nombre_de_otro"] = !!formData.terceroNombre;
   } else {
     payload["Name"] = formData.razonSocial || "Expediente Jurídico";
@@ -1174,7 +1174,7 @@ export function mapFormToCrmPayload(clientType: "NATURAL" | "JURIDICA", formData
     if (formData.origenFondos) payload["Origen_de_Fondos"] = formData.origenFondos;
     if (formData.propositoInmueble) payload["Prop_sito_del_inmueble"] = formData.propositoInmueble;
     if (formData.ingresosMensuales || formData.montoAnualEstimado) {
-      payload["Monto_anual_estimado"] = formData.ingresosMensuales || formData.montoAnualEstimado;
+      payload["Monto_mensual_estimado"] = formData.ingresosMensuales || formData.montoAnualEstimado;
     }
 
     // Subformulario: Beneficiarios Finales

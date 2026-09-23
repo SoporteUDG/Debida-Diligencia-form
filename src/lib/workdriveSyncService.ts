@@ -5,7 +5,7 @@ import {
   uploadFileToWorkDrive,
   createShareLink,
 } from "@/lib/workdriveService";
-import { generateCompleteDossierPDF } from "@/lib/completeDossierService";
+import { generateCompleteDossierPDF, PREFIJO_EXPEDIENTE_CONSOLIDADO } from "@/lib/completeDossierService";
 import { logAuditEvent } from "@/lib/auditService";
 import { zoho } from "@/lib/zohoService";
 
@@ -50,8 +50,16 @@ export async function syncFormToWorkDrive(formId: string) {
       });
     }
 
-    if (syncRecord.status === "SUCCESS" && syncRecord.folderUrl) {
-      console.log(`[WorkDrive Sync] Formulario ${formId} ya sincronizado exitosamente con anterioridad.`);
+    // Sólo se omite si la versión ya consolidada es la vigente. Tras una
+    // enmienda (v2, v3…) hay que regenerar el expediente consolidado.
+    if (
+      syncRecord.status === "SUCCESS" &&
+      syncRecord.folderUrl &&
+      (syncRecord.syncedVersion ?? 1) >= (form.currentVersion ?? 1)
+    ) {
+      console.log(
+        `[WorkDrive Sync] Formulario ${formId} ya sincronizado en su versión vigente (v${syncRecord.syncedVersion ?? 1}).`
+      );
       return { success: true, folderUrl: syncRecord.folderUrl };
     }
 
@@ -84,8 +92,24 @@ export async function syncFormToWorkDrive(formId: string) {
       return { success: true, mocked: true };
     }
 
+    // El expediente consolidado se arma SIEMPRE desde la versión sellada
+    // (FormVersion), nunca desde el borrador. Si por algún motivo no existe la
+    // fila de versión, se usa form.data, que es el mismo snapshot vigente.
+    const versionSellada = await prisma.formVersion.findFirst({
+      where: { formId: form.id },
+      orderBy: { version: "desc" },
+    });
+    const versionNumero = versionSellada?.version ?? form.currentVersion ?? 1;
+    const datosVersion = versionSellada?.data ?? form.data;
+
+    if (!versionSellada) {
+      console.warn(
+        `[WorkDrive Sync] El formulario ${formId} no tiene FormVersion sellada; se usa Form.data como respaldo.`
+      );
+    }
+
     // Determine folder structure parameters
-    const submittedAt = form.submittedAt || new Date();
+    const submittedAt = versionSellada?.submittedAt || form.submittedAt || new Date();
     const yearStr = submittedAt.getFullYear().toString();
     const monthStr = String(submittedAt.getMonth() + 1).padStart(2, "0");
 
@@ -109,19 +133,22 @@ export async function syncFormToWorkDrive(formId: string) {
 
       const targetFolderId = folderStructure.clientFolderId;
 
-      // 2. Generate the complete dossier PDF
-      console.log(`[WorkDrive Sync] Generando PDF consolidado para formulario ${formId}...`);
+      // 2. Generate the complete dossier PDF desde la VERSIÓN sellada
+      console.log(`[WorkDrive Sync] Generando PDF consolidado para formulario ${formId} (v${versionNumero})...`);
       const pdfBuffer = await generateCompleteDossierPDF(
         form.type,
-        form.data,
+        datosVersion,
         form.id,
         submittedAt,
         form.documents || [],
-        accessToken
+        accessToken,
+        versionNumero
       );
 
-      // 3. Upload dossier PDF to WorkDrive
-      const pdfFileName = `Expediente_Debida_Diligencia_${clientIdentifier}.pdf`;
+      // 3. Upload dossier PDF to WorkDrive.
+      //    El nombre incluye la versión: una enmienda no pisa el expediente
+      //    consolidado de la versión anterior.
+      const pdfFileName = `${PREFIJO_EXPEDIENTE_CONSOLIDADO}${clientIdentifier}_v${versionNumero}.pdf`;
       console.log(`[WorkDrive Sync] Subiendo "${pdfFileName}" a WorkDrive (carpeta ID: ${targetFolderId})...`);
 
       const fileId = await uploadFileToWorkDrive(
@@ -168,6 +195,7 @@ export async function syncFormToWorkDrive(formId: string) {
         status: "SUCCESS",
         folderUrl: result.shareUrl || `https://workdrive.zoho.com/home/folders/${result.targetFolderId}`,
         errorMessage: null,
+        syncedVersion: versionNumero,
       },
     });
 
@@ -176,7 +204,7 @@ export async function syncFormToWorkDrive(formId: string) {
       await prisma.document.create({
         data: {
           formId: form.id,
-          name: `Expediente_Debida_Diligencia_${clientIdentifier}.pdf`,
+          name: `${PREFIJO_EXPEDIENTE_CONSOLIDADO}${clientIdentifier}_v${versionNumero}.pdf`,
           fileType: "application/pdf",
           url: result.shareUrl || `/api/documents/download?fileId=${result.fileId}`,
           zohoFileId: result.fileId,

@@ -122,7 +122,11 @@ export async function getAccessToken(): Promise<string> {
     const expiresIn = data.expires_in || 3600;
     tokenCache.expiresAt = Date.now() + expiresIn * 1000;
 
-    console.log("[Zoho Auth] Nuevo token de acceso Zoho obtenido y cacheado.");
+    // El scope lo fija el refresh_token al momento de autorizarlo, no se puede
+    // cambiar desde aquí: registrarlo permite diagnosticar errores INVALID_OAUTHSCOPE.
+    console.log(
+      `[Zoho Auth] Nuevo token de acceso Zoho obtenido y cacheado. Scope: ${data.scope || "(no informado)"} | api_domain: ${data.api_domain || "(no informado)"}`
+    );
     return data.access_token;
   } catch (error: any) {
     const errMsg = error.message || String(error);

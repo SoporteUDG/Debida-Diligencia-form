@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import { Eye, Link2, Search, AlertCircle, Download, ArrowLeft, Lock } from "lucide-react";
+import { Eye, Link2, Search, AlertCircle, Download, ArrowLeft, Lock, RefreshCw } from "lucide-react";
 import FormReadOnlyView, { ViewData, ViewDocument, ViewSignature } from "@/components/view/FormReadOnlyView";
 import { generatePDF } from "@/lib/pdfGenerator";
+import { resolveFormType } from "@/lib/formTypeResolution";
 
 interface ViewResult {
   type: "natural" | "juridica";
@@ -78,14 +79,16 @@ export default function ViewPage() {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<ViewResult | null>(null);
   const [downloading, setDownloading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const lookup = async (value: string) => {
+  const lookup = async (value: string, opts: { refresh?: boolean } = {}) => {
     const trimmed = value.trim();
     if (!trimmed) {
       setError("Pegue el enlace del formulario para continuar.");
       return;
     }
-    setLoading(true);
+    if (opts.refresh) setRefreshing(true);
+    else setLoading(true);
     setError(null);
     try {
       const res = await fetch("/api/trpc/getFormView", {
@@ -100,10 +103,13 @@ export default function ViewPage() {
       }
       setResult(json.result?.data as ViewResult);
     } catch (e) {
-      setResult(null);
+      // Al recargar se conserva lo ya mostrado: un fallo puntual de red no debe
+      // devolver al usuario al formulario y obligarle a pegar el enlace otra vez.
+      if (!opts.refresh) setResult(null);
       setError(e instanceof Error ? e.message : "No se pudo consultar el expediente.");
     } finally {
-      setLoading(false);
+      if (opts.refresh) setRefreshing(false);
+      else setLoading(false);
     }
   };
 
@@ -119,12 +125,20 @@ export default function ViewPage() {
     }
   }, []);
 
+  // getFormView devuelve DRAFT mientras el expediente no se haya enviado; cualquier
+  // otro estado (SUBMITTED/REVIEWED/APPROVED/REJECTED) corresponde a un Form cerrado.
+  const isSubmitted = !!result && result.status !== "DRAFT";
+
+  // El tipo registrado puede no coincidir con lo que el cliente llenó; la
+  // insignia y el PDF deben seguir el mismo criterio que la vista.
+  const tipoExpediente = result ? resolveFormType(result.type, result.data).type : "natural";
+
   const handleDownload = async () => {
     if (!result) return;
     setDownloading(true);
     try {
       await generatePDF(
-        result.type,
+        tipoExpediente,
         result.data,
         result.formId || "BORRADOR",
         new Date(result.submittedAt || result.updatedAt).toLocaleDateString(),
@@ -133,6 +147,11 @@ export default function ViewPage() {
     } finally {
       setDownloading(false);
     }
+  };
+
+  const handleRefresh = () => {
+    if (refreshing || loading) return;
+    lookup(link, { refresh: true });
   };
 
   const reset = () => {
@@ -216,12 +235,21 @@ export default function ViewPage() {
           </div>
         ) : (
           <div className="animate-fadeIn space-y-6">
+            {/* Un error aquí sólo puede venir de una recarga fallida: el expediente
+                ya cargado sigue en pantalla y se avisa que puede estar desactualizado. */}
+            {error && (
+              <div className="flex items-start gap-2 text-red-300 bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-3 text-xs">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>{error} Se muestra la última consulta exitosa.</span>
+              </div>
+            )}
+
             {/* Summary bar */}
             <div className="bg-[#081827] border border-zinc-800/90 rounded-2xl p-6 md:p-8 shadow-xl flex flex-col md:flex-row md:items-center md:justify-between gap-6">
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2 mb-2">
                   <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-[#c8a788]/10 border border-[#c8a788]/30 text-[#c8a788] text-[10px] tracking-widest uppercase font-semibold">
-                    {result.type === "natural" ? "Persona Natural" : "Persona Jurídica"}
+                    {tipoExpediente === "natural" ? "Persona Natural" : "Persona Jurídica"}
                   </span>
                   <span
                     className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] tracking-widest uppercase font-semibold border ${
@@ -270,13 +298,27 @@ export default function ViewPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={handleDownload}
-                  disabled={downloading}
-                  className="inline-flex items-center justify-center gap-2 bg-[#c8a788] hover:bg-[#b08e6f] disabled:opacity-60 text-[#002b49] text-xs font-bold px-4 py-2.5 rounded-lg transition tracking-wider uppercase shadow-md cursor-pointer"
+                  onClick={handleRefresh}
+                  disabled={refreshing}
+                  title="Volver a consultar el expediente por si hubo cambios"
+                  className="inline-flex items-center justify-center gap-2 border border-zinc-700 hover:border-zinc-500 disabled:opacity-60 text-zinc-200 text-xs font-bold px-4 py-2.5 rounded-lg transition tracking-wider uppercase cursor-pointer"
                 >
-                  <Download className="w-4 h-4" />
-                  {downloading ? "Generando..." : "Descargar PDF"}
+                  <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
+                  {refreshing ? "Recargando..." : "Recargar"}
                 </button>
+                {/* El PDF sólo se emite sobre un expediente ya enviado: un borrador
+                    todavía puede cambiar y su descarga se prestaría a confusión. */}
+                {isSubmitted && (
+                  <button
+                    type="button"
+                    onClick={handleDownload}
+                    disabled={downloading}
+                    className="inline-flex items-center justify-center gap-2 bg-[#c8a788] hover:bg-[#b08e6f] disabled:opacity-60 text-[#002b49] text-xs font-bold px-4 py-2.5 rounded-lg transition tracking-wider uppercase shadow-md cursor-pointer"
+                  >
+                    <Download className="w-4 h-4" />
+                    {downloading ? "Generando..." : "Descargar PDF"}
+                  </button>
+                )}
               </div>
             </div>
 

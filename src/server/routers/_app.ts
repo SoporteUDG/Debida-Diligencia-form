@@ -8,6 +8,7 @@ import { syncFormToWorkDrive } from "@/lib/workdriveSyncService";
 import { TRPCError } from "@trpc/server";
 import { logAuditEvent, computeDiff, sanitizeDetails } from "@/lib/auditService";
 import { zoho, mergeCrmAndDraft } from "@/lib/zohoService";
+import { obtenerAutorizacionVigente, sellarNuevaVersion, sellarVersionInicial } from "@/lib/formVersionService";
 import { sanitizeInput } from "@/lib/sanitizer";
 
 /**
@@ -1050,12 +1051,19 @@ export const appRouter = router({
 
       const draftData = (draft.data || {}) as any;
 
-      // 2. Idempotency Check: If already submitted, return existing form ID
-      if (draftData.completed) {
+      // 2. Un expediente ya enviado está bloqueado. Sólo se puede modificar si
+      //    existe una autorización vigente creada al pulsar "Reactivar Enlace"
+      //    en Zoho CRM, que además identifica al responsable del cambio.
+      const autorizacion = draftData.completed && ctx.client!.crmContactId
+        ? await obtenerAutorizacionVigente(ctx.client!.crmContactId, draftData.submittedFormId)
+        : null;
+
+      if (draftData.completed && !autorizacion) {
         return {
           success: true,
           alreadySubmitted: true,
-          message: "El expediente ya ha sido completado y enviado anteriormente.",
+          message:
+            "El expediente ya fue enviado. Para modificarlo se debe reactivar el enlace desde Zoho CRM indicando el responsable del cambio.",
           submissionId: draftData.submittedFormId,
         };
       }
@@ -1097,13 +1105,181 @@ export const appRouter = router({
       const clientName = isNatural
         ? `${validatedData.firstName || ""} ${validatedData.lastName || ""}`.trim() || "Cliente Natural"
         : validatedData.razonSocial || "Empresa Registrada";
+      const projectName = validatedData.nombreProyecto || "General UDG";
+
+      // 4.a Reenvío autorizado: se actualiza el expediente existente y se sella
+      //     una versión nueva en lugar de crear un expediente duplicado.
+      if (autorizacion && draftData.submittedFormId) {
+        const existente = await ctx.prisma.form.findUnique({
+          where: { id: draftData.submittedFormId },
+        });
+
+        if (existente) {
+          const datosAnteriores = existente.data;
+
+          await ctx.prisma.form.update({
+            where: { id: existente.id },
+            data: {
+              clientName,
+              projectName,
+              data: validatedData as any,
+              conclusionesVerificacion: validatedData.conclusionesVerificacion || null,
+              status: "SUBMITTED",
+              submittedAt: new Date(),
+            },
+          });
+
+          await ctx.prisma.signature.upsert({
+            where: { formId: existente.id },
+            update: {
+              signerName: validatedData.signerName || clientName,
+              signatureDate: parsedSignatureDate,
+              firmaImage: validatedData.firmaImage || "NO_SIGNATURE",
+            },
+            create: {
+              formId: existente.id,
+              signerName: validatedData.signerName || clientName,
+              signatureDate: parsedSignatureDate,
+              firmaImage: validatedData.firmaImage || "NO_SIGNATURE",
+            },
+          });
+
+          if (!isNatural) {
+            // Se reemplazan las filas relacionales para que reflejen la versión
+            // vigente. Se conserva el id de cada persona: los documentos
+            // adjuntos apuntan a él mediante personId.
+            await ctx.prisma.gjcMember.deleteMany({ where: { formId: existente.id } });
+            await ctx.prisma.bfMember.deleteMany({ where: { formId: existente.id } });
+
+            const rlData = {
+              nombre: validatedData.rlNombre,
+              fechaNacimiento: validatedData.rlFechaNacimiento && !isNaN(new Date(validatedData.rlFechaNacimiento).getTime()) ? new Date(validatedData.rlFechaNacimiento) : null,
+              nacionalidad: validatedData.rlNacionalidad,
+              noIdentificacion: validatedData.rlNoIdentificacion,
+              profesionOcupacion: validatedData.rlProfesionOcupacion,
+              actividadEconomica: validatedData.rlActividadEconomica || null,
+              direccion: validatedData.rlDireccion || null,
+              paisResidencia: validatedData.rlPaisResidencia || null,
+              telefono: validatedData.rlTelefono || null,
+              objetoInvestigacion: validatedData.rlObjetoInvestigacion,
+            };
+            await ctx.prisma.legalRepresentative.upsert({
+              where: { formId: existente.id },
+              update: rlData,
+              create: { formId: existente.id, ...rlData },
+            });
+
+            for (const m of (validatedData.gjcMembers || []) as any[]) {
+              await ctx.prisma.gjcMember.create({
+                data: {
+                  ...(m.id ? { id: m.id } : {}),
+                  formId: existente.id,
+                  cargo: m.cargo,
+                  nombre: m.nombre,
+                  apellidos: m.apellidos,
+                  nacionalidad: m.nacionalidad,
+                  fechaNacimiento: m.fechaNacimiento && !isNaN(new Date(m.fechaNacimiento).getTime()) ? new Date(m.fechaNacimiento) : null,
+                  nroId: m.nroId,
+                  direccion: m.direccion,
+                },
+              });
+            }
+
+            for (const m of (validatedData.bfMembers || []) as any[]) {
+              await ctx.prisma.bfMember.create({
+                data: {
+                  ...(m.id ? { id: m.id } : {}),
+                  formId: existente.id,
+                  nombreCompleto: m.nombreCompleto,
+                  noIdentificacion: m.noIdentificacion,
+                  nacionalidad: m.nacionalidad,
+                  fechaAdquisicion: m.fechaAdquisicion && !isNaN(new Date(m.fechaAdquisicion).getTime()) ? new Date(m.fechaAdquisicion) : null,
+                  porcentajeParticipacion: m.porcentajeParticipacion,
+                  paisNacimiento: m.paisNacimiento,
+                  direccion: m.direccion,
+                },
+              });
+            }
+          }
+
+          // Documentos subidos durante la edición
+          await ctx.prisma.document.updateMany({
+            where: { OR: [{ draftId: draft.id }, { draftId: draft.token }] },
+            data: { formId: existente.id },
+          });
+
+          const nuevaVersion = await sellarNuevaVersion({
+            formId: existente.id,
+            data: validatedData,
+            status: "SUBMITTED",
+            clientName,
+            projectName,
+            autorizacion: {
+              id: autorizacion.id,
+              authorizedBy: autorizacion.authorizedBy,
+              reason: autorizacion.reason,
+            },
+            datosAnteriores,
+          });
+
+          await ctx.prisma.draft.update({
+            where: { id: draft.id },
+            data: { data: { ...draftData, completed: true, submittedFormId: existente.id } },
+          });
+
+          await ctx.prisma.auditLog.create({
+            data: {
+              action: "FORM_AMEND",
+              entityName: "Form",
+              entityId: existente.id,
+              ipAddress: ctx.ip,
+              userAgent: ctx.userAgent,
+              userId: null,
+              details: sanitizeDetails({
+                version: nuevaVersion.version,
+                authorizedBy: autorizacion.authorizedBy,
+                reason: autorizacion.reason,
+                changedFields: nuevaVersion.changedFields,
+              }),
+            },
+          });
+
+          // Se vuelve a cerrar el enlace: la autorización ya fue consumida
+          const rawTokenAmend = ctx.req.headers.get("authorization")?.replace("Bearer ", "") || ctx.req.headers.get("x-client-token");
+          if (rawTokenAmend && !rawTokenAmend.startsWith("draft-")) {
+            try {
+              const parts = rawTokenAmend.split(".");
+              const tokenUuid = parts.length === 2 ? parts[0] : rawTokenAmend;
+              await ctx.prisma.token.update({
+                where: { token: tokenUuid },
+                data: { used: true, updatedAt: new Date() },
+              });
+            } catch (tokenErr) {
+              console.error("[Submit Form] Error revoking access token tras enmienda:", tokenErr);
+            }
+          }
+
+          syncFormToCrm(existente.id).catch((e) => console.error("[Amend Sync CRM]", e));
+          syncFormToWorkDrive(existente.id).catch((e) => console.error("[Amend Sync WorkDrive]", e));
+
+          return {
+            success: true,
+            alreadySubmitted: false,
+            amended: true,
+            version: nuevaVersion.version,
+            authorizedBy: autorizacion.authorizedBy,
+            message: `Expediente actualizado correctamente (versión ${nuevaVersion.version}).`,
+            submissionId: existente.id,
+          };
+        }
+      }
 
       const dbForm = await ctx.prisma.form.create({
         data: {
           type: draft.type,
           status: "SUBMITTED",
           clientName,
-          projectName: validatedData.nombreProyecto || "General UDG",
+          projectName,
           crmContactId: ctx.client!.crmContactId || null,
           data: validatedData as any,
           conclusionesVerificacion: validatedData.conclusionesVerificacion || null,
@@ -1167,6 +1343,17 @@ export const appRouter = router({
           ],
         },
         data: { formId: dbForm.id },
+      });
+
+      // Sella la versión 1: el envío original del cliente, sin responsable
+      // porque nadie tuvo que autorizarlo.
+      await sellarVersionInicial({
+        id: dbForm.id,
+        data: validatedData,
+        status: dbForm.status,
+        clientName,
+        projectName,
+        submittedAt: dbForm.submittedAt,
       });
 
       // Initialize synchronization placeholders (parallel for speed)

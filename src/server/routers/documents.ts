@@ -11,6 +11,7 @@ import {
 import path from "path";
 import { logAuditEvent } from "@/lib/auditService";
 import { getAccessToken, executeWithRetry } from "@/lib/zohoAuthService";
+import { isMultiFileField, normalizeMultiFileValue } from "@/lib/documentFields";
 
 type UploadStage =
   | "INPUT_VALIDATION"
@@ -270,6 +271,32 @@ export const documentsRouter = router({
             },
           });
 
+          // Persistir el nombre en el borrador. Sin esto el archivo solo existe
+          // en Document/WorkDrive y depende del autoguardado del cliente, que
+          // puede perderse ante un conflicto de concurrencia o una recarga.
+          let draftUpdatedAt: string | null = null;
+          if (validDraftId && !input.personType) {
+            const draft = await ctx.prisma.draft.findUnique({ where: { id: validDraftId } });
+            if (draft) {
+              const draftData = { ...((draft.data as any) || {}) };
+              const field = input.documentType;
+
+              if (isMultiFileField(field)) {
+                const actuales = normalizeMultiFileValue(draftData[field]);
+                if (!actuales.includes(finalFileName)) actuales.push(finalFileName);
+                draftData[field] = actuales;
+              } else {
+                draftData[field] = finalFileName;
+              }
+
+              const updated = await ctx.prisma.draft.update({
+                where: { id: validDraftId },
+                data: { data: draftData },
+              });
+              draftUpdatedAt = updated.updatedAt.toISOString();
+            }
+          }
+
           // Log in audit trail
           await logAuditEvent({
             action: "DOCUMENT_UPLOAD",
@@ -291,6 +318,9 @@ export const documentsRouter = router({
 
           return {
             success: true,
+            // El cliente sincroniza su marca de tiempo con esta para que el
+            // siguiente autoguardado no se interprete como conflicto.
+            draftUpdatedAt,
             document: {
               id: documentRecord.id,
               name: documentRecord.name,
@@ -393,25 +423,28 @@ export const documentsRouter = router({
 
         // Also clean the fieldName in the draft's data JSON payload
         const draftData = { ...(draft.data as any) || {} };
+        let draftUpdatedAt: string | null = null;
         if (input.fieldName in draftData) {
-          const current = draftData[input.fieldName];
-          if (Array.isArray(current)) {
-            // Multi-file slot: drop just the removed file (or all when no fileName given)
+          if (isMultiFileField(input.fieldName)) {
+            // Multi-file slot: drop just the removed file (or all when no fileName given).
+            // Se normaliza primero para reparar borradores que guardaron "" o [""].
+            const current = normalizeMultiFileValue(draftData[input.fieldName]);
             draftData[input.fieldName] = input.fileName
               ? current.filter((f: string) => f !== input.fileName)
               : [];
           } else {
             draftData[input.fieldName] = "";
           }
-          await ctx.prisma.draft.update({
+          const updated = await ctx.prisma.draft.update({
             where: { token: input.draftId },
             data: {
               data: draftData,
             },
           });
+          draftUpdatedAt = updated.updatedAt.toISOString();
         }
 
-        return { success: true };
+        return { success: true, draftUpdatedAt };
       } catch (error: any) {
         console.error("[tRPC Delete] Falló al eliminar documento:", error);
         throw new TRPCError({

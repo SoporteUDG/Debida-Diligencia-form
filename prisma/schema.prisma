@@ -57,13 +57,13 @@ enum SyncStatus {
 
 // 1. AdminUser
 model AdminUser {
-  id           String      @id @default(uuid())
-  email        String      @unique
+  id           String     @id @default(uuid())
+  email        String     @unique
   passwordHash String
   name         String
-  role         AdminRole   @default(USER)
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  role         AdminRole  @default(USER)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
   deletedAt    DateTime?
   auditLogs    AuditLog[]
 
@@ -73,18 +73,19 @@ model AdminUser {
 
 // 2. CrmContact
 model CrmContact {
-  id        String      @id @default(uuid())
-  crmId     String      @unique
-  firstName String
-  lastName  String
-  email     String      @unique
-  phone     String?
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
-  deletedAt DateTime?
-  forms     Form[]
-  tokens    Token[]
-  drafts    Draft[]
+  id                 String                  @id @default(uuid())
+  crmId              String                  @unique
+  firstName          String
+  lastName           String
+  email              String                  @unique
+  phone              String?
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
+  deletedAt          DateTime?
+  forms              Form[]
+  tokens             Token[]
+  drafts             Draft[]
+  editAuthorizations FormEditAuthorization[]
 
   @@index([crmId])
   @@index([email])
@@ -93,34 +94,107 @@ model CrmContact {
 
 // 3. Form (Formulario)
 model Form {
-  id                       String               @id @default(uuid())
+  id                       String      @id @default(uuid())
   type                     FormType
-  status                   FormStatus           @default(SUBMITTED)
+  status                   FormStatus  @default(SUBMITTED)
   clientName               String
   projectName              String
   crmContactId             String?
-  crmContact               CrmContact?          @relation(fields: [crmContactId], references: [id], onDelete: SetNull)
-  data                     Json                 // Payload completo de FormState (JSONB)
-  conclusionesVerificacion String?              @db.Text
-  submittedAt              DateTime?            @default(now())
-  createdAt                DateTime             @default(now())
-  updatedAt                DateTime             @updatedAt
+  crmContact               CrmContact? @relation(fields: [crmContactId], references: [id], onDelete: SetNull)
+  data                     Json // Payload completo de FormState (JSONB) - siempre la versión vigente
+  conclusionesVerificacion String?     @db.Text
+  submittedAt              DateTime?   @default(now())
+  createdAt                DateTime    @default(now())
+  updatedAt                DateTime    @updatedAt
   deletedAt                DateTime?
 
+  // Número de la versión vigente. Cada reenvío autorizado lo incrementa.
+  currentVersion Int @default(1)
+
   // Relaciones hijas (Cascade onDelete)
-  gjcMembers               GjcMember[]
-  bfMembers                BfMember[]
-  legalRepresentative      LegalRepresentative?
-  signature                Signature?
-  documents                Document[]
-  crmSync                  CrmSync?
-  workDriveSync            WorkDriveSync?
-  sapSync                  SapSync?
+  gjcMembers          GjcMember[]
+  bfMembers           BfMember[]
+  legalRepresentative LegalRepresentative?
+  signature           Signature?
+  documents           Document[]
+  crmSync             CrmSync?
+  workDriveSync       WorkDriveSync?
+  sapSync             SapSync?
+  versions            FormVersion[]
+  editAuthorizations  FormEditAuthorization[]
 
   @@index([status])
   @@index([crmContactId])
   @@index([createdAt])
   @@index([submittedAt])
+}
+
+// 3.1 FormVersion (Historial de versiones del expediente)
+//
+// Cada envío sella una fila inmutable con el FormState completo. La v1 es el
+// envío original; cada reenvío autorizado mediante "Reactivar Enlace" agrega
+// una versión nueva. Form.data siempre refleja la versión vigente.
+model FormVersion {
+  id          String     @id @default(uuid())
+  formId      String
+  form        Form       @relation(fields: [formId], references: [id], onDelete: Cascade)
+  version     Int
+  data        Json // Snapshot íntegro del FormState en esta versión
+  status      FormStatus @default(SUBMITTED)
+  clientName  String
+  projectName String
+
+  // Responsable del cambio. En la v1 quedan nulos: nadie autorizó el envío
+  // original, es el expediente inicial del cliente.
+  authorizationId String?
+  authorization   FormEditAuthorization? @relation(fields: [authorizationId], references: [id], onDelete: SetNull)
+  authorizedBy    String? // Usuario de Zoho que pulsó "Reactivar Enlace"
+  reason          String?                @db.Text // Motivo declarado de la modificación
+
+  // Campos de primer nivel que cambiaron respecto de la versión anterior.
+  // Es un apoyo para la vista de auditoría; el dato autoritativo es `data`.
+  changedFields String[] @default([])
+
+  submittedAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  @@unique([formId, version])
+  @@index([formId])
+  @@index([authorizedBy])
+}
+
+// 3.2 FormEditAuthorization (Permiso para modificar un expediente ya enviado)
+//
+// Un expediente enviado queda bloqueado. "Reactivar Enlace" en Zoho CRM crea
+// una autorización pendiente que habilita exactamente UNA modificación; al
+// sellarse la versión nueva la autorización se marca como consumida.
+// Las autorizaciones sin consumir dejan constancia de reactivaciones que nunca
+// derivaron en un cambio.
+model FormEditAuthorization {
+  id           String     @id @default(uuid())
+  formId       String?
+  form         Form?      @relation(fields: [formId], references: [id], onDelete: Cascade)
+  crmContactId String
+  crmContact   CrmContact @relation(fields: [crmContactId], references: [id], onDelete: Cascade)
+  tokenUuid    String? // Token reactivado con el que se autorizó la edición
+
+  authorizedBy String // Quién autorizó (usuario de Zoho CRM)
+  reason       String? @db.Text
+  source       String  @default("ZOHO_REACTIVAR") // Origen de la autorización
+
+  expiresAt           DateTime // Coincide con la nueva vigencia del enlace
+  consumedAt          DateTime? // Se sella al crear la versión
+  consumedByVersionId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  versions FormVersion[]
+
+  @@index([crmContactId])
+  @@index([formId])
+  @@index([consumedAt])
+  @@index([tokenUuid])
 }
 
 // 4. Token
@@ -145,7 +219,7 @@ model Token {
 model Draft {
   id           String      @id @default(uuid())
   type         FormType
-  data         Json        // Progreso temporal del FormState
+  data         Json // Progreso temporal del FormState
   step         Int         @default(1)
   token        String      @unique
   crmContactId String?
@@ -161,20 +235,20 @@ model Draft {
 
 // 6. Document
 model Document {
-  id           String         @id @default(uuid())
-  formId       String?
-  form         Form?          @relation(fields: [formId], references: [id], onDelete: Cascade)
-  draftId      String?
-  draft        Draft?         @relation(fields: [draftId], references: [id], onDelete: Cascade)
-  name         String
-  fileType     String
-  url          String         @db.Text // URL en almacenamiento/WorkDrive
-  zohoFileId   String?        @db.Text // Identificador de archivo en Zoho WorkDrive
-  status       DocumentStatus @default(PENDING)
-  comments     String?        @db.Text
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
-  deletedAt    DateTime?
+  id         String         @id @default(uuid())
+  formId     String?
+  form       Form?          @relation(fields: [formId], references: [id], onDelete: Cascade)
+  draftId    String?
+  draft      Draft?         @relation(fields: [draftId], references: [id], onDelete: Cascade)
+  name       String
+  fileType   String
+  url        String         @db.Text // URL en almacenamiento/WorkDrive
+  zohoFileId String?        @db.Text // Identificador de archivo en Zoho WorkDrive
+  status     DocumentStatus @default(PENDING)
+  comments   String?        @db.Text
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+  deletedAt  DateTime?
 
   // Document "slot" identity (e.g. "copiaIdFile") - previously only encoded in `name`
   documentType String?
@@ -182,8 +256,8 @@ model Document {
   // Attribution to a specific dynamic person, when applicable.
   // personId matches GjcMember.id / BfMember.id (client-generated UUIDs, preserved
   // through submission - see submit/route.ts), or the literal "rl" for the legal rep.
-  personType   String? // "GJC" | "BF" | "RL"
-  personId     String?
+  personType String? // "GJC" | "BF" | "RL"
+  personId   String?
 
   @@index([formId])
   @@index([draftId])
@@ -217,7 +291,7 @@ model BfMember {
   noIdentificacion        String
   nacionalidad            String
   fechaAdquisicion        DateTime?
-  porcentajeParticipacion String?   // Guardado como texto para soportar rangos o valores ingresados
+  porcentajeParticipacion String? // Guardado como texto para soportar rangos o valores ingresados
   paisNacimiento          String
   direccion               String?   @db.Text
   createdAt               DateTime  @default(now())
@@ -281,6 +355,9 @@ model WorkDriveSync {
   form         Form       @relation(fields: [formId], references: [id], onDelete: Cascade)
   status       SyncStatus @default(PENDING)
   folderUrl    String?    @db.Text
+  // Versión del expediente ya consolidada en WorkDrive. Una enmienda deja este
+  // valor por debajo de Form.currentVersion y obliga a regenerar el PDF.
+  syncedVersion Int?
   attempts     Int        @default(0)
   lastAttempt  DateTime?
   errorMessage String?    @db.Text
@@ -309,10 +386,10 @@ model SapSync {
 // 14. AuditLog (Registro de Auditoría / Logs)
 model AuditLog {
   id         String     @id @default(uuid())
-  action     String     // Ejemplo: "USER_LOGIN", "FORM_SUBMIT", "FORM_APPROVE", "DOCUMENT_UPLOAD"
-  entityName String     // Ejemplo: "Form", "Document", "AdminUser"
+  action     String // Ejemplo: "USER_LOGIN", "FORM_SUBMIT", "FORM_APPROVE", "DOCUMENT_UPLOAD"
+  entityName String // Ejemplo: "Form", "Document", "AdminUser"
   entityId   String?
-  details    Json?      // Metadatos adicionales de la auditoría en formato JSON
+  details    Json? // Metadatos adicionales de la auditoría en formato JSON
   ipAddress  String?
   userAgent  String?
   userId     String?
@@ -323,4 +400,3 @@ model AuditLog {
   @@index([userId])
   @@index([entityName, entityId])
 }
-

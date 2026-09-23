@@ -6,7 +6,7 @@ import Link from "next/link";
 interface HeaderProps {
   isSaving: boolean;
   lastSaved: string | null;
-  saveStatus?: "idle" | "saving" | "saved" | "error";
+  saveStatus?: "idle" | "saving" | "saved" | "error" | "conflict";
 }
 
 export default function Header({ isSaving, lastSaved, saveStatus }: HeaderProps) {
@@ -34,10 +34,15 @@ export default function Header({ isSaving, lastSaved, saveStatus }: HeaderProps)
                 <div className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-ping"></div>
                 <span className="text-zinc-300 font-medium">Guardando borrador...</span>
               </>
+            ) : saveStatus === "conflict" ? (
+              <>
+                <div className="h-1.5 w-1.5 rounded-full bg-amber-400"></div>
+                <span className="text-amber-200 font-medium">Sin guardar: conflicto</span>
+              </>
             ) : saveStatus === "error" ? (
               <>
-                <div className="h-1.5 w-1.5 rounded-full bg-emerald-400"></div>
-                <span className="text-zinc-200 font-medium">Borrador autoguardado</span>
+                <div className="h-1.5 w-1.5 rounded-full bg-red-400"></div>
+                <span className="text-red-200 font-medium">No se pudo guardar</span>
               </>
             ) : lastSaved ? (
               <>

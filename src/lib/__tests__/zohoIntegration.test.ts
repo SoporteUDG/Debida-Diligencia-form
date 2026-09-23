@@ -316,14 +316,20 @@ describe("Zoho CRM & WorkDrive Integration Mocks", () => {
       expect(structure.subfolders["Cedula"]).toBe("sub_cedula_id");
     });
 
-    it("uploadFileToWorkDrive - should upload a file buffer via stream upload API", async () => {
+    it("uploadFileToWorkDrive - should upload a file buffer via the multipart upload API", async () => {
       const spyFetch = vi.spyOn(global, "fetch").mockResolvedValue({
         ok: true,
         json: async () => ({
-          data: {
-            id: "uploaded_file_id_555",
-            type: "files",
-          },
+          data: [
+            {
+              type: "files",
+              attributes: {
+                resource_id: "uploaded_file_id_555",
+                FileName: "Test_Document.pdf",
+                parent_id: "parent_folder_id",
+              },
+            },
+          ],
         }),
       } as any);
 
@@ -337,10 +343,14 @@ describe("Zoho CRM & WorkDrive Integration Mocks", () => {
       expect(fileId).toBe("uploaded_file_id_555");
       expect(spyFetch).toHaveBeenCalled();
       const [url, requestInit] = spyFetch.mock.calls[0];
-      expect(String(url)).toContain("upload.zoho.com/workdrive-api/v1/stream/upload");
+      // Mismo dominio que el resto de la API: upload.zoho.com responde INVALID_OAUTHSCOPE
+      expect(String(url)).toContain("https://www.zohoapis.com/workdrive/api/v1/upload");
+      expect(String(url)).toContain("parent_id=parent_folder_id");
+      expect(String(url)).toContain("filename=Test_Document.pdf");
       expect(requestInit?.method).toBe("POST");
-      expect(requestInit?.headers).toBeDefined();
-      expect((requestInit?.headers as any)["x-parent_id"]).toBe("parent_folder_id");
+      expect(requestInit?.body).toBeInstanceOf(FormData);
+      // El Content-Type lo fija fetch con el boundary del multipart
+      expect((requestInit?.headers as any)["Content-Type"]).toBeUndefined();
     });
 
     it("createShareLink - should call Zoho API and return public sharing URL link", async () => {
@@ -367,17 +377,35 @@ describe("Zoho CRM & WorkDrive Integration Mocks", () => {
       expect(requestInit?.body).toContain("allow_download");
     });
 
-    it("deleteFileFromWorkDrive - should send DELETE request and successfully resolve on 204 No Content", async () => {
+    it("deleteFileFromWorkDrive - should move the resource to trash via PATCH status 51", async () => {
       const spyFetch = vi.spyOn(global, "fetch").mockResolvedValue({
         ok: true,
-        status: 204,
+        status: 200,
+        json: async () => ({ data: { id: "file_id_to_delete", type: "files" } }),
       } as any);
 
       await expect(deleteFileFromWorkDrive("file_id_to_delete", "token_123")).resolves.not.toThrow();
       expect(spyFetch).toHaveBeenCalled();
       const [url, requestInit] = spyFetch.mock.calls[0];
       expect(String(url)).toContain("https://www.zohoapis.com/workdrive/api/v1/files/file_id_to_delete");
-      expect(requestInit?.method).toBe("DELETE");
+      // DELETE responde 401 R008: WorkDrive borra moviendo a la papelera
+      expect(requestInit?.method).toBe("PATCH");
+      expect(JSON.parse(String(requestInit?.body))).toEqual({
+        data: { attributes: { status: "51" }, type: "files" },
+      });
+    });
+
+    it("deleteFileFromWorkDrive - should throw when Zoho rejects the request", async () => {
+      vi.spyOn(global, "fetch").mockResolvedValue({
+        ok: false,
+        status: 401,
+        statusText: "",
+        text: async () => JSON.stringify({ errors: [{ id: "R008", title: "Unauthorized access" }] }),
+      } as any);
+
+      await expect(deleteFileFromWorkDrive("file_id_to_delete", "token_123")).rejects.toThrow(
+        /Error al eliminar recurso file_id_to_delete/
+      );
     });
 
     it("createNote - should first resolve module type and then send POST to /Notes API", async () => {

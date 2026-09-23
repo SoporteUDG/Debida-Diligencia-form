@@ -1,6 +1,9 @@
 "use client";
 
-import { FileText, CheckCircle2, XCircle, Users, Landmark } from "lucide-react";
+import { FileText, CheckCircle2, XCircle, Users, Landmark, AlertTriangle, CircleDashed } from "lucide-react";
+import { getMissingDocuments } from "@/lib/expectedDocuments";
+import { resolveFormType, soloPersonasConDatos } from "@/lib/formTypeResolution";
+import { camposVisibles, muestraBloqueTercero, muestraBloquePep } from "@/lib/conditionalFields";
 
 export interface ViewDocument {
   id: string;
@@ -30,7 +33,9 @@ interface Props {
   signature: ViewSignature | null;
 }
 
-type Field = { label: string; value: unknown };
+// `field` sólo hace falta en los campos condicionales: es la llave con la que
+// se consulta la regla de visibilidad del formulario.
+type Field = { label: string; value: unknown; field?: string };
 
 // ---------- small presentational helpers ----------
 
@@ -135,6 +140,10 @@ function DocumentList({ documents, data, type }: { documents: ViewDocument[]; da
     return null;
   };
 
+  const missing = getMissingDocuments(type, data, documents);
+  const missingRequired = missing.filter((m) => m.required);
+  const missingOptional = missing.filter((m) => !m.required);
+
   return (
     <div className="space-y-6">
       {documents.length === 0 ? (
@@ -160,13 +169,41 @@ function DocumentList({ documents, data, type }: { documents: ViewDocument[]; da
         </ul>
       )}
 
-      {type === "natural" && (
-        <FieldGrid
-          fields={[
-            { label: "¿Aporta estado de cuenta?", value: data.hasEstadoCuenta },
-            { label: "¿Aporta certificación bancaria?", value: data.hasCertificacionBancaria },
-          ]}
-        />
+      {missing.length > 0 && (
+        <div className="space-y-3">
+          <p className="text-[11px] font-bold tracking-wider uppercase text-zinc-500">
+            Documentos pendientes ({missing.length})
+          </p>
+          <ul className="divide-y divide-zinc-100 border border-zinc-200 rounded-xl overflow-hidden">
+            {[...missingRequired, ...missingOptional].map((m) => (
+              <li key={m.key} className="flex items-start gap-3 px-4 py-3 bg-white">
+                {m.required ? (
+                  <AlertTriangle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+                ) : (
+                  <CircleDashed className="w-5 h-5 text-zinc-300 shrink-0 mt-0.5" />
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className={`text-sm ${m.required ? "text-zinc-900" : "text-zinc-500"}`}>{m.label}</p>
+                  {m.detail && <p className="text-[11px] text-zinc-500 mt-0.5">{m.detail}</p>}
+                </div>
+                <span
+                  className={`text-[10px] uppercase tracking-wider font-semibold shrink-0 mt-0.5 ${
+                    m.required ? "text-red-500" : "text-zinc-400"
+                  }`}
+                >
+                  {m.required ? "Obligatorio" : "Opcional"}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {missing.length === 0 && documents.length > 0 && (
+        <p className="flex items-center gap-2 text-sm text-emerald-700">
+          <CheckCircle2 className="w-4 h-4 shrink-0" />
+          El expediente cuenta con todos los documentos previstos.
+        </p>
       )}
     </div>
   );
@@ -179,12 +216,12 @@ function NaturalSections({ data }: { data: ViewData }) {
     <>
       <Section title="1. Proyecto y Contacto Inicial">
         <FieldGrid
-          fields={[
+          fields={camposVisibles("natural", data, [
             { label: "Nombre del Proyecto", value: data.nombreProyecto },
             { label: "Medio de Contacto", value: data.formaContacto },
-            { label: "Detalle del Contacto", value: data.formaContactoDetalle },
-            { label: "Referido Por", value: data.referidoPor },
-          ]}
+            { label: "Detalle del Contacto", value: data.formaContactoDetalle, field: "formaContactoDetalle" },
+            { label: "Referido Por", value: data.referidoPor, field: "referidoPor" },
+          ])}
         />
       </Section>
 
@@ -224,7 +261,7 @@ function NaturalSections({ data }: { data: ViewData }) {
 
       <Section title="4. Datos Laborales y Actividad Económica">
         <FieldGrid
-          fields={[
+          fields={camposVisibles("natural", data, [
             { label: "Profesión u Oficio", value: data.profession === "Otros" ? data.profesionOtros : data.profession },
             { label: "País de Actividad Laboral", value: data.paisActividadLaboral },
             { label: "Empresa donde Labora", value: data.employer },
@@ -232,32 +269,32 @@ function NaturalSections({ data }: { data: ViewData }) {
             { label: "Cargo que Desempeña", value: data.cargoDesempena },
             { label: "Dirección Laboral", value: data.direccionLaboral },
             { label: "¿Es propietario de la entidad?", value: data.esPropietario },
-            { label: "¿Usa fondos de la entidad?", value: data.usaFondos },
+            { label: "¿Usa fondos de la entidad?", value: data.usaFondos, field: "usaFondos" },
             { label: "Actividad Económica Principal", value: data.actEconPrincipal === "Otro" ? data.otroActEcon : data.actEconPrincipal },
             { label: "% Dedicación Principal", value: data.pctDedicacionPrincipal },
             { label: "Jurisdicción Principal", value: data.jurisdiccionPrincipal },
             { label: "Actividad Económica Secundaria", value: data.actEconSecundaria },
             { label: "% Dedicación Secundaria", value: data.pctDedicacionSecundaria },
             { label: "Jurisdicción Secundaria", value: data.jurisdiccionSecundaria },
-          ]}
+          ])}
         />
       </Section>
 
       <Section title="5. Perfil Financiero">
         <FieldGrid
-          fields={[
+          fields={camposVisibles("natural", data, [
             { label: "Ingresos Mensuales Promedio", value: data.ingresosMensuales },
             { label: "Medio de Pago", value: data.medioPago },
             { label: "Fuente de Fondos del Inmueble", value: data.fuenteFondosInmueble },
-            { label: "Otra Fuente (detalle)", value: data.ifOtroNombre },
+            { label: "Otra Fuente (detalle)", value: data.ifOtroNombre, field: "ifOtroNombre" },
             { label: "Monto Servicios Anuales", value: data.montoServiciosAnuales },
-            { label: "Cantidad de Unidades", value: data.cantidadServiciosAnuales },
+            { label: "Cantidad de Unidades", value: data.cantidadServiciosAnuales, field: "cantidadServiciosAnuales" },
             { label: "Propósito / Destino del Inmueble", value: data.destinoInmueble },
             { label: "¿Adquiere a nombre de tercero?", value: data.adquiereNombreTercero },
-            { label: "Nombre del Tercero", value: data.nombreTercero },
-          ]}
+            { label: "Nombre del Tercero", value: data.nombreTercero, field: "nombreTercero" },
+          ])}
         />
-        {(data.ifTerceroNombre || data.ifTerceroNacionalidad) && (
+        {muestraBloqueTercero("natural", data) && (
           <div className="mt-6 pt-6 border-t border-zinc-100">
             <p className="text-[10px] font-bold tracking-wider uppercase text-[#c8a788] mb-4">Tercero Aportante de Fondos</p>
             <FieldGrid
@@ -281,12 +318,12 @@ function JuridicaSections({ data }: { data: ViewData }) {
     <>
       <Section title="1. Proyecto y Contacto Inicial">
         <FieldGrid
-          fields={[
+          fields={camposVisibles("juridica", data, [
             { label: "Nombre del Proyecto", value: data.nombreProyecto },
             { label: "Medio de Contacto", value: data.formaContacto },
-            { label: "Detalle del Contacto", value: data.formaContactoDetalle },
-            { label: "Referido Por", value: data.referidoPor },
-          ]}
+            { label: "Detalle del Contacto", value: data.formaContactoDetalle, field: "formaContactoDetalle" },
+            { label: "Referido Por", value: data.referidoPor, field: "referidoPor" },
+          ])}
         />
       </Section>
 
@@ -306,7 +343,6 @@ function JuridicaSections({ data }: { data: ViewData }) {
             { label: "País de Inscripción", value: data.paisInscripcion },
             { label: "País donde Opera", value: data.paisOpera },
             { label: "Actividad Principal", value: data.actividadPrincipal },
-            { label: "% de la Actividad", value: data.porcentajeActividad },
           ]}
         />
         <div className="mt-6 pt-6 border-t border-zinc-100">
@@ -326,15 +362,15 @@ function JuridicaSections({ data }: { data: ViewData }) {
         <div className="mt-6 pt-6 border-t border-zinc-100">
           <p className="text-[10px] font-bold tracking-wider uppercase text-[#c8a788] mb-4">Persona de Contacto</p>
           <FieldGrid
-            fields={[
+            fields={camposVisibles("juridica", data, [
               { label: "Nombre", value: data.contactoNombre },
               { label: "Apellido", value: data.contactoApellido },
               { label: "Identificación", value: data.contactoId },
-              { label: "Cargo", value: data.contactoCargo },
+              { label: "Cargo", value: data.contactoCargo, field: "contactoCargo" },
               { label: "Teléfono", value: data.contactoTelefono },
               { label: "Correo", value: data.contactoEmail },
               { label: "Relación con la empresa", value: data.ifContacto },
-            ]}
+            ])}
           />
         </div>
       </Section>
@@ -362,7 +398,7 @@ function JuridicaSections({ data }: { data: ViewData }) {
 
       <Section title="4. Gobierno y Junta Directiva">
         <PersonTable
-          rows={data.gjcMembers || []}
+          rows={soloPersonasConDatos(data.gjcMembers)}
           empty="No se registraron dignatarios."
           columns={[
             { key: "cargo", label: "Cargo" },
@@ -377,7 +413,7 @@ function JuridicaSections({ data }: { data: ViewData }) {
 
       <Section title="5. Beneficiarios Finales">
         <PersonTable
-          rows={data.bfMembers || []}
+          rows={soloPersonasConDatos(data.bfMembers)}
           empty="No se registraron beneficiarios finales."
           columns={[
             { key: "nombreCompleto", label: "Nombre Completo" },
@@ -393,21 +429,15 @@ function JuridicaSections({ data }: { data: ViewData }) {
 
       <Section title="6. Perfil Financiero">
         <FieldGrid
-          fields={[
+          fields={camposVisibles("juridica", data, [
             { label: "Ingresos Mensuales", value: data.ingresosMensuales },
             { label: "Medio de Pago", value: data.medioPago },
             { label: "Fuente de Fondos del Inmueble", value: data.fuenteFondosInmueble },
             { label: "¿Adquiere más de una unidad?", value: data.adquiereMasUnidades },
-            { label: "Cantidad de Unidades", value: data.cantidadUnidadesInmobiliarias },
-            { label: "Monto Servicios Anuales", value: data.montoServiciosAnuales },
-            { label: "Actividad Comercial", value: data.actividadComercial },
-            { label: "Origen de Fondos", value: data.origenFondos },
-            { label: "Destino de Fondos", value: data.destinoFondos },
-            { label: "Volumen de Ventas", value: data.volumenVentas },
-            { label: "Banco de Referencia", value: data.bancoReferencia },
-          ]}
+            { label: "Cantidad de Unidades", value: data.cantidadUnidadesInmobiliarias, field: "cantidadUnidadesInmobiliarias" },
+          ])}
         />
-        {(data.terceroNombre || data.terceroNacionalidad) && (
+        {muestraBloqueTercero("juridica", data) && (
           <div className="mt-6 pt-6 border-t border-zinc-100">
             <p className="text-[10px] font-bold tracking-wider uppercase text-[#c8a788] mb-4">Tercero Aportante de Fondos</p>
             <FieldGrid
@@ -427,7 +457,7 @@ function JuridicaSections({ data }: { data: ViewData }) {
 }
 
 function PepBlock({ data }: { data: ViewData }) {
-  const isPep = String(data.esPep || "").toLowerCase().startsWith("s");
+  const isPep = muestraBloquePep(data);
   return (
     <div className="mt-6 pt-6 border-t border-zinc-100">
       <dt className="text-[10px] font-bold tracking-wider uppercase text-zinc-500 mb-1">¿Persona Expuesta Políticamente (PEP)?</dt>
@@ -452,14 +482,32 @@ function PepBlock({ data }: { data: ViewData }) {
 
 export default function FormReadOnlyView({ type, data, documents, signature }: Props) {
   const sig = signature || (data.firmaImage ? { signerName: data.signerName, signatureDate: data.signatureDate, firmaImage: data.firmaImage } : null);
-  const docSectionNumber = type === "natural" ? 6 : 7;
+
+  // La etiqueta del expediente puede no corresponder a lo que el cliente llenó.
+  // Se pinta según el contenido para que un expediente natural no muestre las
+  // secciones de empresa (ni al revés).
+  const { type: tipo, declared, mismatch } = resolveFormType(type, data);
+  const esNatural = tipo === "natural";
+  const docSectionNumber = esNatural ? 6 : 7;
+
+  const etiqueta = (t: string) => (t === "natural" ? "Persona Natural" : "Persona Jurídica");
 
   return (
     <div className="space-y-6 text-zinc-900">
-      {type === "natural" ? <NaturalSections data={data} /> : <JuridicaSections data={data} />}
+      {mismatch && (
+        <div className="flex items-start gap-2 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-xs text-amber-900">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>
+            El expediente está registrado como <strong>{etiqueta(declared)}</strong>, pero su contenido
+            corresponde a <strong>{etiqueta(tipo)}</strong>. Se muestra según el contenido.
+          </span>
+        </div>
+      )}
+
+      {esNatural ? <NaturalSections data={data} /> : <JuridicaSections data={data} />}
 
       <Section title={`${docSectionNumber}. Documentos Adjuntos`} icon={<FileText className="w-4 h-4" />}>
-        <DocumentList documents={documents} data={data} type={type} />
+        <DocumentList documents={documents} data={data} type={tipo} />
       </Section>
 
       <Section title={`${docSectionNumber + 1}. Declaración y Firma`}>

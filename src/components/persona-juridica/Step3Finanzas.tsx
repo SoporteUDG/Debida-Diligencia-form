@@ -23,10 +23,10 @@ export default function Step3Finanzas({
   errors = {},
 }: Step3Props) {
   return (
-    <div className="space-y-4 bg-white rounded-2xl ">
+    <div className="bg-white rounded-2xl ">
       
       {/* SECTION 1: BENEFICIARIO (S) FINAL (ES) */}
-      <div className="p-6 md:p-8 text-center">
+      <div className="px-6 md:px-8 pt-6 text-center">
         <h3 className="text-base md:text-lg font-serif font-bold tracking-widest text-[#052B48] uppercase border-b border-zinc-200 pb-3 mb-4">
           BENEFICIARIO (S) FINAL (ES) 
         </h3>
@@ -38,8 +38,8 @@ export default function Step3Finanzas({
       </div>
 
       {/* Dynamic or Fixed BF Cards */}
-      <div className="p-6 md:p-8 space-y-4">
-        <h3 className="text-sm font-bold tracking-widest text-[#052B48] uppercase border-b border-zinc-200 pb-3 mb-6 flex items-center justify-between">
+      <div className="px-6 md:px-8 pt-6 space-y-4">
+        <h3 className="text-sm font-bold tracking-widest text-[#052B48] uppercase pb-3 mb-6 flex items-center justify-between">
           <span>Beneficiarios</span>
           <span className="text-[10px] text-zinc-400 lowercase font-normal italic">Pueden ser multiples</span>
         </h3>
@@ -239,7 +239,7 @@ export default function Step3Finanzas({
 
       {/* SECTION 2: PERFIL FINANCIERO */}
       <div className="space-y-6">
-        <div className="p-6 md:p-8 text-center">
+        <div className="px-6 md:px-8 text-center">
           <h3 className="text-sm font-bold tracking-widest text-[#052B48] uppercase border-b border-zinc-200 pb-3 mb-6 flex items-center justify-between">
             <span>PERFIL FINANCIERO</span>
           </h3>
@@ -606,7 +606,7 @@ export default function Step3Finanzas({
       </div>
 
       {/* SECTION 3: PERSONA EXPUESTA POLÍTICAMENTE (PEP) */}
-      <div className="p-6 md:p-8 text-zinc-800 space-y-6">
+      <div className="px-6 md:px-8 py-6 text-zinc-800 space-y-6">
         <h3 className="text-sm font-bold tracking-widest text-[#052B48] uppercase border-b border-zinc-200 pb-3 mb-6 flex items-center justify-between">
           <span>PERSONA EXPUESTA POLÍTICAMENTE (PEP)</span>
         </h3>

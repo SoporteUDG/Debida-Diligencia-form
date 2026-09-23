@@ -1,6 +1,31 @@
 import { getAccessToken, executeWithRetry } from "./zohoAuthService";
 
 /**
+ * Zoho rechaza a nivel de servidor (Tomcat) cualquier URL que lleve corchetes
+ * sin codificar en el query string: responde un HTTP 400 con una página HTML,
+ * sin llegar nunca a la API. Los enlaces de paginación que devuelve la propia
+ * API vienen con los corchetes sin codificar, así que hay que normalizarlos.
+ */
+function encodeCorchetesEnQuery(url: string): string {
+  const idx = url.indexOf("?");
+  if (idx === -1) return url;
+  const query = url.slice(idx + 1).replace(/\[/g, "%5B").replace(/\]/g, "%5D");
+  return `${url.slice(0, idx)}?${query}`;
+}
+
+/**
+ * Resume el cuerpo de un error de Zoho. Cuando la petición es rechazada por el
+ * contenedor la respuesta es una página HTML completa, inútil en los logs.
+ */
+function resumirErrorZoho(errorText: string): string {
+  const texto = (errorText || "").trim();
+  if (!texto.startsWith("<")) return texto;
+
+  const titulo = texto.match(/<title>([^<]*)<\/title>/i)?.[1]?.trim();
+  return `respuesta HTML del servidor${titulo ? ` ("${titulo}")` : ""}. La petición fue rechazada antes de llegar a la API de WorkDrive; normalmente indica una URL mal formada.`;
+}
+
+/**
  * Searches for a folder with a specific name under a given parent folder.
  * Operates case-insensitively. Handles API pagination to search beyond the first 50 results.
  * 
@@ -17,12 +42,14 @@ export async function findFolderInParent(
   const workdriveBaseUrl =
     process.env.ZOHO_WORKDRIVE_BASE_URL || "https://www.zohoapis.com/workdrive/api/v1";
   
-  // Use filter[type]=folder to only list directories and limit to max allowed (50) per page
-  let url = `${workdriveBaseUrl}/files/${parentId}/files?filter[type]=folder&page[limit]=50`;
+  // Use filter[type]=folder to only list directories and limit to max allowed (50) per page.
+  // URLSearchParams codifica los corchetes (filter%5Btype%5D), obligatorio para Zoho.
+  const queryParams = new URLSearchParams({ "filter[type]": "folder", "page[limit]": "50" });
+  let url: string | null = `${workdriveBaseUrl}/files/${parentId}/files?${queryParams.toString()}`;
   const targetName = folderName.trim().toLowerCase();
 
   while (url) {
-    const response = await fetch(url, {
+    const response: Response = await fetch(url, {
       method: "GET",
       headers: {
         Authorization: `Zoho-oauthtoken ${accessToken}`,
@@ -33,11 +60,11 @@ export async function findFolderInParent(
     if (!response.ok) {
       const errorText = await response.text();
       throw new Error(
-        `Error al listar carpetas en el directorio padre ${parentId}: ${response.status} ${response.statusText} - ${errorText}`
+        `Error al listar carpetas en el directorio padre ${parentId}: ${response.status} ${response.statusText} - ${resumirErrorZoho(errorText)}`
       );
     }
 
-    const result = await response.json();
+    const result: any = await response.json();
     const files = result.data || [];
 
     // Search case-insensitively in the current page
@@ -51,8 +78,9 @@ export async function findFolderInParent(
       return found.id;
     }
 
-    // Traverse next page link if it exists
-    url = result.links?.next || null;
+    // Traverse next page link if it exists (Zoho lo devuelve sin codificar)
+    const siguiente = result.links?.next;
+    url = siguiente ? encodeCorchetesEnQuery(siguiente) : null;
   }
 
   return null;
@@ -114,33 +142,6 @@ export async function createFolderInParent(
   return result.data.id;
 }
 
-export async function getMyFolderRootId(accessToken: string): Promise<string | null> {
-  try {
-    const workdriveBaseUrl =
-      process.env.ZOHO_WORKDRIVE_BASE_URL || "https://www.zohoapis.com/workdrive/api/v1";
-    const res = await fetch(`${workdriveBaseUrl}/users/me`, {
-      headers: {
-        Authorization: `Zoho-oauthtoken ${accessToken}`,
-        Accept: "application/vnd.api+json",
-      },
-    });
-    if (res.ok) {
-      const data = await res.json();
-      const rootId =
-        data.data?.attributes?.root_folder_id ||
-        data.data?.relationships?.root_folder?.data?.id ||
-        data.data?.id;
-      if (rootId) {
-        console.log(`[WorkDrive Service] Root folder ID resuelto automáticamente mediante /users/me: ${rootId}`);
-        return rootId;
-      }
-    }
-  } catch (e) {
-    console.warn("[WorkDrive Service] No se pudo resolver automáticamente el root_folder_id:", e);
-  }
-  return null;
-}
-
 /**
  * Creates or reuses the Zoho WorkDrive folder structure:
  * /DD/{AÑO}/{MES}/{APELLIDO_NOMBRE_ID}/
@@ -169,35 +170,20 @@ export async function getOrCreateFolderStructure(
   subfolders: Record<string, string>;
 }> {
   const accessToken = passedToken || await getAccessToken();
-  let rootFolderId = process.env.ZOHO_WORKDRIVE_ROOT_FOLDER_ID;
+  const rootFolderId = process.env.ZOHO_WORKDRIVE_ROOT_FOLDER_ID;
 
-  if (!rootFolderId) {
-    const resolvedRoot = await getMyFolderRootId(accessToken);
-    if (resolvedRoot) {
-      rootFolderId = resolvedRoot;
-    } else {
-      throw new Error(
-        "Falta la variable de entorno ZOHO_WORKDRIVE_ROOT_FOLDER_ID y no se pudo determinar la carpeta raíz automáticamente."
-      );
-    }
+  // La carpeta raíz se configura explícitamente y no se adivina: escribir los
+  // expedientes en una carpeta distinta a la configurada es peor que fallar.
+  if (!rootFolderId || rootFolderId === "placeholder_root_folder_id") {
+    throw new Error(
+      "Falta la variable de entorno ZOHO_WORKDRIVE_ROOT_FOLDER_ID. Configure el ID de la carpeta de WorkDrive donde debe crearse la estructura /DD."
+    );
   }
 
   console.log(`[WorkDrive Service] Iniciando sincronización de estructura de carpetas: /DD/${year}/${month}/${apellidoNombreId}`);
 
-  // 1. Get or create '/DD' folder in Root (con fallback si el rootFolderId configurado falla)
-  let ddFolderId: string | null = null;
-  try {
-    ddFolderId = await findFolderInParent(rootFolderId, "DD", accessToken);
-  } catch (err: any) {
-    console.warn(`[WorkDrive Service Warning] Falló búsqueda en rootFolderId "${rootFolderId}". Intentando resolver carpeta raíz del usuario...`, err.message);
-    const resolvedRoot = await getMyFolderRootId(accessToken);
-    if (resolvedRoot && resolvedRoot !== rootFolderId) {
-      rootFolderId = resolvedRoot;
-      ddFolderId = await findFolderInParent(rootFolderId, "DD", accessToken);
-    } else {
-      throw err;
-    }
-  }
+  // 1. Get or create '/DD' folder in Root
+  let ddFolderId = await findFolderInParent(rootFolderId, "DD", accessToken);
 
   if (!ddFolderId) {
     console.log("[WorkDrive Service] Carpeta 'DD' no encontrada. Creándola...");
@@ -276,38 +262,48 @@ export async function uploadFileToWorkDrive(
   fileBuffer: Buffer,
   accessToken: string
 ): Promise<string> {
-  const uploadBaseUrl = process.env.ZOHO_UPLOAD_BASE_URL || "https://upload.zoho.com";
-  const url = `${uploadBaseUrl}/workdrive-api/v1/stream/upload`;
-  const uploadId = crypto.randomUUID();
+  // Se usa el endpoint multipart del dominio de la API (el mismo que el resto
+  // de llamadas de WorkDrive). El stream upload de upload.zoho.com responde
+  // 401 INVALID_OAUTHSCOPE con el scope WorkDrive.files.ALL.
+  const workdriveBaseUrl =
+    process.env.ZOHO_WORKDRIVE_BASE_URL || "https://www.zohoapis.com/workdrive/api/v1";
+  const query = new URLSearchParams({
+    filename: fileName,
+    parent_id: parentId,
+    "override-name-exist": "true",
+  });
+  const url = `${workdriveBaseUrl}/upload?${query.toString()}`;
+
+  const formData = new FormData();
+  formData.append("content", new Blob([new Uint8Array(fileBuffer)]), fileName);
 
   const response = await fetch(url, {
     method: "POST",
     headers: {
+      // Sin Content-Type: fetch fija el multipart/form-data con su boundary.
       "Authorization": `Zoho-oauthtoken ${accessToken}`,
-      "x-filename": encodeURIComponent(fileName),
-      "x-parent_id": parentId,
-      "upload-id": uploadId,
-      "x-streammode": "1",
-      "Content-Type": "application/octet-stream",
+      "Accept": "application/vnd.api+json",
     },
-    body: fileBuffer as any,
+    body: formData,
   });
 
   if (!response.ok) {
     const errorText = await response.text();
     throw new Error(
-      `Error en Zoho Stream Upload para "${fileName}": ${response.status} ${response.statusText} - ${errorText}`
+      `Error en Zoho Upload para "${fileName}": ${response.status} ${response.statusText} - ${resumirErrorZoho(errorText)}`
     );
   }
 
   const result = await response.json();
-  if (!result.data || !result.data.id) {
+  // Respuesta: { data: [ { attributes: { resource_id, FileName, parent_id } } ] }
+  const resourceId = result.data?.[0]?.attributes?.resource_id;
+  if (!resourceId) {
     throw new Error(
-      `Estructura de respuesta inesperada en Zoho Stream Upload: ${JSON.stringify(result)}`
+      `Estructura de respuesta inesperada en Zoho Upload: ${JSON.stringify(result)}`
     );
   }
 
-  return result.data.id;
+  return resourceId;
 }
 
 /**
@@ -380,22 +376,30 @@ export async function deleteFileFromWorkDrive(
 
   console.log(`[WorkDrive Service] Intentando eliminar recurso de WorkDrive con ID: ${resourceId}`);
 
+  // WorkDrive no borra con DELETE (responde 401 R008): se mueve a la papelera
+  // con PATCH status="51". El recurso queda recuperable desde la papelera.
   const response = await fetch(url, {
-    method: "DELETE",
+    method: "PATCH",
     headers: {
       "Authorization": `Zoho-oauthtoken ${accessToken}`,
+      "Content-Type": "application/vnd.api+json",
       "Accept": "application/vnd.api+json",
     },
+    body: JSON.stringify({
+      data: {
+        attributes: { status: "51" },
+        type: "files",
+      },
+    }),
   });
 
-  // Zoho WorkDrive DELETE API returns 204 No Content on success
-  if (!response.ok && response.status !== 204) {
+  if (!response.ok) {
     const errorText = await response.text();
     throw new Error(
-      `Error al eliminar recurso ${resourceId} de WorkDrive: ${response.status} ${response.statusText} - ${errorText}`
+      `Error al eliminar recurso ${resourceId} de WorkDrive: ${response.status} ${response.statusText} - ${resumirErrorZoho(errorText)}`
     );
   }
 
-  console.log(`[WorkDrive Service] Recurso ${resourceId} eliminado exitosamente de WorkDrive.`);
+  console.log(`[WorkDrive Service] Recurso ${resourceId} movido a la papelera de WorkDrive.`);
 }
 

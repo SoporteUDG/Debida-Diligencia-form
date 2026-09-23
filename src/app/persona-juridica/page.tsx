@@ -34,6 +34,8 @@ import {
 } from "@/lib/validation";
 
 import { useAutosave } from "@/hooks/useAutosave";
+import { CAMPOS_RL, DatosRepresentanteLegal, leerDatosRL } from "@/lib/datosRepresentanteLegal";
+import { MULTI_FILE_FIELDS_JURIDICA, normalizeMultiFileValue } from "@/lib/documentFields";
 
 const getStepForField = (field: string): number => {
   const step1Fields = [
@@ -84,6 +86,11 @@ const normalizeFormData = (dbData: any): FormState => {
       (normalized as any)[key] = (INITIAL_FORM_STATE as any)[key] ?? "";
     }
   }
+  // Borradores antiguos guardaron estos campos como "" o [""]; sin esta
+  // normalización la lista de archivos se renderiza vacía.
+  for (const key of MULTI_FILE_FIELDS_JURIDICA) {
+    (normalized as any)[key] = normalizeMultiFileValue((normalized as any)[key]);
+  }
   return normalized;
 };
 
@@ -92,7 +99,12 @@ export default function PersonaJuridicaPage() {
   const [currentStep, setCurrentStep] = useState(0); // Step 0 is policies screen
   const [isMounted, setIsMounted] = useState(false);
   const [draftToken, setDraftToken] = useState<string | null>(null);
-  
+
+  // Precarga del Representante Legal con los datos guardados en Persona Natural
+  const [draftCargado, setDraftCargado] = useState(false);
+  const [rlPrecargaEvaluada, setRlPrecargaEvaluada] = useState(false);
+  const [avisoPrecargaRL, setAvisoPrecargaRL] = useState<DatosRepresentanteLegal | null>(null);
+
   // Simulated upload status for each document
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
   const [uploadStatus, setUploadStatus] = useState<Record<string, "idle" | "uploading" | "success">>({});
@@ -107,6 +119,10 @@ export default function PersonaJuridicaPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [validationSummary, setValidationSummary] = useState<{ step: number; message: string }[] | null>(null);
+
+  // Versión del servidor retenida cuando hay conflicto de concurrencia.
+  // El formulario NO se toca hasta que el usuario elija qué conservar.
+  const [conflictoBorrador, setConflictoBorrador] = useState<{ data: any; step: number; updatedAt: string } | null>(null);
 
 
   useEffect(() => {
@@ -140,26 +156,45 @@ export default function PersonaJuridicaPage() {
   }, []);
 
   // Hook up custom autosave hook
-  const { status: saveStatus, lastSaved, setStatus: setSaveStatus, setLastSaved, lastSavedAtRef } = useAutosave({
+  const { status: saveStatus, lastSaved, setStatus: setSaveStatus, setLastSaved, lastSavedAtRef, forceSave } = useAutosave({
     data: formData,
     type: "juridica",
     step: currentStep,
     draftToken,
     onConflict: (dbData, dbStep, dbUpdatedAt) => {
-      console.warn("[Juridica Page] Conflicto de concurrencia detectado. Sincronizando con la versión de base de datos.");
-      setFormData(normalizeFormData(dbData));
-      setCurrentStep(dbStep);
-      if (lastSavedAtRef) {
-        lastSavedAtRef.current = dbUpdatedAt;
-      }
-      setLastSaved(new Date(dbUpdatedAt).toLocaleTimeString());
-      setSaveStatus("saved");
+      // Nunca se sobrescribe lo que el usuario tiene en pantalla: se retiene la
+      // versión del servidor y se le pide que decida.
+      console.warn("[Juridica Page] Conflicto de concurrencia detectado. Se conservan los cambios locales.");
+      setConflictoBorrador({ data: dbData, step: dbStep, updatedAt: dbUpdatedAt });
     }
   });
 
+  /** Conserva lo que hay en pantalla y lo guarda pisando la versión del servidor. */
+  const conservarCambiosLocales = async () => {
+    setConflictoBorrador(null);
+    await forceSave();
+  };
+
+  /** Descarta los cambios locales y carga la versión guardada en el servidor. */
+  const usarVersionDelServidor = () => {
+    if (!conflictoBorrador) return;
+    setFormData(normalizeFormData(conflictoBorrador.data));
+    setCurrentStep(conflictoBorrador.step);
+    if (lastSavedAtRef) {
+      lastSavedAtRef.current = conflictoBorrador.updatedAt;
+    }
+    setLastSaved(new Date(conflictoBorrador.updatedAt).toLocaleTimeString());
+    setSaveStatus("saved");
+    setConflictoBorrador(null);
+  };
+
   // Load draft from database on mount or when token is loaded
   useEffect(() => {
-    if (!draftToken || !isMounted) return;
+    if (!isMounted) return;
+    if (!draftToken) {
+      setDraftCargado(true);
+      return;
+    }
 
     const loadDraftFromDb = async () => {
       try {
@@ -192,11 +227,40 @@ export default function PersonaJuridicaPage() {
         }
       } catch (error) {
         console.error("[Juridica Page] Error fetching draft:", error);
+      } finally {
+        setDraftCargado(true);
       }
     };
 
     loadDraftFromDb();
   }, [draftToken, isMounted]);
+
+  // Precarga los campos del Representante Legal con los datos que el usuario
+  // decidió guardar al completar el formulario de Persona Natural. Solo se
+  // rellenan los campos vacíos, y nunca antes de rehidratar el borrador.
+  useEffect(() => {
+    if (!isMounted || !draftCargado || rlPrecargaEvaluada) return;
+
+    setRlPrecargaEvaluada(true);
+
+    const datos = leerDatosRL();
+    if (!datos) return;
+
+    const cambios: Partial<FormState> = {};
+    for (const campo of CAMPOS_RL) {
+      const actual = (formData[campo] || "").trim();
+      if (!actual && datos[campo]) {
+        cambios[campo] = datos[campo];
+      }
+    }
+
+    if (Object.keys(cambios).length === 0) return;
+
+    console.log("[Juridica Page] Datos del Representante Legal precargados desde Persona Natural:", cambios);
+    setFormData(prev => ({ ...prev, ...cambios }));
+    setAvisoPrecargaRL(datos);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMounted, draftCargado, rlPrecargaEvaluada]);
 
   const triggerSaveIndicator = () => {
     // No-op: useAutosave handles saving via debounce
@@ -412,6 +476,13 @@ export default function PersonaJuridicaPage() {
           throw new Error("Respuesta de servidor inválida.");
         }
 
+        // El servidor ya guardó el nombre en el borrador: sincronizar la marca
+        // de tiempo para que el siguiente autoguardado no dé falso conflicto
+        // (y descarte los archivos recién subidos).
+        if (data.draftUpdatedAt && lastSavedAtRef) {
+          lastSavedAtRef.current = data.draftUpdatedAt;
+        }
+
         // Set success states
         setUploadProgress(prev => ({ ...prev, [key]: 100 }));
         setUploadStatus(prev => ({ ...prev, [key]: "success" }));
@@ -504,9 +575,16 @@ export default function PersonaJuridicaPage() {
           }),
         });
 
+        const resJson = await response.json();
         if (!response.ok) {
-          const resJson = await response.json();
           throw new Error(resJson.error?.message || "Error al eliminar el archivo.");
+        }
+
+        // El borrado también modifica el borrador en el servidor: sin esta
+        // sincronización el siguiente autoguardado daría conflicto.
+        const deleteData = resJson.result?.data;
+        if (deleteData?.draftUpdatedAt && lastSavedAtRef) {
+          lastSavedAtRef.current = deleteData.draftUpdatedAt;
         }
 
         // Reset states on success
@@ -860,7 +938,7 @@ export default function PersonaJuridicaPage() {
                 type="button"
                 onClick={() => {
                   if (submittedData) {
-                    generatePDF("juridica", submittedData, submissionId, new Date().toLocaleDateString(), submittedDocuments);
+                    generatePDF("juridica", submittedData, submissionId, new Date().toLocaleDateString(), submittedDocuments, draftToken);
                   }
                 }}
                 className="bg-[#DAB38D] hover:bg-[#c9a27c] text-zinc-950 font-semibold px-8 py-3.5 rounded-xl shadow-lg transition-all duration-300 active:scale-[0.98] cursor-pointer text-sm font-sans flex items-center justify-center gap-2.5"
@@ -887,6 +965,43 @@ export default function PersonaJuridicaPage() {
       
       {/* Editorial Header */}
       <Header isSaving={saveStatus === "saving"} lastSaved={lastSaved} saveStatus={saveStatus} />
+
+      {/* Aviso de conflicto de concurrencia: los datos en pantalla se conservan */}
+      {conflictoBorrador && (
+        <div className="sticky top-20 md:top-24 z-40 bg-amber-500/15 border-y border-amber-400/40 backdrop-blur-md animate-fadeIn">
+          <div className="max-w-5xl mx-auto px-6 py-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="text-xs leading-relaxed text-amber-100">
+              <p className="font-bold text-amber-200 uppercase tracking-wider text-[11px] mb-1">
+                No se pudo guardar automáticamente
+              </p>
+              <p>
+                Este formulario fue modificado en otra pestaña o dispositivo
+                {conflictoBorrador.updatedAt && (
+                  <> (última versión del servidor: {new Date(conflictoBorrador.updatedAt).toLocaleTimeString()})</>
+                )}
+                . <span className="font-semibold">Sus cambios siguen en pantalla y no se han perdido.</span> Elija cuál
+                versión conservar.
+              </p>
+            </div>
+            <div className="flex shrink-0 gap-2">
+              <button
+                type="button"
+                onClick={usarVersionDelServidor}
+                className="rounded-lg border border-amber-300/50 px-3 py-2 text-[11px] font-semibold text-amber-100 transition hover:bg-amber-400/10 cursor-pointer"
+              >
+                Descartar y cargar la del servidor
+              </button>
+              <button
+                type="button"
+                onClick={conservarCambiosLocales}
+                className="rounded-lg bg-[#c8a788] px-3 py-2 text-[11px] font-bold text-[#052B48] transition hover:bg-[#d8bb9f] cursor-pointer"
+              >
+                Conservar mis cambios
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Primary Layout Wrapper */}
       <main className="flex-1 max-w-5xl w-full mx-auto px-6 py-12 flex flex-col justify-center">
@@ -931,7 +1046,42 @@ export default function PersonaJuridicaPage() {
                     <h2 className="text-[#c8a788] text-sm font-bold uppercase tracking-wider border-b border-zinc-850 pb-2">
                       II. Representante Legal y Gobierno Corporativo
                     </h2>
-                    <Step2GobiernoRL 
+
+                    {avisoPrecargaRL && (
+                      <div className="flex flex-col gap-2 rounded-2xl border border-[#c8a788]/40 bg-[#c8a788]/10 px-4 py-3 animate-fadeIn md:flex-row md:items-center md:justify-between">
+                        <p className="text-xs leading-relaxed text-[#e8d7c5]">
+                          Se precargaron los datos del <span className="font-semibold">Representante Legal o Apoderado</span>{" "}
+                          con la información que guardó en su formulario de Persona Natural
+                          {avisoPrecargaRL.guardadoEn && (
+                            <> el {new Date(avisoPrecargaRL.guardadoEn).toLocaleDateString("es-PA")}</>
+                          )}
+                          . Verifique que sea correcta y modifíquela si es necesario.
+                        </p>
+                        <div className="flex shrink-0 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const limpios: Partial<FormState> = {};
+                              CAMPOS_RL.forEach(campo => { limpios[campo] = ""; });
+                              setFormData(prev => ({ ...prev, ...limpios }));
+                              setAvisoPrecargaRL(null);
+                            }}
+                            className="rounded-lg border border-zinc-600 px-3 py-1.5 text-[11px] font-semibold text-zinc-300 transition hover:bg-white/5 cursor-pointer"
+                          >
+                            Limpiar campos
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setAvisoPrecargaRL(null)}
+                            className="rounded-lg bg-[#c8a788] px-3 py-1.5 text-[11px] font-semibold text-[#052B48] transition hover:bg-[#d8bb9f] cursor-pointer"
+                          >
+                            Entendido
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    <Step2GobiernoRL
                       formData={formData}
                       onInputChange={handleInputChange}
                       onSearchableSelectChange={handleSearchableSelectChange}

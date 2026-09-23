@@ -78,10 +78,10 @@ export default function Step2PerfilFinanciero({
   errors = {},
 }: Step2Props) {
   return (
-    <div className="bg-white rounded-2xl shadow-xl border border-zinc-200  space-y-8">
+    <div className="bg-white rounded-2xl shadow-xl border border-zinc-200">
       
       {/* Card A: JURISDICCIÓN / UBICACIÓN GEOGRÁFICA */}
-      <div className="p-6 md:p-8  space-y-6 text-[#1a1c1a] font-sans">
+      <div className="px-6 md:px-8 pt-6 space-y-6 text-[#1a1c1a] font-sans">
         <h3 className="text-sm font-bold tracking-widest text-[#052B48] uppercase border-b border-zinc-200 pb-3">
           JURISDICCIÓN / UBICACIÓN GEOGRÁFICA
         </h3>
@@ -190,12 +190,12 @@ export default function Step2PerfilFinanciero({
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="telefono">
               Teléfono
             </label>
-            <div className="flex gap-2">
+            <div className="flex gap-1 w-full">
               <select
                 name="telefonoCodigo"
                 value={formData.telefonoCodigo || "+507"}
                 onChange={onInputChange}
-                className="bg-[#f4f6f8] border border-zinc-300 rounded-lg px-2 py-3 text-xs focus:outline-none focus:border-[#052B48] focus:ring-1 focus:ring-[#052B48] transition text-zinc-800 w-28"
+                className="bg-[#f4f6f8] border border-zinc-300 rounded-lg px-1 py-2 text-xs focus:outline-none focus:border-[#052B48] focus:ring-1 focus:ring-[#052B48] transition text-zinc-800 w-18 shink-0"
               >
                 {PHONE_CODES.map((item) => (
                   <option key={item.code} value={item.code}>
@@ -210,26 +210,27 @@ export default function Step2PerfilFinanciero({
                 value={formData.telefono || ""}
                 onChange={onInputChange}
                 placeholder="200-0000"
-                className={`${errors.telefono ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800`}
+                className="bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20 border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 flex-1 min-w-0 w-full"
               />
+           
+            </div>
             {errors.telefono && (
               <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
                 ⚠️ {errors.telefono}
               </span>
             )}
-            </div>
           </div>
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="celular">
               Celular <span className="text-red-500 font-bold">*</span>
             </label>
-            <div className="flex gap-2">
+            <div className="flex gap-1 w-full">
               <select
                 name="celularCodigo"
                 value={formData.celularCodigo || "+507"}
                 onChange={onInputChange}
-                className="bg-[#f4f6f8] border border-zinc-300 rounded-lg px-2 py-3 text-xs focus:outline-none focus:border-[#052B48] focus:ring-1 focus:ring-[#052B48] transition text-zinc-800 w-28"
+                className="bg-[#f4f6f8] border border-zinc-300 rounded-lg px-1 py-2 text-xs focus:outline-none focus:border-[#052B48] focus:ring-1 focus:ring-[#052B48] transition text-zinc-800 w-18 shrink-0"
               >
                 {PHONE_CODES.map((item) => (
                   <option key={item.code} value={item.code}>
@@ -244,21 +245,22 @@ export default function Step2PerfilFinanciero({
                 value={formData.celular || ""}
                 onChange={onInputChange}
                 placeholder="6000-0000"
-                className={`${errors.celular ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800`}
+                className="bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20 border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 flex-1 min-w-0 w-full"
                 required
               />
+            
+            </div>
             {errors.celular && (
               <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
                 ⚠️ {errors.celular}
               </span>
             )}
-            </div>
           </div>
         </div>
       </div>
 
       {/* Card B: Datos Laborales */}
-      <div className="p-6 md:p-8 space-y-6 text-[#1a1c1a] font-sans">
+      <div className="px-6 md:px-8 pt-6 space-y-6 text-[#1a1c1a] font-sans">
         <h3 className="text-sm font-bold tracking-widest text-[#052B48] uppercase border-b border-zinc-200 pb-3">
           Datos Laborales
         </h3>
@@ -429,7 +431,7 @@ export default function Step2PerfilFinanciero({
             </label>
             <SearchableSelect
               options={["No", "Propietario", "Accionista", "Miembro de la sociedad"]}
-              value={formData.esPropietario || "No"}
+              value={formData.esPropietario}
               onChange={(value) => onSearchableSelectChange("esPropietario", value)}
               placeholder="No"
               hasError={!!errors.esPropietario}
@@ -637,6 +639,8 @@ export default function Step2PerfilFinanciero({
               </span>
             )}
             </div>
+
+            
           </div>
         </div>
       </div>

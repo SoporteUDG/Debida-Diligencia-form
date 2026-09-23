@@ -19,10 +19,10 @@ export default function Step1DatosPersonales({
   errors = {},
 }: Step1Props) {
   return (
-    <div className="space-y-8 bg-white rounded-2xl ">
+    <div className="bg-white rounded-2xl ">
       
       {/* Card A: Proyecto e Información de Contacto Inicial */}
-      <div className="p-6 md:p-8">
+      <div className="px-6 md:px-8 pt-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700 flex items-center gap-1" htmlFor="nombreProyecto">
@@ -471,7 +471,30 @@ export default function Step1DatosPersonales({
                 ⚠️ {errors.fechaNacimiento}
               </span>
             )}
+
           </div>
+          {/* Checkbox 3: Reutilizar datos como Representante Legal en Persona Jurídica (opcional) */}
+            <div className="flex flex-col md:col-span-3 gap-2">
+              <div className="flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  id="compartirDatosRL"
+                  name="compartirDatosRL"
+                  checked={formData.compartirDatosRL}
+                  onChange={onInputChange}
+                  className="mt-1 h-4 w-4 rounded border-zinc-300 bg-[#f4f6f8] text-[#c8a788] accent-[#c8a788] focus:ring-0 focus:ring-offset-0 cursor-pointer"
+                />
+                <label htmlFor="compartirDatosRL" className="text-xs text-zinc-600 leading-normal select-none cursor-pointer">
+                  <span className="font-semibold text-[#052B48]">Guardar mis datos para el formulario de Persona Jurídica.</span>{" "}
+                  Si más adelante completa un formulario de Persona Jurídica en este mismo navegador, sus datos personales
+                  (nombre, fecha de nacimiento, nacionalidad, estado civil, identificación, profesión, actividad económica,
+                  dirección, país de residencia y teléfono) se precargarán en la sección{" "}
+                  <span className="font-semibold">Representante Legal o Apoderado</span>, para no tener que escribirlos de
+                  nuevo. La información se guarda únicamente en este dispositivo y puede desmarcar esta casilla en cualquier
+                  momento para eliminarla.
+                </label>
+              </div>
+            </div>
         </div>
       </div>
     </div>

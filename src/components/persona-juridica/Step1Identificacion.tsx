@@ -18,10 +18,10 @@ export default function Step1Identificacion({
   errors = {},
 }: Step1Props) {
   return (
-    <div className={`space-y-2 bg-white rounded-2xl shadow-xl border border-zinc-200`}>
+    <div className={`bg-white rounded-2xl shadow-xl border border-zinc-200`}>
       
       {/* Card A: Proyecto e Información de Contacto Inicial */}
-      <div className="p-6 md:p-8">
+      <div className="px-6 md:px-8 pt-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700 flex items-center gap-1" htmlFor="nombreProyecto">
@@ -134,7 +134,7 @@ export default function Step1Identificacion({
       </div>
 
       {/* Card B: IDENTIFICACIÓN DEL CLIENTE */}
-      <div className="p-6 md:p-8">
+      <div className="px-6 md:px-8 pt-6">
         <h3 className="text-sm font-bold tracking-widest text-[#052B48] uppercase border-b border-zinc-200 pb-3 mb-6 flex items-center justify-between">
           <span>IDENTIFICACIÓN DEL CLIENTE</span>
           <span className="text-[10px] text-zinc-400 lowercase font-normal italic">Información Registral</span>
@@ -419,7 +419,7 @@ export default function Step1Identificacion({
 
 
       {/* Card C: PERSONA DE CONTACTO */}
-      <div className="p-6 md:p-8">
+      <div className="px-6 md:px-8 pt-6">
         <h3 className="text-sm font-bold tracking-widest text-[#052B48] uppercase border-b border-zinc-200 pb-3 mb-6 flex items-center justify-between">
           <span>PERSONA DE CONTACTO</span>
           <span className="text-[10px] text-zinc-400 lowercase font-normal italic">Representante Operativo</span>
@@ -579,7 +579,7 @@ export default function Step1Identificacion({
       </div>
 
       {/* Card D: DATOS GENERALES DE LA EMPRESA */}
-      <div className="p-6 md:p-8">
+      <div className="px-6 md:px-8 py-6">
         <h3 className="text-sm font-bold tracking-widest text-[#052B48] uppercase border-b border-zinc-200 pb-3 mb-6 flex items-center justify-between">
           <span>DATOS GENERALES DE LA EMPRESA</span>
           <span className="text-[10px] text-zinc-400 lowercase font-normal italic">Domicilio y Contacto Corporativo</span>

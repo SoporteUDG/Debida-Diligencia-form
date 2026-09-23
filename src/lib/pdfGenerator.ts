@@ -1,5 +1,7 @@
 import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas";
+import { esDescargable, esMarcadorWorkDrive } from "./workdriveFileId";
+import { muestraBloquePep, isFieldVisible, muestraBloqueTercero } from "./conditionalFields";
 
 const loadPdfLib = (): Promise<void> => {
   return new Promise((resolve) => {
@@ -19,12 +21,66 @@ export async function generatePDF(
   data: any,
   id: string,
   dateStr: string,
-  documents?: any[]
+  documents?: any[],
+  /**
+   * Token del expediente con el que se piden los anexos a /api/documents/download.
+   * Quien llama lo tiene a mano (el estado del formulario, el enlace de consulta);
+   * buscarlo en localStorage no funciona: la página lo borra al enviar, justo
+   * antes de mostrar el botón de descarga.
+   * El panel de administración no lo necesita: se autoriza por su cookie.
+   */
+  authToken?: string | null
 ) {
   const isNatural = type === "natural";
-  // Multi-file slots hold string[]; render as a comma-separated list ("" when empty)
-  const fileList = (val: unknown): string =>
-    Array.isArray(val) ? val.filter((f) => typeof f === "string" && f.trim() !== "").join(", ") : (val as string) || "";
+  /** Nombres de archivo de una ranura, ya sea multi-archivo (string[]) o simple. */
+  const fileNames = (val: unknown): string[] =>
+    Array.isArray(val)
+      ? val.filter((f): f is string => typeof f === "string" && f.trim() !== "")
+      : typeof val === "string" && val.trim() !== ""
+        ? [val]
+        : [];
+
+  /** Texto plano: sirve para decidir SÍ/NO. */
+  const fileList = (val: unknown): string => fileNames(val).join(", ");
+
+  /**
+   * Celda con TODOS los archivos de un campo multi-archivo, uno por línea y
+   * numerados. Antes se unían con comas y los nombres largos se recortaban
+   * visualmente, dando la impresión de que sólo se había adjuntado uno.
+   */
+  const fileCell = (val: unknown): string => {
+    const nombres = fileNames(val);
+    if (nombres.length === 0) return "-";
+    if (nombres.length === 1) return nombres[0];
+    return nombres
+      .map((n, i) => `<div style="margin-bottom:2px;">${i + 1}. ${n}</div>`)
+      .join("");
+  };
+  /**
+   * Nombre del archivo de identidad de una persona (RL / GJC / BF).
+   *
+   * El borrador lo guarda en data.personDocuments, pero un expediente ya
+   * enviado no lo tiene: el esquema de validación no declara ese campo y Zod
+   * lo descarta al persistir el Form. Por eso se recurre a los documentos
+   * adjuntos, que sí conservan personType y personId.
+   */
+  const docIdentidad = (personType: string, personId?: string): string => {
+    const coincide = (d: any) =>
+      d?.personType === personType && (personId === undefined || d?.personId === personId);
+
+    const enFormulario = Array.isArray(data.personDocuments) ? data.personDocuments : [];
+    const local = enFormulario.find(coincide);
+    if (local?.fileName) return local.fileName;
+
+    const adjuntos = Array.isArray(documents) ? documents : [];
+    const remoto = adjuntos.find((d: any) => coincide(d) && d?.status !== "DELETED");
+    return remoto?.name || "";
+  };
+
+  /** Los miembros de gobierno corporativo se nombran con nombre + apellidos. */
+  const nombreGjc = (m: any): string =>
+    `${m?.nombre || ""} ${m?.apellidos || ""}`.trim() || "sin nombre registrado";
+
   const clientName = isNatural
     ? `${data.firstName || ""} ${data.lastName || ""}`.trim() || "Cliente Natural"
     : data.razonSocial || "Empresa Registrada";
@@ -78,21 +134,8 @@ export async function generatePDF(
           <tr>
             <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Teléfono / Celular:</td>
             <td style="color: #1f2937; padding: 4px 0;">${data.telefono || ""} / ${data.celular || ""}</td>
-            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Profesión / Ocupación:</td>
-            <td style="color: #1f2937; padding: 4px 0;">${data.profession === "Otros" ? data.profesionOtros : data.profession || "-"}</td>
           </tr>
-          <tr>
-            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Patrono / Empleador:</td>
-            <td style="color: #1f2937; padding: 4px 0;">${data.employer || "-"}${data.actividadLaboral === "Otros" ? ` (${data.actividadLaboralOtros})` : ` (${data.actividadLaboral})`}</td>
-            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Cargo Desempeñado:</td>
-            <td style="color: #1f2937; padding: 4px 0;">${data.cargoDesempena || "-"}</td>
-          </tr>
-          <tr>
-            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Dirección Laboral:</td>
-            <td style="color: #1f2937; padding: 4px 0;">${data.direccionLaboral || "-"}</td>
-            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Participacion en la entidad:</td>
-            <td style="color: #1f2937; padding: 4px 0;">${data.esPropietario || "-"}</td>
-          <tr>
+         
             <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Estado Civil:</td>
             <td style="color: #1f2937; padding: 4px 0;">${data.estadoCivil || "-"}</td>
             <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Medio de Contacto:</td>
@@ -100,15 +143,51 @@ export async function generatePDF(
           </tr>
           <tr>
             <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Dirección Residencial:</td>
-            <td colspan="3" style="color: #1f2937; padding: 4px 0;">${data.direccionResidencial || "-"}, ${data.ciudad || ""}, ${data.provincia || ""}, ${data.paisResidencial || ""}</td>
+            <td colspan="3" style="color: #1f2937; padding: 4px 0;">${data.direccionResidencial || "-"}, ${data.ciudad || ""}, ${data.provinciaEstado || ""}, ${data.paisResidencial || ""}</td>
           </tr>
         </table>
       </div>
 
-      <!-- Section 2: Financial Info & PEP -->
+      <!-- Section 2: Datos Laborales -->
       <div style="margin-bottom: 20px;">
         <h3 style="color: #002b49; font-size: 11px; font-weight: bold; text-transform: uppercase; border-bottom: 1px solid #e5e7eb; padding-bottom: 4px; margin-bottom: 8px;">
-          2. Perfil Financiero y Origen de Fondos
+          2. Datos Laborales
+        </h3>
+        <table style="width: 100%; border-collapse: collapse; font-size: 9px; line-height: 1.6;">
+          <tr>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Profesión / Ocupación:</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.profession === "Otros" ? data.profesionOtros : data.profession || "-"}</td>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Jurisdicción Donde Opera:</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.paisActividadLaboral || "-"}</td>
+          </tr>
+          <tr>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Patrono / Empleador:</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.employer || "-"}</td>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Actividad del Patrono / Empleador:</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.actividadLaboral === "Otros" ? `${data.actividadLaboralOtros}` : `${data.actividadLaboral}`}</td>
+          </tr>
+           
+          <tr>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Dirección Laboral:</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.direccionLaboral || "-"}</td>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Cargo dentro de la entidad:</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.cargoDesempena || "-"}</td>
+          <tr>
+          <tr>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Participación en la entidad:</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.esPropietario || "-"}</td>
+            ${data.esPropietario !== "No" ? `
+              <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Fondos provienen de la entidad:</td>
+              <td style="color: #1f2937; padding: 4px 0;">${data.usaFondos || "-"}</td>
+              `:``}
+            
+          </tr>
+        </table>
+      </div>
+      <!-- Section 3: Financial Info & PEP -->
+      <div style="margin-bottom: 20px;">
+        <h3 style="color: #002b49; font-size: 11px; font-weight: bold; text-transform: uppercase; border-bottom: 1px solid #e5e7eb; padding-bottom: 4px; margin-bottom: 8px;">
+          3. Perfil Financiero y Origen de Fondos
         </h3>
         <table style="width: 100%; border-collapse: collapse; font-size: 9px; line-height: 1.6;">
           <tr>
@@ -135,9 +214,15 @@ export async function generatePDF(
             <td style="width: 25%; font-weight: bold; color: #4b5563; padding: 4px 0;">Ingresos Mensuales Promedio:</td>
             <td style="color: #1f2937; padding: 4px 0;">${data.ingresosMensuales || "-"}</td>
             <td style="width: 25%; font-weight: bold; color: #4b5563; padding: 4px 0;">Fuente de Fondos:</td>
-            <td style="color: #1f2937; padding: 4px 0;">${(data.fuenteFondosInmueble.includes("Otros") ? data.ifOtroNombre : data.fuenteFondosInmueble) || "-"}</td>
+            <td style="color: #1f2937; padding: 4px 0;">${data.fuenteFondosInmueble || "-"}</td>
           </tr>
-          ${data.fuenteFondosInmueble.includes("Terceros") ? `
+          ${isFieldVisible("natural", "ifOtroNombre", data) ? `
+          <tr>
+            <td style="width: 25%; font-weight: bold; color: #4b5563; padding: 4px 0;">Otra Fuente (detalle):</td>
+            <td colspan="3" style="color: #1f2937; padding: 4px 0;">${data.ifOtroNombre || "-"}</td>
+          </tr>
+          ` : ""}
+          ${isFieldVisible("natural", "ifTerceroNombre", data) ? `
           <tr>
             <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Detalles Tercero:</td>
             <td colspan="3" style="color: #1f2937; padding: 4px 0;">
@@ -165,7 +250,7 @@ export async function generatePDF(
             <td style="color: #1f2937; padding: 4px 0; font-weight: bold;">${data.esPep || "No"}</td>
             
           </tr>
-          ${data.esPep === "Sí" ? `
+          ${muestraBloquePep(data) ? `
           <tr>
             <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Detalles PEP:</td>
             <td colspan="3" style="color: #1f2937; padding: 4px 0;">
@@ -252,36 +337,36 @@ export async function generatePDF(
         </h3>
         <table style="width: 100%; border-collapse: collapse; font-size: 9px; line-height: 1.6;">
           <tr>
-            <td style="width: 25%; font-weight: bold; color: #4b5563; padding: 4px 0;">Nombre Completo RL:</td>
+            <td style="width: 25%; font-weight: bold; color: #4b5563; padding: 4px 0;">Nombre Completo:</td>
             <td style="color: #1f2937; padding: 4px 0;">${data.rlNombre || "-"}</td>
-            <td style="width: 25%; font-weight: bold; color: #4b5563; padding: 4px 0;">Identificación RL:</td>
+            <td style="width: 25%; font-weight: bold; color: #4b5563; padding: 4px 0;">Identificación:</td>
             <td style="color: #1f2937; padding: 4px 0;">${data.rlNoIdentificacion || data.numeroDocumento || "-"}</td>
           </tr>
           <tr>
             <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Vencimiento ID:</td>
             <td style="color: #1f2937; padding: 4px 0;">${data.fechaVencimientoId ? `${data.fechaVencimientoId} ${new Date(data.fechaVencimientoId) < new Date() ? "(⚠️ VENCIDO)" : ""}` : "No registrada"}</td>
-            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Nacionalidad RL:</td>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Nacionalidad:</td>
             <td style="color: #1f2937; padding: 4px 0;">${data.rlNacionalidad || "-"}</td>
           <tr>
-            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Fecha Nacimiento RL:</td>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Fecha Nacimiento:</td>
             <td style="color: #1f2937; padding: 4px 0;">${data.rlFechaNacimiento || "-"}</td>
-            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Profesión RL:</td>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Profesión:</td>
             <td style="color: #1f2937; padding: 4px 0;">${data.rlProfesionOcupacion || "-"}</td>
           </tr>
           <tr>
-            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Estado Civil RL:</td>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Estado Civil:</td>
             <td style="color: #1f2937; padding: 4px 0;">${data.rlEstadoCivil || "-"}</td>
-            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Actividad Económica RL:</td>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Actividad Económica:</td>
             <td style="color: #1f2937; padding: 4px 0;">${data.rlActividadEconomica || "-"}</td>
           </tr>
           <tr>
-            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Teléfono RL:</td>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Teléfono:</td>
             <td style="color: #1f2937; padding: 4px 0;">${data.rlTelefono || "-"}</td>
-            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">País Residencia RL:</td>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">País Residencia:</td>
             <td style="color: #1f2937; padding: 4px 0;">${data.rlPaisResidencia || "-"}</td>
           </tr>
           <tr>
-            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Dirección RL:</td>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Dirección:</td>
             <td colspan="3" style="color: #1f2937; padding: 4px 0;">${data.rlDireccion || "-"}</td>
           </tr>
           <tr>
@@ -376,7 +461,7 @@ export async function generatePDF(
             <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">¿Previsto >1 Unidad (12m)?:</td>
             <td style="color: #1f2937; padding: 4px 0;">${data.adquiereMasUnidades || "No"}${data.cantidadUnidadesInmobiliarias ? ` (${data.cantidadUnidadesInmobiliarias} unidades)` : ""}</td>
           </tr>
-          ${data.fuenteFondosInmueble && data.fuenteFondosInmueble.includes("Terceros") ? `
+          ${muestraBloqueTercero("juridica", data) ? `
           <tr>
             <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Aportante Tercero:</td>
             <td colspan="3" style="color: #1f2937; padding: 4px 0;">
@@ -391,7 +476,7 @@ export async function generatePDF(
             <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">¿Persona PEP? (Junta/Propietarios):</td>
             <td style="color: #1f2937; padding: 4px 0; font-weight: bold;">${data.esPep || "No"}</td>
           </tr>
-          ${data.esPep === "Sí" ? `
+          ${muestraBloquePep(data) ? `
           <tr>
             <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Detalles PEP:</td>
             <td colspan="3" style="color: #1f2937; padding: 4px 0;">
@@ -408,6 +493,7 @@ export async function generatePDF(
   }
 
   element.innerHTML = `
+    <div data-pdf-part="1">
     <!-- Header -->
     <div style="border-bottom: 2px solid #002b49; padding-bottom: 12px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
       <div>
@@ -447,7 +533,13 @@ export async function generatePDF(
     <!-- Dynamic Sections based on Client Type -->
     ${contentHtml}
 
+    </div>
+
     <!-- Section 6: Documents Attached -->
+    <!-- data-pdf-part="2": el listado de documentos siempre abre página nueva.
+         html2canvas rasteriza y corta por altura, así que las reglas CSS de
+         salto de página no sirven: el corte se hace al renderizar. -->
+    <div data-pdf-part="2">
     <div style="margin-bottom: 20px;">
       <h3 style="color: #002b49; font-size: 11px; font-weight: bold; text-transform: uppercase; border-bottom: 1px solid #e5e7eb; padding-bottom: 4px; margin-bottom: 8px;">
         Documentos Adjuntados y Verificados
@@ -470,12 +562,12 @@ export async function generatePDF(
             <tr style="border-bottom: 1px solid #e5e7eb;">
               <td style="padding: 4px;">Origen de Fondos (Carta Laboral, Declaración de Renta, etc.)</td>
               <td style="padding: 4px; text-align: center; font-weight: bold; color: ${fileList(data.origenFondosFile) ? "#059669" : "#dc2626"};">${fileList(data.origenFondosFile) ? "SÍ" : "NO"}</td>
-              <td style="padding: 4px; color: #6b7280; font-size: 8px;">${fileList(data.origenFondosFile) || "-"}</td>
+              <td style="padding: 4px; color: #6b7280; font-size: 8px;">${fileCell(data.origenFondosFile)}</td>
             </tr>
             <tr style="border-bottom: 1px solid #e5e7eb;">
               <td style="padding: 4px;">Estado de Cuenta Bancario</td>
               <td style="padding: 4px; text-align: center; font-weight: bold; color: ${fileList(data.hasEstadoCuenta) ? "#059669" : "#dc2626"};">${fileList(data.hasEstadoCuenta) ? "SÍ" : "NO"}</td>
-              <td style="padding: 4px; color: #6b7280; font-size: 8px;">${fileList(data.hasEstadoCuenta) || "-"}</td>
+              <td style="padding: 4px; color: #6b7280; font-size: 8px;">${fileCell(data.hasEstadoCuenta)}</td>
             </tr>
             <tr style="border-bottom: 1px solid #e5e7eb;">
               <td style="padding: 4px;">Certificación bancaria</td>
@@ -485,15 +577,15 @@ export async function generatePDF(
           ` : `
             <tr style="border-bottom: 1px solid #e5e7eb;">
               <td style="padding: 4px;">${("Documento de identificacion de Representante Legal - "+data.rlNombre) || "-"} </td>
-              <td style="padding: 4px; text-align: center; font-weight: bold; color: ${data.personDocuments.find((d:any) => d.personType === "RL")?.fileName ? "#059669" : "#dc2626"};">${data.personDocuments.find((d:any) => d.personType === "RL")?.fileName ? "SÍ" : "NO"}</td>
-              <td style="padding: 4px; color: #6b7280; font-size: 8px;">${data.personDocuments.find((d:any) => d.personType === "RL")?.fileName || "-"}</td>
+              <td style="padding: 4px; text-align: center; font-weight: bold; color: ${docIdentidad("RL") ? "#059669" : "#dc2626"};">${docIdentidad("RL") ? "SÍ" : "NO"}</td>
+              <td style="padding: 4px; color: #6b7280; font-size: 8px;">${docIdentidad("RL") || "-"}</td>
             </tr>
           
             ${data.bfMembers && data.bfMembers.length > 0 ? data.bfMembers.map((m: any) => `
               <tr style="border-bottom: 1px solid #e5e7eb;">
                 <td style="padding: 4px;">${("Documento de identificacion del Beneficiarios - "+m.nombreCompleto) || "-"} </td>
-                <td style="padding: 4px; text-align: center; font-weight: bold; color: ${data.personDocuments.find((d:any) => d.personType === "BF" && d.personId === m.id)?.fileName ? "#059669" : "#dc2626"};">${data.personDocuments.find((d:any) => d.personType === "BF" && d.personId === m.id)?.fileName ? "SÍ" : "NO"}</td>
-                <td style="padding: 4px; color: #6b7280; font-size: 8px;">${data.personDocuments.find((d:any) => d.personType === "BF" && d.personId === m.id)?.fileName || "-"}</td>
+                <td style="padding: 4px; text-align: center; font-weight: bold; color: ${docIdentidad("BF", m.id) ? "#059669" : "#dc2626"};">${docIdentidad("BF", m.id) ? "SÍ" : "NO"}</td>
+                <td style="padding: 4px; color: #6b7280; font-size: 8px;">${docIdentidad("BF", m.id) || "-"}</td>
               </tr>
             `).join("") 
             : `
@@ -503,14 +595,14 @@ export async function generatePDF(
             `}
             ${data.gjcMembers && data.gjcMembers.length > 0 ? data.gjcMembers.map((m: any) => `
               <tr style="border-bottom: 1px solid #e5e7eb;">
-                <td style="padding: 4px;">${("Documento de identificacion del miembros - "+m.nombreCompleto )|| "-"} </td>
-                <td style="padding: 4px; text-align: center; font-weight: bold; color: ${data.personDocuments.find((d:any) => d.personType === "GJC" && d.personId === m.id)?.fileName ? "#059669" : "#dc2626"};">${data.personDocuments.find((d:any) => d.personType === "GJC" && d.personId === m.id)?.fileName ? "SÍ" : "NO"}</td>
-                <td style="padding: 4px; color: #6b7280; font-size: 8px;">${data.personDocuments.find((d:any) => d.personType === "GJC" && d.personId === m.id)?.fileName || "-"}</td>
+                <td style="padding: 4px;">${"Documento de identificación del miembro - " + nombreGjc(m)} </td>
+                <td style="padding: 4px; text-align: center; font-weight: bold; color: ${docIdentidad("GJC", m.id) ? "#059669" : "#dc2626"};">${docIdentidad("GJC", m.id) ? "SÍ" : "NO"}</td>
+                <td style="padding: 4px; color: #6b7280; font-size: 8px;">${docIdentidad("GJC", m.id) || "-"}</td>
               </tr>
             `).join("") 
             : `
               <tr>
-                <td colspan="4" style="padding: 8px; text-align: center; color: #9ca3af; font-style: italic;">Ningún beneficiario final registrado.</td>
+                <td colspan="4" style="padding: 8px; text-align: center; color: #9ca3af; font-style: italic;">Ningún miembro de gobierno corporativo registrado.</td>
               </tr>
             `}
             <tr style="border-bottom: 1px solid #e5e7eb;">
@@ -521,12 +613,12 @@ export async function generatePDF(
             <tr style="border-bottom: 1px solid #e5e7eb;">
               <td style="padding: 4px;">Origen de Fondos</td>
               <td style="padding: 4px; text-align: center; font-weight: bold; color: ${fileList(data.origenFondosFile) ? "#059669" : "#6b7280"};">${fileList(data.origenFondosFile) ? "SÍ" : "NO"}</td>
-              <td style="padding: 4px; color: #6b7280; font-size: 8px;">${fileList(data.origenFondosFile) || "-"}</td>
+              <td style="padding: 4px; color: #6b7280; font-size: 8px;">${fileCell(data.origenFondosFile)}</td>
             </tr>
             <tr style="border-bottom: 1px solid #e5e7eb;">
               <td style="padding: 4px;">Copia del Pacto Social Registrado y Enmiendas</td>
               <td style="padding: 4px; text-align: center; font-weight: bold; color: ${fileList(data.pactoSocialFile) ? "#059669" : "#dc2626"};">${fileList(data.pactoSocialFile) ? "SÍ" : "NO"}</td>
-              <td style="padding: 4px; color: #6b7280; font-size: 8px;">${fileList(data.pactoSocialFile) || "-"}</td>
+              <td style="padding: 4px; color: #6b7280; font-size: 8px;">${fileCell(data.pactoSocialFile)}</td>
             </tr>
             <tr style="border-bottom: 1px solid #e5e7eb;">
               <td style="padding: 4px;">Certificación de Cuenta Bancaria o Referencia</td>
@@ -599,6 +691,7 @@ export async function generatePDF(
     <div style="margin-top: 24px; border-top: 1px solid #e5e7eb; padding-top: 8px; text-align: center; font-size: 8px; color: #9ca3af;">
       Documento digital seguro generado bajo normativas societarias de Urban Development Group. Confidencialidad garantizada.
     </div>
+    </div>
   `;
 
   document.body.appendChild(element);
@@ -606,39 +699,81 @@ export async function generatePDF(
   const typePrefix = isNatural ? "Natural" : "Juridica";
 
   try {
-    const canvas = await html2canvas(element, {
-      scale: 2,
-      useCORS: true,
-      logging: false,
-    });
-
-    const imgData = canvas.toDataURL("image/png");
-    
     const pdf = new jsPDF({
       orientation: "portrait",
       unit: "mm",
       format: "a4"
     });
 
-    const imgWidth = 210;
-    const pageHeight = 295;
-    const imgHeight = (canvas.height * imgWidth) / canvas.width;
-    let heightLeft = imgHeight;
-    let position = 0;
+    // Márgenes de página. El contenedor tiene padding, pero html2canvas se
+    // aplica a cada [data-pdf-part] (un hijo sin padding), así que el margen
+    // debe reservarse aquí, en coordenadas del PDF.
+    const A4_WIDTH = 210;
+    const A4_HEIGHT = 297;
+    const MARGIN = 14;
+    const contentWidth = A4_WIDTH - MARGIN * 2;
+    const contentHeight = A4_HEIGHT - MARGIN * 2;
 
-    pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
-    heightLeft -= pageHeight;
+    /** Renderiza un bloque empezando en la página actual y añade las que necesite. */
+    const renderBloque = async (nodo: HTMLElement) => {
+      const canvas = await html2canvas(nodo, { scale: 2, useCORS: true, logging: false });
 
-    while (heightLeft > 0) {
-      position = heightLeft - imgHeight;
-      pdf.addPage();
-      pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
+      // El lienzo se corta en trozos del alto útil de una página. Recortar (en vez
+      // de desplazar una imagen única con posición negativa) es lo que mantiene el
+      // margen inferior y superior: nada sobresale del área de contenido.
+      const slicePx = Math.floor((canvas.width * contentHeight) / contentWidth);
+      let offset = 0;
+      let primeraPagina = true;
+
+      while (offset < canvas.height) {
+        const sliceHeight = Math.min(slicePx, canvas.height - offset);
+
+        const slice = document.createElement("canvas");
+        slice.width = canvas.width;
+        slice.height = sliceHeight;
+        const ctx = slice.getContext("2d");
+        if (!ctx) break;
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, slice.width, slice.height);
+        ctx.drawImage(canvas, 0, offset, canvas.width, sliceHeight, 0, 0, canvas.width, sliceHeight);
+
+        if (!primeraPagina) pdf.addPage();
+        pdf.addImage(
+          slice.toDataURL("image/png"),
+          "PNG",
+          MARGIN,
+          MARGIN,
+          contentWidth,
+          (sliceHeight * contentWidth) / canvas.width
+        );
+
+        offset += sliceHeight;
+        primeraPagina = false;
+      }
+    };
+
+    // Cada bloque [data-pdf-part] arranca en página nueva. Así el listado de
+    // documentos nunca queda pegado al final de la sección anterior.
+    const bloques = Array.from(element.querySelectorAll<HTMLElement>("[data-pdf-part]"));
+    const objetivos = bloques.length > 0 ? bloques : [element];
+
+    for (let i = 0; i < objetivos.length; i++) {
+      if (i > 0) pdf.addPage();
+      await renderBloque(objetivos[i]);
     }
 
     // Merge attachments if provided
     if (documents && documents.length > 0) {
-      const activeDocuments = documents.filter(doc => doc.zohoFileId && doc.status !== "DELETED");
+      // Mismo criterio que completeDossierService: un marcador de sincronización
+      // no es un id descargable y se reporta como tal, no como fallo de descarga.
+      const activeDocuments = documents.filter(esDescargable);
+      const pendientesDeSync = documents.filter((d: any) => esMarcadorWorkDrive(d.zohoFileId));
+      if (pendientesDeSync.length > 0) {
+        console.warn(
+          `[PDF Generator] ${pendientesDeSync.length} anexo(s) aún sin sincronizar con WorkDrive; no se incluyen: ` +
+          pendientesDeSync.map((d: any) => d.name).join(", ")
+        );
+      }
       
       if (activeDocuments.length > 0) {
         console.log(`[PDF Generator] Preparando para combinar ${activeDocuments.length} anexos...`);
@@ -648,17 +783,26 @@ export async function generatePDF(
         const mainPdfArrayBuffer = pdf.output("arraybuffer");
         const mergedPdf = await PDFDocument.load(mainPdfArrayBuffer);
         
-        // Retrieve draft uuid token or admin cookie context implicitly
-        const draftToken = localStorage.getItem("udg_draft_token") || "";
+        // El token explícito manda. Como respaldo se miran las claves que el
+        // formulario sí escribe, por si se descarga antes de enviar.
+        const draftToken =
+          authToken ||
+          localStorage.getItem("udg_due_diligence_natural_token") ||
+          localStorage.getItem("udg_due_diligence_juridica_token") ||
+          "";
 
         for (const doc of activeDocuments) {
           try {
             console.log(`[PDF Generator] Cargando anexo: ${doc.name} (ID: ${doc.zohoFileId})`);
-            const proxyUrl = `/api/documents/download?fileId=${doc.zohoFileId}&token=${draftToken}`;
+            const proxyUrl = `/api/documents/download?fileId=${encodeURIComponent(doc.zohoFileId)}&token=${encodeURIComponent(draftToken)}`;
             const fileRes = await fetch(proxyUrl);
             
             if (!fileRes.ok) {
-              console.warn(`[PDF Generator] No se pudo descargar anexo "${doc.name}":`, fileRes.statusText);
+              const motivo =
+                fileRes.status === 401
+                  ? "sin autorización para descargar anexos (falta el token del expediente o la sesión de administrador)"
+                  : fileRes.statusText;
+              console.warn(`[PDF Generator] No se pudo descargar anexo "${doc.name}":`, motivo);
               continue;
             }
             

@@ -1,4 +1,5 @@
 import PDFDocument from "pdfkit";
+import { isFieldVisible, muestraBloquePep, muestraBloqueTercero } from "./conditionalFields";
 
 /**
  * Server-side PDF generator for Debida Diligencia forms.
@@ -10,7 +11,9 @@ export async function generateServerPDF(
   data: any,
   formId: string,
   submittedAt: Date,
-  documents?: { name: string; fileType: string }[]
+  documents?: { name: string; fileType: string; documentType?: string | null }[],
+  /** Versión del expediente que se está imprimiendo (FormVersion.version). */
+  version?: number
 ): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     try {
@@ -18,7 +21,7 @@ export async function generateServerPDF(
         size: "A4",
         margins: { top: 40, bottom: 40, left: 40, right: 40 },
         info: {
-          Title: `Expediente Debida Diligencia - ${formId}`,
+          Title: `Expediente Debida Diligencia - ${formId}${version ? ` (v${version})` : ""}`,
           Author: "Urban Development Group",
           Subject: "Formulario de Debida Diligencia",
         },
@@ -58,6 +61,10 @@ export async function generateServerPDF(
         .text(`ID: ${formId.substring(0, 18)}`, 425, 46, { width: 125, align: "center" });
       doc.fontSize(8).fillColor(GRAY).font("Helvetica")
         .text(`Fecha: ${dateStr}`, 420, 65, { width: 135, align: "center" });
+      if (version) {
+        doc.fontSize(8).fillColor(NAVY).font("Helvetica-Bold")
+          .text(`Versión ${version}`, 420, 76, { width: 135, align: "center" });
+      }
 
       // Divider
       doc.moveTo(40, 80).lineTo(555, 80).strokeColor(NAVY).lineWidth(2).stroke();
@@ -85,18 +92,40 @@ export async function generateServerPDF(
         y = drawFieldRow(doc, y, "Profesión / Ocupación", data.profession || "-", "Estado Civil", data.estadoCivil || "-");
         y = drawFieldRow(doc, y, "Patrono / Empleador", data.employer || "-", "Cargo Desempeñado", data.cargoDesempena || "-");
         y = drawField(doc, y, "Dirección Laboral", data.direccionLaboral || "-");
-        y = drawField(doc, y, "Dirección Residencial", `${data.direccionResidencial || "-"}, ${data.ciudad || ""}, ${data.provincia || ""}, ${data.paisResidencial || ""}`);
-        y = drawFieldRow(doc, y, "Medio de Contacto", `${data.formaContacto || "-"}${data.referidoPor ? ` (Ref: ${data.referidoPor})` : ""}`, "", "");
+        y = drawField(doc, y, "Dirección Residencial", `${data.direccionResidencial || "-"}, ${data.ciudad || ""}, ${data.provinciaEstado || ""}, ${data.paisResidencial || ""}`);
+        y = drawFieldRow(doc, y, "Medio de Contacto", `${data.formaContacto || "-"}${isFieldVisible("natural", "referidoPor", data) && data.referidoPor ? ` (Ref: ${data.referidoPor})` : ""}`, "", "");
 
         y += 5;
         y = checkPageBreak(doc, y, 100);
         y = drawSectionTitle(doc, y, "2. Perfil Financiero y Origen de Fondos", NAVY);
         y = drawFieldRow(doc, y, "Ingresos Mensuales Promedio", data.ingresosMensuales || "-", "Fuente de Fondos", data.fuenteFondosInmueble || "-");
+        // El detalle de "Otros" acompaña a la categoría, no la reemplaza.
+        if (isFieldVisible("natural", "ifOtroNombre", data)) {
+          y = checkPageBreak(doc, y, 30);
+          y = drawField(doc, y, "Otra Fuente (detalle)", data.ifOtroNombre || "-");
+        }
         y = drawFieldRow(doc, y, "Monto Servicios Anuales", data.montoServiciosAnuales || "-", "Destino de Fondos", data.destinoInmueble || "Adquisición de Inmueble");
         y = drawFieldRow(doc, y, "¿Persona PEP?", data.esPep || "No", "¿A Nombre de Tercero?", data.adquiereNombreTercero || "No");
-        if (data.esPep === "Sí") {
+        if (muestraBloquePep(data)) {
           y = drawField(doc, y, "Detalles PEP", `Nombre: ${data.pepNombre || "-"} | Cargo: ${data.pepCargo || "-"} | Institución: ${data.pepInstitucion || "-"} | Relación: ${data.pepRelacion || "-"}`);
         }
+        // Datos del tercero en persona natural: el expediente archivado en
+        // WorkDrive los omitía aunque el formulario los pidiera. Se usan las
+        // mismas condiciones que el formulario y la vista de consulta.
+        if (isFieldVisible("natural", "nombreTercero", data)) {
+          y = checkPageBreak(doc, y, 30);
+          y = drawField(doc, y, "Nombre del Tercero", data.nombreTercero || "-");
+        }
+        if (muestraBloqueTercero("natural", data)) {
+          y = checkPageBreak(doc, y, 30);
+          y = drawField(
+            doc,
+            y,
+            "Aportante Tercero",
+            `Nombre: ${data.ifTerceroNombre || "-"} | Nac: ${data.ifTerceroNacionalidad || "-"} | Fuente: ${data.ifTerceroFuenteDeIngresos || "-"} | Relación: ${data.ifTerceroRelacion || "-"}`
+          );
+        }
+
         y = drawFieldRow(doc, y, "Act. Económica Principal", data.actEconPrincipal || "-", "% Dedicación", `${data.pctDedicacionPrincipal || "100"}%`);
         y = drawField(doc, y, "Jurisdicción Principal", data.jurisdiccionPrincipal || "-");
 
@@ -157,28 +186,45 @@ export async function generateServerPDF(
         y = drawSectionTitle(doc, y, "5. Perfil Financiero y de Cumplimiento", NAVY);
         y = drawFieldRow(doc, y, "Ingresos Mensuales", data.ingresosMensuales || "-", "Volumen Ventas Anual", data.volumenVentas || "-");
         y = drawFieldRow(doc, y, "Medio de Pago", data.medioPago || "-", "Fondos de Adquisición", data.fuenteFondosInmueble || "-");
-        if (data.fuenteFondosInmueble && data.fuenteFondosInmueble.includes("Terceros")) {
+        if (muestraBloqueTercero("juridica", data)) {
           y = drawField(doc, y, "Aportante Tercero", `Nombre: ${data.terceroNombre || "-"} | Nac: ${data.terceroNacionalidad || "-"} | Vínculo: ${data.terceroVinculo || "-"} | Fuente: ${data.terceroFuenteFondos || "-"}`);
         }
-        y = drawFieldRow(doc, y, "¿Previsto >1 Unidad (12m)?", `${data.adquiereMasUnidades || "No"}${data.cantidadUnidadesInmobiliarias ? ` (${data.cantidadUnidadesInmobiliarias} unidades)` : ""}`, "Banco de Referencia", data.bancoReferencia || "-");
+        y = drawFieldRow(doc, y, "¿Previsto >1 Unidad (12m)?", `${data.adquiereMasUnidades || "No"}${isFieldVisible("juridica", "cantidadUnidadesInmobiliarias", data) && data.cantidadUnidadesInmobiliarias ? ` (${data.cantidadUnidadesInmobiliarias} unidades)` : ""}`, "Banco de Referencia", data.bancoReferencia || "-");
         y = drawFieldRow(doc, y, "Fuente / Origen Fondos", data.origenFondos || "-", "Destino de Fondos", data.destinoFondos || "-");
         y = drawFieldRow(doc, y, "¿Persona PEP?", data.esPep || "No", "Actividad Comercial", data.actividadComercial || "-");
-        if (data.esPep === "Sí") {
+        if (muestraBloquePep(data)) {
           y = drawField(doc, y, "Detalles PEP", `Nombre: ${data.pepNombre || "-"} | Cargo: ${data.pepCargo || "-"} | Institución: ${data.pepInstitucion || "-"} | Relación: ${data.pepRelacion || "-"}`);
         }
       }
 
       // ===== DOCUMENTS SECTION =====
-      y += 5;
-      y = checkPageBreak(doc, y, 60);
+      // El listado de documentos siempre arranca en página nueva: evita que el
+      // índice de anexos quede partido justo antes de los anexos combinados.
+      y = forcePageBreak(doc);
       y = drawSectionTitle(doc, y, "Documentos Adjuntados", NAVY);
 
-      if (documents && documents.length > 0) {
-        for (const d of documents) {
-          y = checkPageBreak(doc, y, 14);
-          doc.fontSize(8).fillColor("#059669").font("Helvetica-Bold").text("✓ ", 48, y, { continued: true });
-          doc.fillColor(DARK).font("Helvetica").text(d.name || "Documento sin nombre");
+      const grupos = agruparDocumentos(documents || [], data);
+
+      if (grupos.length > 0) {
+        for (const grupo of grupos) {
+          y = checkPageBreak(doc, y, 26);
+
+          // Título del requisito documental, con el conteo cuando admite varios
+          doc.fontSize(8).fillColor(NAVY).font("Helvetica-Bold")
+            .text(
+              grupo.archivos.length > 1 ? `${grupo.titulo} (${grupo.archivos.length} archivos)` : grupo.titulo,
+              48, y, { width: 500 }
+            );
           y += 12;
+
+          // Una línea por archivo: los campos multi-archivo se listan completos
+          for (const archivo of grupo.archivos) {
+            y = checkPageBreak(doc, y, 14);
+            doc.fontSize(8).fillColor("#059669").font("Helvetica-Bold").text("✓ ", 60, y, { continued: true });
+            doc.fillColor(DARK).font("Helvetica").text(archivo, { width: 470 });
+            y += 12;
+          }
+          y += 4;
         }
       } else {
         doc.fontSize(8).fillColor(GRAY).font("Helvetica-Oblique").text("No se adjuntaron documentos.", 48, y);
@@ -248,6 +294,69 @@ function checkPageBreak(doc: PDFKit.PDFDocument, y: number, needed: number): num
   return y;
 }
 
+/** Salto de página incondicional. Devuelve la `y` inicial de la página nueva. */
+function forcePageBreak(doc: PDFKit.PDFDocument): number {
+  doc.addPage();
+  return 40;
+}
+
+/** Etiqueta legible de cada ranura documental. */
+const TITULOS_DOCUMENTO: Record<string, string> = {
+  idFile: "Copia del Documento de Identidad",
+  copiaIdFile: "Copia del Documento de Identidad",
+  proofAddressFile: "Prueba de Domicilio",
+  origenFondosFile: "Origen de Fondos",
+  hasEstadoCuenta: "Estado de Cuenta Bancario",
+  hasCertificacionBancaria: "Certificación Bancaria",
+  certBancariaFile: "Certificación Bancaria",
+  pactoSocialFile: "Pacto Social y sus Adendas",
+  avisoOperacionesFile: "Certificado de Aviso de Operaciones",
+  serviciosPublicosFile: "Factura de Servicios Públicos",
+  certRegistroFile: "Certificado de Registro Público",
+  otrosAdjuntosFile: "Otros Adjuntos",
+};
+
+/**
+ * Agrupa los documentos por ranura para que los campos multi-archivo
+ * (Origen de Fondos, Pacto Social, Estados de Cuenta) impriman TODOS sus
+ * archivos y no sólo el primero.
+ *
+ * La fuente principal son las filas de Document; el `data` de la versión se usa
+ * como respaldo para no perder archivos que no tengan fila asociada.
+ */
+export function agruparDocumentos(
+  documents: { name: string; fileType: string; documentType?: string | null }[],
+  data: any
+): { titulo: string; archivos: string[] }[] {
+  const porRanura = new Map<string, string[]>();
+
+  const agregar = (ranura: string, nombre: string) => {
+    if (!nombre || !nombre.trim()) return;
+    const lista = porRanura.get(ranura) || [];
+    if (!lista.includes(nombre)) lista.push(nombre);
+    porRanura.set(ranura, lista);
+  };
+
+  for (const d of documents) {
+    agregar(d.documentType || "otrosAdjuntosFile", d.name || "Documento sin nombre");
+  }
+
+  // Respaldo desde el snapshot de la versión
+  for (const [campo, valor] of Object.entries(data || {})) {
+    if (!(campo in TITULOS_DOCUMENTO)) continue;
+    if (Array.isArray(valor)) {
+      for (const v of valor) if (typeof v === "string") agregar(campo, v);
+    } else if (typeof valor === "string") {
+      agregar(campo, valor);
+    }
+  }
+
+  return Array.from(porRanura.entries()).map(([ranura, archivos]) => ({
+    titulo: TITULOS_DOCUMENTO[ranura] || ranura,
+    archivos,
+  }));
+}
+
 function drawSectionTitle(doc: PDFKit.PDFDocument, y: number, title: string, color: string): number {
   doc.fontSize(9).fillColor(color).font("Helvetica-Bold").text(title.toUpperCase(), 40, y, { width: 515 });
   y += 14;
@@ -256,20 +365,31 @@ function drawSectionTitle(doc: PDFKit.PDFDocument, y: number, title: string, col
   return y;
 }
 
+// Alto mínimo de una fila de campo; si el valor se parte en varias líneas la
+// fila crece hasta donde terminó el texto, para que la siguiente no lo pise.
+const ALTO_FILA = 13;
+const SEPARACION_FILA = 3;
+
 function drawField(doc: PDFKit.PDFDocument, y: number, label: string, value: string): number {
   doc.fontSize(8).fillColor("#4b5563").font("Helvetica-Bold").text(`${label}:`, 48, y, { continued: true, width: 140 });
   doc.fillColor("#1f2937").font("Helvetica").text(` ${value}`, { width: 400 });
-  return y + 13;
+  return Math.max(y + ALTO_FILA, doc.y + SEPARACION_FILA);
 }
 
 function drawFieldRow(doc: PDFKit.PDFDocument, y: number, l1: string, v1: string, l2: string, v2: string): number {
+  // Cada columna se parte por su cuenta: la fila termina donde termina la más alta.
+  let fin = y;
   doc.fontSize(8).fillColor("#4b5563").font("Helvetica-Bold").text(`${l1}:`, 48, y, { width: 120 });
+  fin = Math.max(fin, doc.y);
   doc.fillColor("#1f2937").font("Helvetica").text(v1, 170, y, { width: 130 });
+  fin = Math.max(fin, doc.y);
   if (l2) {
     doc.fillColor("#4b5563").font("Helvetica-Bold").text(`${l2}:`, 310, y, { width: 120 });
+    fin = Math.max(fin, doc.y);
     doc.fillColor("#1f2937").font("Helvetica").text(v2, 430, y, { width: 125 });
+    fin = Math.max(fin, doc.y);
   }
-  return y + 13;
+  return Math.max(y + ALTO_FILA, fin + SEPARACION_FILA);
 }
 
 function drawRow(doc: PDFKit.PDFDocument, x: number, y: number, l1: string, v1: string, l2: string, v2: string): void {

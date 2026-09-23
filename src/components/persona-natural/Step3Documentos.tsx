@@ -42,6 +42,8 @@ export default function Step3Documentos({
         </label>
         <label className="text-[11px] text-zinc-500 leading-normal">{description}</label>
 
+
+        
         {/* Multi-file: list of uploaded files, each removable on its own */}
         {multiple && fileList.length > 0 && (
           <ul className="space-y-1">
@@ -63,7 +65,6 @@ export default function Step3Documentos({
             ))}
           </ul>
         )}
-
         <div className={`border rounded-xl p-4 flex items-center justify-between gap-4 min-h-[72px] transition-all duration-200 ${
           hasError
             ? "bg-red-50/10 border-red-500 hover:border-red-600"

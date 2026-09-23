@@ -127,7 +127,6 @@ El archivo `.env` almacena la configuración de conexión y las credenciales de 
 | `ZOHO_ACCOUNTS_URL` | Endpoint de autenticación OAuth de Zoho | `https://accounts.zoho.com` |
 | `ZOHO_CRM_BASE_URL` | Endpoint base para API REST de Zoho CRM | `https://www.zohoapis.com/crm/v2` |
 | `ZOHO_WORKDRIVE_BASE_URL` | Endpoint base para API REST de Zoho WorkDrive | `https://www.zohoapis.com/workdrive/api/v1` |
-| `ZOHO_UPLOAD_BASE_URL` | Endpoint base para API de Stream Upload de WorkDrive | `https://upload.zoho.com` |
 | `ZOHO_WORKDRIVE_ROOT_FOLDER_ID` | ID de la carpeta raíz de destino en WorkDrive | `xxxxxxxxxxxxxxxxxxxxxxxxxxxx` |
 | `SAP_SERVICE_LAYER_URL` | Endpoint base del Service Layer de SAP Business One | `https://sap.udg.com.pa:50000/b1s/v1` |
 | `SAP_COMPANY_DB` | Nombre de la base de datos de la empresa en SAP | `UDG_PROD` |
@@ -144,6 +143,12 @@ El archivo `.env` almacena la configuración de conexión y las credenciales de 
 ## 4. Gestión de Base de Datos y Migraciones
 
 La aplicación utiliza Prisma ORM para gestionar el esquema de la base de datos PostgreSQL.
+
+> **Versionado de expedientes:** los formularios enviados quedan bloqueados y
+> sólo se pueden modificar tras pulsar "Reactivar Enlace" en Zoho CRM, que ahora
+> exige identificar al responsable del cambio. El detalle del esquema
+> (`FormVersion`, `FormEditAuthorization`) y el contrato de `/api/reactivar`
+> están en [`docs/versionado-expedientes.md`](docs/versionado-expedientes.md).
 
 ### Comandos Principales de Base de Datos
 
@@ -271,13 +276,13 @@ Cada acción crítica realizada en el sistema (inicio de sesión, generación de
 - **Autenticación**: OAuth 2.0 mediante Refresh Token.
 - **Módulos Consultados/Actualizados**: `Contacts`, `Leads`, `Debida_Diligencia`.
 
-### 2. Zoho WorkDrive (Stream Upload API & Share Links)
+### 2. Zoho WorkDrive (Upload API & Share Links)
 
 - **Propósito**: Almacenamiento organizado de adjuntos (cédulas, pactos sociales, avisos de operación, estados financieros).
 - **Proceso de Subida**:
   1. Validación del archivo local mediante comprobación de firma binaria (*magic bytes*) para PDF y JPG/JPEG (límite 10 MB).
   2. Búsqueda o creación idempotente de carpetas: `/DD/{AÑO}/{MES}/{APELLIDO_NOMBRE_ID}/{TIPO_DOCUMENTO}/`.
-  3. Transmisión del archivo binario a la API de Stream Upload (`upload.zoho.com`).
+  3. Subida multipart del archivo a la API de WorkDrive (`{ZOHO_WORKDRIVE_BASE_URL}/upload`).
   4. Generación de enlace de lectura/descarga pública (`createShareLink`) guardado en la base de datos PostgreSQL.
 
 ### 3. SAP Business One (Service Layer)

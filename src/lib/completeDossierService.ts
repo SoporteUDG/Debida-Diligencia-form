@@ -1,5 +1,6 @@
 import { PDFDocument as PDFLibDoc } from "pdf-lib";
 import { generateServerPDF } from "./serverPdfGenerator";
+import { esDescargable } from "./workdriveFileId";
 
 /**
  * Downloads a file from Zoho WorkDrive by its fileId using Zoho OAuth access token.
@@ -28,6 +29,22 @@ async function fetchWorkDriveFileBuffer(fileId: string, accessToken: string): Pr
 }
 
 /**
+ * Prefijo del PDF consolidado que se sube a WorkDrive por cada versión
+ * (Expediente_Debida_Diligencia_<cliente>_v<n>.pdf).
+ */
+export const PREFIJO_EXPEDIENTE_CONSOLIDADO = "Expediente_Debida_Diligencia_";
+
+/**
+ * El consolidado de cada versión queda registrado como Document del
+ * formulario. No es un anexo del cliente: si se tratara como tal, la v3
+ * arrastraría dentro las páginas de la v1 y la v2. Cada versión ya tiene su
+ * propio archivo en WorkDrive.
+ */
+export function esExpedienteConsolidado(doc: { name?: string | null }): boolean {
+  return (doc.name || "").startsWith(PREFIJO_EXPEDIENTE_CONSOLIDADO);
+}
+
+/**
  * Generates the complete, detailed PDF dossier combining:
  * 1. The official structured form report (all personal, labor, PEP, and financial fields)
  * 2. Electronic signature block with image
@@ -40,19 +57,22 @@ export async function generateCompleteDossierPDF(
   data: any,
   formId: string,
   submittedAt: Date,
-  documents: Array<{ name: string; fileType: string; zohoFileId?: string | null }>,
-  accessToken?: string
+  documents: Array<{ name: string; fileType: string; zohoFileId?: string | null; documentType?: string | null }>,
+  accessToken?: string,
+  /** Versión sellada del expediente que se está consolidando. */
+  version?: number
 ): Promise<Buffer> {
   // 1. Generate base form PDF with PDFKit
-  console.log(`[Dossier PDF] Generando reporte principal para formulario: ${formId}`);
-  const basePdfBuffer = await generateServerPDF(type, data, formId, submittedAt, documents);
+  console.log(`[Dossier PDF] Generando reporte principal para formulario: ${formId}${version ? ` (versión ${version})` : ""}`);
+  const anexos = (documents || []).filter((d) => !esExpedienteConsolidado(d));
+  const basePdfBuffer = await generateServerPDF(type, data, formId, submittedAt, anexos, version);
 
   // 2. Load into pdf-lib for merging attachments
   const mergedPdf = await PDFLibDoc.load(basePdfBuffer);
 
   // Filter valid attached documents
-  const activeDocs = (documents || []).filter(
-    (d) => d.zohoFileId && d.zohoFileId !== "PENDING_SYNC" && d.zohoFileId !== "LOCAL_BACKUP"
+  const activeDocs = anexos.filter(
+    (d) => esDescargable(d)
   );
 
   if (activeDocs.length > 0 && accessToken) {

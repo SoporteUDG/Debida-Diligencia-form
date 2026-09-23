@@ -43,10 +43,10 @@ export default function Step2GobiernoRL({
   const hasIncompleteMembers = members.some(m => !isMemberComplete(m));
 
   return (
-    <div className="space-y-4 bg-white rounded-2xl shadow-xl">
+    <div className="bg-white rounded-2xl shadow-xl">
       
       {/* Card: GOBIERNO CORPORATIVO */}
-      <div className="p-6 md:p-8 space-y-6">
+      <div className="px-6 md:px-8 pt-6 space-y-6">
         <div className="border-b border-zinc-200 pb-3 flex items-center justify-between">
           <div>
             <h3 className="text-sm font-bold tracking-widest text-[#052B48] uppercase">
@@ -225,7 +225,7 @@ export default function Step2GobiernoRL({
 
                     <div className="flex flex-col gap-1.5">
                       <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700">
-                        {idx + 1} - GJC Nacionalidad <span className="text-red-500 font-bold">*</span>
+                        {idx + 1} - Nacionalidad <span className="text-red-500 font-bold">*</span>
                       </label>
                       <SearchableSelect
                         value={member.nacionalidad}
@@ -317,7 +317,7 @@ export default function Step2GobiernoRL({
       </div>
 
       {/* Card: REPRESENTANTE LEGAL O APODERADO */}
-      <div className="p-6 md:p-8">
+      <div className="px-6 md:px-8 pt-6">
         <h3 className="text-sm font-bold tracking-widest text-[#052B48] uppercase border-b border-zinc-200 pb-3 mb-6 flex items-center justify-between">
           <span>REPRESENTANTE LEGAL O APODERADO</span>
           <span className="text-[10px] text-zinc-400 lowercase font-normal italic">RL - Datos Personales</span>
@@ -530,7 +530,7 @@ export default function Step2GobiernoRL({
       </div>
 
       {/* Card: PREGUNTA LEGAL AML */}
-      <div className="p-6 md:p-8 shadow-xl space-y-4">
+      <div className="px-6 md:px-8 py-6 shadow-xl space-y-4">
         <h3 className="text-sm font-bold tracking-widest text-[#052B48] uppercase border-b border-zinc-200 pb-3 mb-6 flex items-center justify-between">
           <span>PREGUNTA LEGAL AML</span>
           <span className="text-[10px] text-zinc-400 lowercase font-normal italic">Requerido</span>

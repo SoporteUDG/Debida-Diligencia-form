@@ -30,6 +30,7 @@ import {
 } from "@/lib/validation";
 
 import { useAutosave } from "@/hooks/useAutosave";
+import { borrarDatosRL, guardarDatosRL, mapearNaturalARL } from "@/lib/datosRepresentanteLegal";
 
 const getStepForField = (field: string): number => {
   const step1Fields = [
@@ -111,6 +112,10 @@ export default function PersonaNaturalPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [validationSummary, setValidationSummary] = useState<{ step: number; message: string }[] | null>(null);
 
+  // Versión del servidor retenida cuando hay conflicto de concurrencia.
+  // El formulario NO se toca hasta que el usuario elija qué conservar.
+  const [conflictoBorrador, setConflictoBorrador] = useState<{ data: any; step: number; updatedAt: string } | null>(null);
+
   // Initialize draft token and load saved draft timestamp if it exists
   useEffect(() => {
     setIsMounted(true);
@@ -143,22 +148,37 @@ export default function PersonaNaturalPage() {
   }, []);
 
   // Hook up custom autosave hook
-  const { status: saveStatus, lastSaved, setStatus: setSaveStatus, setLastSaved, lastSavedAtRef } = useAutosave({
+  const { status: saveStatus, lastSaved, setStatus: setSaveStatus, setLastSaved, lastSavedAtRef, forceSave } = useAutosave({
     data: formData,
     type: "natural",
     step: currentStep,
     draftToken,
     onConflict: (dbData, dbStep, dbUpdatedAt) => {
-      console.warn("[Natural Page] Conflicto de concurrencia detectado. Sincronizando con la versión de base de datos.");
-      setFormData(normalizeFormData(dbData));
-      setCurrentStep(dbStep);
-      if (lastSavedAtRef) {
-        lastSavedAtRef.current = dbUpdatedAt;
-      }
-      setLastSaved(new Date(dbUpdatedAt).toLocaleTimeString());
-      setSaveStatus("saved");
+      // Nunca se sobrescribe lo que el usuario tiene en pantalla: se retiene la
+      // versión del servidor y se le pide que decida.
+      console.warn("[Natural Page] Conflicto de concurrencia detectado. Se conservan los cambios locales.");
+      setConflictoBorrador({ data: dbData, step: dbStep, updatedAt: dbUpdatedAt });
     }
   });
+
+  /** Conserva lo que hay en pantalla y lo guarda pisando la versión del servidor. */
+  const conservarCambiosLocales = async () => {
+    setConflictoBorrador(null);
+    await forceSave();
+  };
+
+  /** Descarta los cambios locales y carga la versión guardada en el servidor. */
+  const usarVersionDelServidor = () => {
+    if (!conflictoBorrador) return;
+    setFormData(normalizeFormData(conflictoBorrador.data));
+    setCurrentStep(conflictoBorrador.step);
+    if (lastSavedAtRef) {
+      lastSavedAtRef.current = conflictoBorrador.updatedAt;
+    }
+    setLastSaved(new Date(conflictoBorrador.updatedAt).toLocaleTimeString());
+    setSaveStatus("saved");
+    setConflictoBorrador(null);
+  };
 
   // Load draft from database on mount or when token is loaded
   useEffect(() => {
@@ -200,6 +220,20 @@ export default function PersonaNaturalPage() {
 
     loadDraftFromDb();
   }, [draftToken, isMounted]);
+
+  // Guarda (o borra) en este navegador los datos reutilizables como
+  // Representante Legal en el formulario de Persona Jurídica.
+  const datosRLSerializados = JSON.stringify(mapearNaturalARL(formData));
+  useEffect(() => {
+    // Tras el envío el formulario se reinicia; no debe borrar lo ya guardado.
+    if (!isMounted || isSubmitted) return;
+    if (formData.compartirDatosRL) {
+      guardarDatosRL(formData);
+    } else {
+      borrarDatosRL();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMounted, isSubmitted, formData.compartirDatosRL, datosRLSerializados]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
@@ -305,6 +339,13 @@ export default function PersonaNaturalPage() {
           throw new Error("Respuesta de servidor inválida.");
         }
 
+        // El servidor ya guardó el nombre en el borrador: sincronizar la marca
+        // de tiempo para que el siguiente autoguardado no dé falso conflicto
+        // (y descarte los archivos recién subidos).
+        if (data.draftUpdatedAt && lastSavedAtRef) {
+          lastSavedAtRef.current = data.draftUpdatedAt;
+        }
+
         // Set success states
         setUploadProgress(prev => ({ ...prev, [fieldName]: 100 }));
         if (MULTI_FILE_FIELDS.includes(fieldName)) {
@@ -367,9 +408,16 @@ export default function PersonaNaturalPage() {
           }),
         });
 
+        const resJson = await response.json();
         if (!response.ok) {
-          const resJson = await response.json();
           throw new Error(resJson.error?.message || "Error al eliminar el archivo.");
+        }
+
+        // El borrado también modifica el borrador en el servidor: sin esta
+        // sincronización el siguiente autoguardado daría conflicto.
+        const deleteData = resJson.result?.data;
+        if (deleteData?.draftUpdatedAt && lastSavedAtRef) {
+          lastSavedAtRef.current = deleteData.draftUpdatedAt;
         }
 
         // Reset states on success
@@ -622,6 +670,12 @@ export default function PersonaNaturalPage() {
       existing.push(submission);
       localStorage.setItem("udg_submissions", JSON.stringify(existing));
 
+      // Persistir los datos reutilizables como Representante Legal antes de
+      // reiniciar el formulario.
+      if (formData.compartirDatosRL) {
+        guardarDatosRL(formData);
+      }
+
       setSubmittedData(formData);
       setSubmissionId(submissionId);
       setSubmissionDate(dateNow.toLocaleString());
@@ -702,7 +756,7 @@ export default function PersonaNaturalPage() {
                 type="button"
                 onClick={() => {
                   if (submittedData) {
-                    generatePDF("natural", submittedData, submissionId, new Date().toLocaleDateString(), submittedDocuments);
+                    generatePDF("natural", submittedData, submissionId, new Date().toLocaleDateString(), submittedDocuments, draftToken);
                   }
                 }}
                 className="bg-[#DAB38D] hover:bg-[#c9a27c] text-zinc-950 font-semibold px-8 py-3.5 rounded-xl shadow-lg transition-all duration-300 active:scale-[0.98] cursor-pointer text-sm font-sans flex items-center justify-center gap-2.5"
@@ -730,9 +784,46 @@ export default function PersonaNaturalPage() {
       {/* Editorial Header */}
       <Header isSaving={saveStatus === "saving"} lastSaved={lastSaved} saveStatus={saveStatus} />
 
+      {/* Aviso de conflicto de concurrencia: los datos en pantalla se conservan */}
+      {conflictoBorrador && (
+        <div className="sticky top-20 md:top-24 z-40 bg-amber-500/15 border-y border-amber-400/40 backdrop-blur-md animate-fadeIn">
+          <div className="max-w-5xl mx-auto px-6 py-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="text-xs leading-relaxed text-amber-100">
+              <p className="font-bold text-amber-200 uppercase tracking-wider text-[11px] mb-1">
+                No se pudo guardar automáticamente
+              </p>
+              <p>
+                Este formulario fue modificado en otra pestaña o dispositivo
+                {conflictoBorrador.updatedAt && (
+                  <> (última versión del servidor: {new Date(conflictoBorrador.updatedAt).toLocaleTimeString()})</>
+                )}
+                . <span className="font-semibold">Sus cambios siguen en pantalla y no se han perdido.</span> Elija cuál
+                versión conservar.
+              </p>
+            </div>
+            <div className="flex shrink-0 gap-2">
+              <button
+                type="button"
+                onClick={usarVersionDelServidor}
+                className="rounded-lg border border-amber-300/50 px-3 py-2 text-[11px] font-semibold text-amber-100 transition hover:bg-amber-400/10 cursor-pointer"
+              >
+                Descartar y cargar la del servidor
+              </button>
+              <button
+                type="button"
+                onClick={conservarCambiosLocales}
+                className="rounded-lg bg-[#c8a788] px-3 py-2 text-[11px] font-bold text-[#052B48] transition hover:bg-[#d8bb9f] cursor-pointer"
+              >
+                Conservar mis cambios
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Primary Layout Wrapper */}
       <main className="flex-1 max-w-5xl w-full mx-auto px-6 py-12 flex flex-col justify-center">
-        
+
         {/* Step 0: POLICIES SCREEN */}
         {currentStep === 0 && (
           <PoliciesScreen 

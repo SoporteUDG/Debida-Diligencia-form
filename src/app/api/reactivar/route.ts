@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { reactivateToken } from "@/lib/tokenService";
+import { registrarAutorizacionEdicion } from "@/lib/formVersionService";
 
 export const dynamic = "force-dynamic";
 
@@ -27,11 +28,26 @@ export async function POST(request: NextRequest) {
       }
     }
     
-    const { recordId } = body;
+    // `responsable` identifica a quien autoriza la modificación desde Zoho CRM.
+    // Se acepta también `responsible`/`usuario` por comodidad de la integración.
+    const { recordId, motivo, reason } = body;
+    const responsable = String(body.responsable || body.responsible || body.usuario || "").trim();
+    const motivoCambio = String(motivo || reason || "").trim() || null;
 
     if (!recordId) {
       return NextResponse.json(
         { success: false, error: "El recordId de Zoho CRM es requerido" },
+        { status: 400 }
+      );
+    }
+
+    if (!responsable) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "El campo 'responsable' es requerido: identifica a quien autoriza la modificación del expediente.",
+        },
         { status: 400 }
       );
     }
@@ -75,11 +91,25 @@ export async function POST(request: NextRequest) {
 
     console.log(`[API Reactivar] Token ${latestToken.token} reactivado con éxito hasta: ${extension.newExpiresAt}`);
 
+    // 3. Registrar el permiso de edición. Sin esta autorización el expediente
+    //    enviado sigue bloqueado: reactivar el enlace permite abrirlo, pero es
+    //    esta fila la que habilita sellar una versión nueva.
+    const autorizacion = await registrarAutorizacionEdicion({
+      crmContactId: contact.id,
+      authorizedBy: responsable,
+      reason: motivoCambio,
+      tokenUuid: latestToken.token,
+      expiresAt: extension.newExpiresAt ?? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+    });
+
     return NextResponse.json({
       success: true,
       status: "success",
       message: "¡Enlace reactivado exitosamente por 30 días!",
       expiresAt: extension.newExpiresAt,
+      authorizationId: autorizacion.id,
+      responsable,
+      motivo: motivoCambio,
     });
   } catch (err: any) {
     console.error("[API Reactivar Error]:", err);
