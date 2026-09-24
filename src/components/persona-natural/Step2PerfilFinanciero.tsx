@@ -4,6 +4,9 @@ import SearchableSelect from "@/components/ui/SearchableSelect";
 import { countries } from "@/lib/countries";
 import { FormState } from "@/types/persona-natural";
 import { PHONE_CODES } from "@/types/persona-juridica";
+import { useTranslations } from "next-intl";
+import es from "@/messages/es.json";
+import { optionLabeler } from "@/i18n/optionLabel";
 
 interface Step2Props {
   formData: FormState;
@@ -77,19 +80,28 @@ export default function Step2PerfilFinanciero({
   onSearchableSelectChange,
   errors = {},
 }: Step2Props) {
+  const t = useTranslations("NaturalForm.NaturalFormStep2Titles");
+  const p = useTranslations("NaturalForm.NaturalFormStep2Placeholder");
+  const OPTIONS = es.NaturalForm.NaturalFormStep2Options;
+  const professionLabel = optionLabeler(OPTIONS.ProfesionOptions, useTranslations("NaturalForm.NaturalFormStep2Options.ProfesionOptions"));
+  const activityLabel = optionLabeler(OPTIONS.ActivityOptions, useTranslations("NaturalForm.NaturalFormStep2Options.ActivityOptions"));
+  const propietaryLabel = optionLabeler(OPTIONS.PropietaryOptions, useTranslations("NaturalForm.NaturalFormStep2Options.PropietaryOptions"));
+  const personalActivityLabel = optionLabeler(OPTIONS.PersonalActivityOptions, useTranslations("NaturalForm.NaturalFormStep2Options.PersonalActivityOptions"));
+  const yesNoLabel = optionLabeler(es.NaturalForm.TrueFalseOptions, useTranslations("NaturalForm.TrueFalseOptions"));
+
   return (
     <div className="bg-white rounded-2xl shadow-xl border border-zinc-200">
       
       {/* Card A: JURISDICCIÓN / UBICACIÓN GEOGRÁFICA */}
       <div className="px-6 md:px-8 pt-6 space-y-6 text-[#1a1c1a] font-sans">
         <h3 className="text-sm font-bold tracking-widest text-[#052B48] uppercase border-b border-zinc-200 pb-3">
-          JURISDICCIÓN / UBICACIÓN GEOGRÁFICA
+          {t("Title1")}
         </h3>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="flex flex-col gap-2 md:col-span-3">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="direccionResidencial">
-              Dirección (Calle, Número, Urbanización/Edificio, Piso, Apartamento, etc.) <span className="text-red-500 font-bold">*</span>
+              {t("DirectionTitle")} <span className="text-red-500 font-bold">*</span>
             </label>
             <input
               type="text"
@@ -97,7 +109,7 @@ export default function Step2PerfilFinanciero({
               name="direccionResidencial"
               value={formData.direccionResidencial || ""}
               onChange={onInputChange}
-              placeholder="Ej: Calle 50, Edificio Royal Tower, Apto 12B"
+              placeholder={p("DirectionPlaceholder")}
               className={`${errors.direccionResidencial ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800`}
               required
             />
@@ -110,7 +122,7 @@ export default function Step2PerfilFinanciero({
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="ciudad">
-              Ciudad
+              {t("CityTitle")}
             </label>
             <input
               type="text"
@@ -118,7 +130,7 @@ export default function Step2PerfilFinanciero({
               name="ciudad"
               value={formData.ciudad || ""}
               onChange={onInputChange}
-              placeholder="Ej: Panamá"
+              placeholder={p("CityPlaceholder")}
               className={`${errors.ciudad ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800`}
             />
             {errors.ciudad && (
@@ -130,7 +142,7 @@ export default function Step2PerfilFinanciero({
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="provinciaEstado">
-              Provincia/Estado
+              {t("ProvinceTitle")}
             </label>
             <input
               type="text"
@@ -138,7 +150,7 @@ export default function Step2PerfilFinanciero({
               name="provinciaEstado"
               value={formData.provinciaEstado || ""}
               onChange={onInputChange}
-              placeholder="Ej: Panamá"
+              placeholder={p("ProvincePlaceholder")}
               className={`${errors.provinciaEstado ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800`}
             />
             {errors.provinciaEstado && (
@@ -150,13 +162,13 @@ export default function Step2PerfilFinanciero({
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700">
-              País
+              {t("CountryTitle")}
             </label>
             <SearchableSelect
               options={countries}
               value={formData.paisResidencial || ""}
               onChange={(value) => onSearchableSelectChange("paisResidencial", value)}
-              placeholder="Selecciona país"
+              placeholder={p("CountryPlaceholder")}
              hasError={!!errors.paisResidencial} />
             {errors.paisResidencial && (
               <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
@@ -167,7 +179,7 @@ export default function Step2PerfilFinanciero({
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="email">
-              E-mail <span className="text-red-500 font-bold">*</span>
+              {t("MailTitle")} <span className="text-red-500 font-bold">*</span>
             </label>
             <input
               type="email"
@@ -175,7 +187,7 @@ export default function Step2PerfilFinanciero({
               name="email"
               value={formData.email || ""}
               onChange={onInputChange}
-              placeholder="correo@ejemplo.com"
+              placeholder={p("MailPlaceholder")}
               className={`${errors.email ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800`}
               required
             />
@@ -188,7 +200,7 @@ export default function Step2PerfilFinanciero({
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="telefono">
-              Teléfono
+              {t("TelefonoTitle")}
             </label>
             <div className="flex gap-1 w-full">
               <select
@@ -209,7 +221,7 @@ export default function Step2PerfilFinanciero({
                 name="telefono"
                 value={formData.telefono || ""}
                 onChange={onInputChange}
-                placeholder="200-0000"
+                placeholder={p("TelefonoPlaceholder")}
                 className="bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20 border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 flex-1 min-w-0 w-full"
               />
            
@@ -223,7 +235,7 @@ export default function Step2PerfilFinanciero({
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="celular">
-              Celular <span className="text-red-500 font-bold">*</span>
+              {t("CelularTitle")} <span className="text-red-500 font-bold">*</span>
             </label>
             <div className="flex gap-1 w-full">
               <select
@@ -244,7 +256,7 @@ export default function Step2PerfilFinanciero({
                 name="celular"
                 value={formData.celular || ""}
                 onChange={onInputChange}
-                placeholder="6000-0000"
+                placeholder={p("CelularPlaceholder")}
                 className="bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20 border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 flex-1 min-w-0 w-full"
                 required
               />
@@ -262,19 +274,20 @@ export default function Step2PerfilFinanciero({
       {/* Card B: Datos Laborales */}
       <div className="px-6 md:px-8 pt-6 space-y-6 text-[#1a1c1a] font-sans">
         <h3 className="text-sm font-bold tracking-widest text-[#052B48] uppercase border-b border-zinc-200 pb-3">
-          Datos Laborales
+          {t("Title2")}
         </h3>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700">
-              Profesión u Oficio <span className="text-red-500 font-bold">*</span>
+              {t("ProfesionTitle")} <span className="text-red-500 font-bold">*</span>
             </label>
             <SearchableSelect
               options={professions}
               value={formData.profession || ""}
               onChange={(value) => onSearchableSelectChange("profession", value)}
-              placeholder="Busca o selecciona profesión"
+              placeholder={p("ProfesionPlaceholder")}
+              getLabel={professionLabel}
              hasError={!!errors.profession} />
             {errors.profession && (
               <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
@@ -285,13 +298,13 @@ export default function Step2PerfilFinanciero({
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700">
-              País o Jurisdicción Donde Opera o Ejerce su Actividad Laboral
+              {t("CountryJurTitle")}
             </label>
             <SearchableSelect
               options={countries}
               value={formData.paisActividadLaboral || ""}
               onChange={(value) => onSearchableSelectChange("paisActividadLaboral", value)}
-              placeholder="Selecciona país"
+              placeholder={p("CountryJurPlaceholder")}
              hasError={!!errors.paisActividadLaboral} />
             {errors.paisActividadLaboral && (
               <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
@@ -304,7 +317,7 @@ export default function Step2PerfilFinanciero({
           {formData.profession === "Otros" && (
             <div className="flex flex-col gap-2 md:col-span-2">
               <label className="text-[11px] font-bold tracking-wider uppercase text-[#052B48]" htmlFor="profesionOtros">
-                Especificar Profesión u Oficio <span className="text-red-500 font-bold">*</span>
+                {t("OtherProfesionTitle")} <span className="text-red-500 font-bold">*</span>
               </label>
               <input
                 type="text"
@@ -312,7 +325,7 @@ export default function Step2PerfilFinanciero({
                 name="profesionOtros"
                 value={formData.profesionOtros || ""}
                 onChange={onInputChange}
-                placeholder="Escribe tu profesión u oficio aquí..."
+                placeholder={p("OtherProfesionPlaceholder")}
                 className={`${errors.profesionOtros ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800`}
                 required
               />
@@ -326,7 +339,7 @@ export default function Step2PerfilFinanciero({
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="employer">
-              Nombre de Empresa Donde Labora <span className="text-red-500 font-bold">*</span>
+              {t("CompanyTitle")} <span className="text-red-500 font-bold">*</span>
             </label>
             <input
               type="text"
@@ -334,7 +347,7 @@ export default function Step2PerfilFinanciero({
               name="employer"
               value={formData.employer || ""}
               onChange={onInputChange}
-              placeholder="Ej: Corporación de Servicios S.A."
+              placeholder={p("CompanyPlaceholder")}
               className={`${errors.employer ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800`}
               required
             />
@@ -347,13 +360,14 @@ export default function Step2PerfilFinanciero({
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700">
-              Actividad/Ocupación Laboral, Empresarial o Comercial
+              {t("CompanyActivityTitle")}
             </label>
             <SearchableSelect
               options={economicActivities}
               value={formData.actividadLaboral || ""}
               onChange={(value) => onSearchableSelectChange("actividadLaboral", value)}
-              placeholder="Busca o selecciona actividad"
+              placeholder={p("CompanyActivityPlaceholder")}
+              getLabel={activityLabel}
              hasError={!!errors.actividadLaboral} />
             {errors.actividadLaboral && (
               <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
@@ -366,7 +380,7 @@ export default function Step2PerfilFinanciero({
           {formData.actividadLaboral === "OTROS" && (
             <div className="flex flex-col gap-2 md:col-span-2">
               <label className="text-[11px] font-bold tracking-wider uppercase text-[#052B48]" htmlFor="actividadLaboralOtros">
-                Especificar Actividad u Ocupación <span className="text-red-500 font-bold">*</span>
+                {t("OtherCompanyActivityTitle")} <span className="text-red-500 font-bold">*</span>
               </label>
               <input
                 type="text"
@@ -374,7 +388,7 @@ export default function Step2PerfilFinanciero({
                 name="actividadLaboralOtros"
                 value={formData.actividadLaboralOtros || ""}
                 onChange={onInputChange}
-                placeholder="Escribe tu actividad laboral aquí..."
+                placeholder={p("OtherCompanyActivityPlaceholder")}
                 className={`${errors.actividadLaboralOtros ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800`}
                 required
               />
@@ -388,7 +402,7 @@ export default function Step2PerfilFinanciero({
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="direccionLaboral">
-              Dirección Laboral Empresarial o Comercial
+              {t("CompanyDirectionTitle")}
             </label>
             <input
               type="text"
@@ -396,7 +410,7 @@ export default function Step2PerfilFinanciero({
               name="direccionLaboral"
               value={formData.direccionLaboral || ""}
               onChange={onInputChange}
-              placeholder="Ej: Vía España, Torre Delta, Piso 5"
+              placeholder={p("CompanyDirectionPlaceholder")}
               className={`${errors.direccionLaboral ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800`}
             />
             {errors.direccionLaboral && (
@@ -408,7 +422,7 @@ export default function Step2PerfilFinanciero({
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="cargoDesempena">
-              Cargo que Desempeña
+              {t("CargoTitle")}
             </label>
             <input
               type="text"
@@ -416,7 +430,7 @@ export default function Step2PerfilFinanciero({
               name="cargoDesempena"
               value={formData.cargoDesempena || ""}
               onChange={onInputChange}
-              placeholder="Ej: Gerente Operativo"
+              placeholder={p("CargoPlaceholder")}
               className={`${errors.cargoDesempena ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800`}
             />
             {errors.cargoDesempena && (
@@ -427,13 +441,14 @@ export default function Step2PerfilFinanciero({
           </div>
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="esPropietario">
-              ¿Es propietario, accionista o mantiene participación dentro de esta sociedad?
+              {t("PropietaryTitle")}
             </label>
             <SearchableSelect
               options={["No", "Propietario", "Accionista", "Miembro de la sociedad"]}
-              value={formData.esPropietario}
+              value={formData.esPropietario || "No"}
               onChange={(value) => onSearchableSelectChange("esPropietario", value)}
-              placeholder="No"
+              placeholder={propietaryLabel("No")}
+              getLabel={propietaryLabel}
               hasError={!!errors.esPropietario}
             />
             {errors.esPropietario && (
@@ -443,16 +458,17 @@ export default function Step2PerfilFinanciero({
             )}
           </div>
           {/* Conditional field for specifying custom porpietary */}
-          {formData.esPropietario !== "No"  && (
+          {formData.esPropietario !== "No" && formData.esPropietario !== ""   && (
             <div className="flex flex-col gap-2">
               <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="usaFondos">
-                ¿Los fondos utilizados en la relación comercial provendrán de dicha sociedad?
+                {t("PropietaryFundsTitle")}
               </label>
               <SearchableSelect
                 options={["No", "Sí"]}
                 value={formData.usaFondos || ""}
                 onChange={(value) => onSearchableSelectChange("usaFondos", value)}
-                placeholder="No"
+                placeholder={yesNoLabel("No")}
+                getLabel={yesNoLabel}
                 hasError={!!errors.usaFondos}
               />
               {errors.usaFondos && (
@@ -470,10 +486,10 @@ export default function Step2PerfilFinanciero({
       <div className="p-6 md:p-8 space-y-6 text-[#1a1c1a] font-sans">
         <div className="border-b border-zinc-200 pb-3">
           <h3 className="text-sm font-bold tracking-widest text-[#052B48] uppercase">
-            ACTIVIDADES ECONÓMICAS O PROFESIONALES
+            {t("Title3")}
           </h3>
           <p className="text-[10px] text-zinc-550 italic mt-1 font-sans leading-normal">
-            (declarar abajo las actividades principales de donde provienen sus ingresos, ej. 80% salario/20% asesorías)
+            {t("SubtTitle3")}
           </p>
         </div>
 
@@ -481,13 +497,14 @@ export default function Step2PerfilFinanciero({
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="flex flex-col gap-2">
               <label className="text-[10px] font-bold tracking-wider uppercase text-zinc-500" htmlFor="actEconPrincipal">
-                Fuente de Ingreso Principal
+                {t("PersonalActivityTitle")}
               </label>
               <SearchableSelect
                 options={["Asalariado", "Trabajador independiente", "Ingresos provenientes de empresas propias", "Otros"]}
                 value={formData.actEconPrincipal || ""}
                 onChange={(value) => onSearchableSelectChange("actEconPrincipal", value)}
-                placeholder="Elija actividad principal"
+                placeholder={p("PersonalActivityPlaceholder")}
+                getLabel={personalActivityLabel}
                 hasError={!!errors.actEconPrincipal}
               />
               
@@ -501,7 +518,7 @@ export default function Step2PerfilFinanciero({
             {formData.actEconPrincipal === "Otros" && (
             <div className="flex flex-col gap-2">
               <label className="text-[10px] font-bold tracking-wider uppercase text-zinc-500" htmlFor="otroActEcon">
-                Especifique Otra Actividad Económica
+                {t("OtherPersonalActivityTitle")}
               </label>
                 <input
                   type="text"
@@ -509,7 +526,7 @@ export default function Step2PerfilFinanciero({
                   name="otroActEcon"
                   value={formData.otroActEcon || ""}
                   onChange={onInputChange}
-                  placeholder="Ej: Salario"
+                  placeholder={p("OtherPersonalActivityPlaceholder")}
                   className={`${errors.otroActEcon ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800`}
                 />
               
@@ -522,7 +539,7 @@ export default function Step2PerfilFinanciero({
             )}
             <div className="flex flex-col gap-2">
               <label className="text-[10px] font-bold tracking-wider uppercase text-zinc-500" htmlFor="pctDedicacionPrincipal">
-                Porcentaje de Dedicación
+                {t("PercActivityTitle")}
               </label>
               <input
                 type="number"
@@ -538,7 +555,7 @@ export default function Step2PerfilFinanciero({
                     e.preventDefault();
                   }
                 }}
-                placeholder="Ej: 80%"
+                placeholder={p("PercActivityPlaceholder")}
                 className={`${errors.pctDedicacionPrincipal ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800`}
               />
             {errors.pctDedicacionPrincipal && (
@@ -550,7 +567,7 @@ export default function Step2PerfilFinanciero({
 
             <div className="flex flex-col gap-2">
               <label className="text-[10px] font-bold tracking-wider uppercase text-zinc-500" htmlFor="jurisdiccionPrincipal">
-                Jurisdicción de Operación
+                {t("JurActivityTitle")}
               </label>
               <input
                 type="text"
@@ -558,7 +575,7 @@ export default function Step2PerfilFinanciero({
                 name="jurisdiccionPrincipal"
                 value={formData.jurisdiccionPrincipal || ""}
                 onChange={onInputChange}
-                placeholder="Ej: Panamá"
+                placeholder={p("JurActivityPlaceholder")}
                 className={`${errors.jurisdiccionPrincipal ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800`}
               />
             {errors.jurisdiccionPrincipal && (
@@ -574,7 +591,7 @@ export default function Step2PerfilFinanciero({
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="flex flex-col gap-2">
               <label className="text-[10px] font-bold tracking-wider uppercase text-zinc-500" htmlFor="actEconSecundaria">
-                Otros Ingresos
+                {t("OtherActivityTitle")}
               </label>
               <input
                   type="text"
@@ -582,7 +599,7 @@ export default function Step2PerfilFinanciero({
                   name="actEconSecundaria"
                   value={formData.actEconSecundaria || ""}
                   onChange={onInputChange}
-                  placeholder="Ej: Asesorias"
+                  placeholder={p("OtherActivityPlaceholder")}
                   className={`${errors.actEconSecundaria ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800`}
                 />
             {errors.actEconSecundaria && (
@@ -594,7 +611,7 @@ export default function Step2PerfilFinanciero({
             
             <div className="flex flex-col gap-2">
               <label className="text-[10px] font-bold tracking-wider uppercase text-zinc-500" htmlFor="pctDedicacionSecundaria">
-                Porcentaje de Dedicación
+                {t("PercOtherActivityTitle")}
               </label>
               <input
                 type="number"
@@ -610,7 +627,7 @@ export default function Step2PerfilFinanciero({
                     e.preventDefault();
                   }
                 }}
-                placeholder="Ej: 20%"
+                placeholder={p("PercOtherActivityPlaceholder")}
                 className={`${errors.pctDedicacionSecundaria ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800`}
               />
             {errors.pctDedicacionSecundaria && (
@@ -622,7 +639,7 @@ export default function Step2PerfilFinanciero({
 
             <div className="flex flex-col gap-2">
               <label className="text-[10px] font-bold tracking-wider uppercase text-zinc-500" htmlFor="jurisdiccionSecundaria">
-                Jurisdicción de Operación
+                {t("JurOtherActivityTitle")}
               </label>
               <input
                 type="text"
@@ -630,7 +647,7 @@ export default function Step2PerfilFinanciero({
                 name="jurisdiccionSecundaria"
                 value={formData.jurisdiccionSecundaria || ""}
                 onChange={onInputChange}
-                placeholder="Ej: Panamá"
+                placeholder={p("JurOtherActivityPlaceholder")}
                 className={`${errors.jurisdiccionSecundaria ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800`}
               />
             {errors.jurisdiccionSecundaria && (

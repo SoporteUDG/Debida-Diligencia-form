@@ -1,0 +1,324 @@
+{
+
+  "LanguageSwitcher": {
+    "label": "Idioma",
+    "es": "Español",
+    "en": "English"
+  },
+
+  "SearchableSelect": {
+    "placeholder": "Selecciona una opción...",
+    "search": "Buscar...",
+    "noResults": "No se encontraron resultados"
+  },
+
+  "NaturalForm":{
+
+    "TrueFalseOptions":{
+      "placeholder":"Seleccione opción",
+      "true":"Sí",
+      "false":"No"
+    },
+
+    "BigTitleStep1":"I. Datos Personales",
+
+    "NaturalFormStep1Titles":{
+      "ProjectTitle": "Nombre del Proyecto",
+      "MediumTitle": "¿Por qué medio nos conoció?",
+      "OtherMedium": "Especifique Forma de Contacto",
+      "referredMedium": "Nombre de quien lo refirió",
+
+      "FirstSubtitle": "IDENTIFICACIÓN DEL CLIENTE",
+      "NameTitle": "Nombre",
+      "LastnameTitle": "Apellido(s)",
+      "BirthCountryTitle": "País de Nacimiento",
+      "FiscalCountryTitle": "País de Residencia Fiscal",
+      "IdTributaryTitle": "No. ID. Tributaria (ej. Cédula, NIT, TIN)",
+      "NacionalityTitle": "Nacionalidad",
+      "TypeIdTitle": "Tipo de Identificación",
+      "OtherNationalityTitle": "Otra Nacionalidad",
+      "CivilTitle": "Estado Civil",
+      "IdTitle": "N° de Identificación",
+      "DueDateTitle": "Fecha de Vencimiento de Identificación",
+      "MigrationTitle": "Estado Migratorio",
+      "BirthTitle": "Fecha de Nacimiento",
+      "SaveDataTitle": "Guardar mis datos para el formulario de Persona Jurídica"
+    },
+
+    "NaturalFormStep1PlaceHolders":{
+      "ProjectPlaceholder": "Selecciona proyecto",
+      "MediumPlaceholder": "Selecciona opción",
+      "OtherMediumPlaceholder": "Escribe el detalle de cómo nos conoció...",
+      "referredMediumPlaceholder": "Escribe el nombre de la persona que lo refirió...",
+
+      "NamePlaceholder": "Tus nombres",
+      "LastnamePlaceholder": "Tus apellidos",
+      "BirthCountryPlaceholder": "Selecciona país de nacimiento",
+      "FiscalCountryPlaceholder": "Selecciona país de residencia fiscal",
+      "IdTributaryPlaceholder": "Escribe tu ID Tributaria",
+      "NacionalityPlaceholder": "Selecciona nacionalidad",
+      "TypeIdPlaceholder": "Selecciona tipo",
+      "OtherNationalityPlaceholder": "Selecciona otra nacionalidad",
+      "CivilPlaceholder": "Selecciona estado civil",
+      "IdPlaceholder": "Ej: PE-123-456",
+      "DueDatePlaceholder": "",
+      "MigrationPlaceholder": "Seleccione opción",
+      "BirthPlaceholder": "",
+      "SaveDataPlaceholder": "Si más adelante completa un formulario de Persona Jurídica en este mismo navegador, sus datos personales (nombre, fecha de nacimiento, nacionalidad, estado civil, identificación, profesión, actividad económica, dirección, país de residencia y teléfono) se precargarán en la sección Representante Legal o Apoderado, para no tener que escribirlos de nuevo. La información se guarda únicamente en este dispositivo y puede desmarcar esta casilla en cualquier momento para eliminarla."
+    },
+
+    "NaturalFormStep1OptionFields":{
+
+      "civilOptions": {
+        "civil1":"Casado",
+        "civil2":"Soltero",
+        "civil3":"Divorciado",
+        "civil4":"Viudo",
+        "civil5":"Unido"
+      },
+
+      "TypeIdOption":{
+        "TypeId1": "Cédula",
+        "TypeId2": "Pasaporte",
+        "TypeId3": "Carné de Residente",
+        "TypeId4": "Otro"
+      },
+
+      "MigrationOption":{
+        "Migration1":"Nacional",
+        "Migration2":"Extranjero",
+        "Migration3":"Extranjero - No Residente"
+      }
+    },
+
+    "BigTitleStep2":"II. Ubicación y Datos Laborales",
+
+    "NaturalFormStep2Titles":{
+      "Title1": "JURISDICCIÓN / UBICACIÓN GEOGRÁFICA",
+      "DirectionTitle": "Dirección (Calle, Número, Urbanización/Edificio, Piso, Apartamento, etc.)",
+      "CityTitle": "Ciudad",
+      "ProvinceTitle": "Provincia/Estado",
+      "CountryTitle": "País",
+      "MailTitle": "E-mail",
+      "TelefonoTitle": "Teléfono",
+      "CelularTitle": "Celular",
+
+      "Title2": "Datos Laborales",
+      "ProfesionTitle": "Profesión u Oficio",
+      "CountryJurTitle": "País o Jurisdicción Donde Opera o Ejerce su Actividad Laboral",
+      "OtherProfesionTitle": "Especificar Profesión u Oficio",
+      "CompanyTitle": "Nombre de Empresa Donde Labora",
+      "CompanyActivityTitle": "Actividad/Ocupación Laboral, Empresarial o Comercial",
+      "OtherCompanyActivityTitle": "Especificar Actividad u Ocupación",
+      "CompanyDirectionTitle": "Dirección Laboral Empresarial o Comercial",
+      "CargoTitle": "Cargo que Desempeña",
+      "PropietaryTitle": "¿Es propietario, accionista o mantiene participación dentro de esta sociedad?",
+      "PropietaryFundsTitle": "¿Los fondos utilizados en la relación comercial provendrán de dicha sociedad?",
+
+      "Title3": "ACTIVIDADES ECONÓMICAS O PROFESIONALES",
+      "SubtTitle3": "(declarar abajo las actividades principales de donde provienen sus ingresos, ej. 80% salario/20% asesorías)",
+      "PersonalActivityTitle": "Fuente de Ingreso Principal",
+      "OtherPersonalActivityTitle": "Especifique Otra Actividad Económica",
+      "PercActivityTitle": "Porcentaje de Dedicación",
+      "JurActivityTitle": "Jurisdicción de Operación",
+      "OtherActivityTitle": "Otros Ingresos",
+      "PercOtherActivityTitle": "Porcentaje de Dedicación",
+      "JurOtherActivityTitle": "Jurisdicción de Operación"
+    },
+
+    "NaturalFormStep2Placeholder":{
+      "DirectionPlaceholder": "Ej: Calle 50, Edificio Royal Tower, Apto 12B",
+      "CityPlaceholder": "Ej: Panamá",
+      "ProvincePlaceholder": "Ej: Panamá",
+      "CountryPlaceholder": "Selecciona país",
+      "MailPlaceholder": "correo@ejemplo.com",
+      "TelefonoPlaceholder": "200-0000",
+      "CelularPlaceholder": "6000-0000",
+
+      "ProfesionPlaceholder": "Busca o selecciona profesión",
+      "CountryJurPlaceholder": "Selecciona país",
+      "OtherProfesionPlaceholder": "Escribe tu profesión u oficio aquí...",
+      "CompanyPlaceholder": "Ej: Corporación de Servicios S.A.",
+      "CompanyActivityPlaceholder": "Busca o selecciona actividad",
+      "OtherCompanyActivityPlaceholder": "Escribe tu actividad laboral aquí...",
+      "CompanyDirectionPlaceholder": "Ej: Vía España, Torre Delta, Piso 5",
+      "CargoPlaceholder": "Ej: Gerente Operativo",
+
+      "PersonalActivityPlaceholder": "Elija actividad principal",
+      "OtherPersonalActivityPlaceholder": "Ej: Salario",
+      "PercActivityPlaceholder": "Ej: 80%",
+      "JurActivityPlaceholder": "Ej: Panamá",
+      "OtherActivityPlaceholder": "Ej: Asesorias",
+      "PercOtherActivityPlaceholder": "Ej: 20%",
+      "JurOtherActivityPlaceholder": "Ej: Panamá"
+    },
+
+    "NaturalFormStep2Options":{
+      "ProfesionOptions": {
+        "Profesion1":"",
+        "Profesion2":"Abogado",
+        "Profesion3":"Administrador",
+        "Profesion4":"Agrónomo",
+        "Profesion5":"Analista de Datos",
+        "Profesion6":"Arquitecto",
+        "Profesion7":"Asistente Administrativo",
+        "Profesion8":"Auditor",
+        "Profesion9":"Biólogo",
+        "Profesion10":"Chef / Cocinero",
+        "Profesion11":"Consultor",
+        "Profesion12":"Contador Público",
+        "Profesion13":"Diseñador Gráfico",
+        "Profesion14":"Economista",
+        "Profesion15":"Educador / Profesor",
+        "Profesion16":"Empresario / Dueño de Negocio",
+        "Profesion17":"Enfermero(a)",
+        "Profesion18":"Estudiante",
+        "Profesion19":"Farmacéutico",
+        "Profesion20":"Financiero",
+        "Profesion21":"Fisioterapeuta",
+        "Profesion22":"Ingeniero Civil",
+        "Profesion23":"Ingeniero de Sistemas / Software",
+        "Profesion24":"Ingeniero Eléctrico",
+        "Profesion25":"Ingeniero Industrial",
+        "Profesion26":"Ingeniero Mecánico",
+        "Profesion27":"Jubilado / Pensionado",
+        "Profesion28":"Médico / Doctor",
+        "Profesion29":"Mercadólogo",
+        "Profesion30":"Odontólogo",
+        "Profesion31":"Periodista",
+        "Profesion32":"Psicólogo",
+        "Profesion33":"Recursos Humanos",
+        "Profesion34":"Soporte Técnico",
+        "Profesion35":"Veterinario",
+        "Profesion36":"Otros"
+      },
+      "ActivityOptions":{
+        "Activity1":"",
+        "Activity2":"VAPOR Y AIRE ACONDICIONADO",
+        "Activity3":"TELECOMUNICACIONES",
+        "Activity4":"TRANSPORTE POR VÍA ACUÁTICA",
+        "Activity5":"TRANSPORTE POR VÍA AÉREA",
+        "Activity6":"TRANSPORTE POR VÍA TERRESTRE; TRANSPORTE POR TUBERÍAS",
+        "Activity7":"REPARACIÓN Y MANTENIMIENTO DE COMPUTADORAS Y ENSERES DE USO PERSONAL Y DOMÉSTICO",
+        "Activity8":"REPARACIÓN, MANTENIMIENTO E INSTALACIÓN DE MAQUINARIA Y EQUIPO COMERCIAL E INDUSTRIAL",
+        "Activity9":"RESTAURANTES, BARES Y CANTINAS",
+        "Activity10":"ACTIVIDADES DE APOYO A LA EXPLOTACIÓN DE MINAS Y CANTERAS",
+        "Activity11":"AGRICULTURA, GANADERÍA, SILVICULTURA Y PESCA",
+        "Activity12":"INDUSTRIAS MANUFACTURERAS",
+        "Activity13":"CONSTRUCCIÓN",
+        "Activity14":"COMERCIO AL POR MAYOR Y AL POR MENOR",
+        "Activity15":"ACTIVIDADES INMOBILIARIAS",
+        "Activity16":"ACTIVIDADES FINANCIERAS Y DE SEGUROS",
+        "Activity17":"ENSEÑANZA",
+        "Activity18":"ACTIVIDADES DE ATENCIÓN DE LA SALUD HUMANA",
+        "Activity19":"OTROS"
+      },
+
+      "PropietaryOptions":{
+        "Propietary1":"No",
+        "Propietary2":"Propietario",
+        "Propietary3":"Accionista",
+        "Propietary4":"Miembro de la sociedad"
+      },
+      "PersonalActivityOptions":{
+        "PersonalActivity1":"Asalariado",
+        "PersonalActivity2":"Trabajador independiente",
+        "PersonalActivity3":"Ingresos provenientes de empresas propias",
+        "PersonalActivity4":"Otros"
+      }
+
+    },
+
+    "BigTitle3":"III. Perfil Financiero y PEP",
+
+    "NaturalFormStep3Titles":{
+      "Title1": "PERFIL FINANCIERO",
+      "SubTitle1": "DECLARO QUE TODAS LAS ACTIVIDADES QUE EJERZO SON DE ORIGEN LÍCITO Y LEGAL",
+      "MonthlyTitle": "Ingresos Mensuales Aproximados Son de",
+      "PaymentTitle": "Medio de Pago",
+      "PaymentSubtitle": "(puede seleccionar varios)",
+      "FundsTitle": "Usted Adquiere el Bien Inmueble con Fondos",
+      "OtherFundsTitle":"Especifique otra fuente de fondos",
+
+      "Title2": "Identificación de la Persona que Aportará los Fondos (Terceros)",
+      "TerceroNameTitle":"Nombre Completo de Tercero",
+      "TerceroFundsTitle":"Fuente de Ingreso",
+      "TerceroRelationTitle":"Relación con el Tercero",
+      "TerceroNationalityTitle":"Nacionalidad",
+
+      "MoreUnitsTitle":"¿Tiene previsto adquirir más de una unidad inmobiliaria durante los próximos 12 meses?",
+      "AmountUnitsTitle":"Indique la cantidad aproximada de unidades",
+
+      "Title3": "IDENTIFICACIÓN DEL BENEFICIARIO DEL INMUEBLE",
+      "OwnerTitle":"¿Usted está adquiriendo el Bien Inmueble a nombre de otra Persona?",
+      "OtherOwnerTitle":"Nombre Completo de la Persona",
+      "PurposeTitle":"Propósito, Uso y Destino del Inmueble",
+
+      "Title4": "PERSONA EXPUESTA POLÍTICAMENTE (PEP)",
+      "Subtitle4": "DEFINICIÓN",
+      "PepDefinition": "La legislación de Panamá define como Persona Políticamente Expuesta (PEP) a toda persona natural nacional o extranjera que desempeñe o haya desempeñado funciones públicas de alto nivel o con mando y jurisdicción en un Estado, como son: Los Jefes de Estado o de un gobierno; políticos de alto perfil; funcionarios gubernamentales, judiciales o militares de alta jerarquía; los altos ejecutivos de corporaciones que pertenecen al Estado; los funcionarios públicos que ocupen cargos de elección popular, entre otros que ejerzan la toma de decisiones en las entidades públicas. También aquellas personas que cumplen o a quienes se les ha confiado funciones importantes por una organización internacional, como los miembros de la alta gerencia, es decir, directores, subdirectores y miembros de la junta directiva o funciones equivalentes. El concepto de PEP debe extenderse a sus familiares cercanos entendiéndose por estos el cónyuge, los padres, los hermanos y los hijos del PEP; y a sus estrechos colaboradores, entendiéndose por estos, las personas conocidas por su íntima relación con respecto al PEP, incluyendo a quienes están en posición de realizar transacciones financieras, comerciales o de cualquier naturaleza, ya sea locales e internacionales, en nombre del PEP. Lo anteriormente expuesto no persigue cubrir personas de rango medio o más bajo que las categorías señaladas.",
+      "PepTitle":"¿Alguna de las personas naturales mencionadas anteriormente en este formulario desempeña, o ha desempeñado en los últimos 2 años, algún cargo público que la catalogue como Persona Expuesta Políticamente (PEP) según el artículo 4, numeral 18, de la Ley 23 de 2015? Asimismo, ¿es cónyuge, mantiene un parentesco dentro del segundo grado de consanguinidad o primero de afinidad, o tiene una relación estrecha con una PEP?",
+
+      "Title5": "Detalles de la Persona Expuesta Políticamente (PEP)",
+
+      "PepNameTitle":"Nombre Completo",
+      "PepCargoTitle":"Cargo Desempeñado",
+      "PepCompanyTitle":"Institución o Entidad",
+      "PepRelationTitle":"Relación o Parentesco"
+
+    },
+    "NaturalFormStep3Placeholder":{
+
+      "MonthlyPlaceholder": "Monto estimado mensual",
+      "OtherFundsPlaceholder":"Ej: otros",
+
+      "TerceroNamePlaceholder":"Nombre",
+      "TerceroFundsPlaceholder":"Fuente de ingresos",
+      "TerceroRelationPlaceholder":"Vinculo con el Tercero",
+      "TerceroNationalityPlaceholder":"Selecciona nacionalidad",
+
+      "AmountUnitsPlaceholder":"Ej. 4",
+
+      "OtherOwnerPlaceholder":"Ingrese el nombre completo del tercero",
+      "PurposePlaceholder":"Selecciona opción",
+
+      "PepNamePlaceholder":"Ej: Juan Pérez",
+      "PepCargoPlaceholder":"Ej: Ministro de Estado",
+      "PepCompanyPlaceholder":"Ej: Ministerio de Obras Públicas",
+      "PepRelationPlaceholder":"Seleccione parentesco"
+
+    },
+    "NaturalFormStep3Options":{
+      "PaymentOptions": {
+        "Payment1":"Efectivo",
+        "Payment2":"Transferencia ACH",
+        "Payment3":"Internacional",
+        "Payment4":"Nacional",
+        "Payment5":"Cheque",
+        "Payment6":"Crédito (Financiamiento)"
+      },
+      "FundsOptions": {
+        "Funds1":"Propios",
+        "Funds2":"Financiamiento",
+        "Funds3":"Terceros",
+        "Funds4":"Otros"
+      },
+      "PurposeOptions":{
+        "Purpose1":"Vivienda Principal",
+        "Purpose2":"Vivienda Secundaria",
+        "Purpose3":"Inversión",
+        "Purpose4":"Patrimonio"
+      },
+      "PepRelationOptions": {
+        "PepRelation1":"Titular (Yo mismo)",
+        "PepRelation2":"Cónyuge",
+        "PepRelation3":"Padre / Madre",
+        "PepRelation4":"Hijo / Hija",
+        "PepRelation5":"Hermano / Hermana",
+        "PepRelation6":"Estrecho Colaborador",
+        "PepRelation7":"Otro"
+      }
+    }
+
+  }
+}

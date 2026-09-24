@@ -59,8 +59,8 @@ export interface FormState {
   ifOtroNombre: string, //depende de fuenteFondosInmueble
   ifTerceroNombre: string,//depende de fuenteFondosInmueble
   ifTerceroNacionalidad: string,//depende de fuenteFondosInmueble
-  ifTerceroFuenteDeIngresos: string,//depende de fuenteFondosInmueble
   ifTerceroRelacion: string,//depende de fuenteFondosInmueble
+  ifTerceroFuenteDeIngresos: string,//depende de fuenteFondosInmueble
   montoServiciosAnuales: string;
   cantidadServiciosAnuales: string;//depende de montoServiciosAnuales 
 
@@ -76,9 +76,11 @@ export interface FormState {
   // Step 4: Documents
   idFile: string;
   origenFondosFile: string[]; // multi-file field
-  proofAddressFile: string;
   hasEstadoCuenta: string[]; // multi-file field
   hasCertificacionBancaria: string;
+  
+  //not used anymore
+  proofAddressFile: string;
   otrosAdjuntosFile: string;
 
   // Step 5: Terms & Sign

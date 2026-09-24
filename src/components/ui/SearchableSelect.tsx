@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { ChevronDown, Search, X } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 interface SearchableSelectProps {
   id?: string;
@@ -12,6 +13,8 @@ interface SearchableSelectProps {
   className?: string;
   hasError?: boolean;
 disabled?: boolean;
+  /** Texto visible de cada opción. El valor guardado sigue siendo la opción original. */
+  getLabel?: (option: string) => string;
 }
 
 export default function SearchableSelect({
@@ -19,11 +22,13 @@ export default function SearchableSelect({
   value,
   onChange,
   options,
-  placeholder = "Selecciona una opción...",
+  placeholder,
   className = "",
   hasError = false,
   disabled = false,
+  getLabel = (option) => option,
 }: SearchableSelectProps) {
+  const t = useTranslations("SearchableSelect");
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
@@ -46,7 +51,7 @@ export default function SearchableSelect({
 
   const filteredOptions = (options || []).filter((opt) => {
     if (typeof opt !== "string") return false;
-    return removeAccents(opt.toLowerCase()).includes(removeAccents(search.toLowerCase()));
+    return removeAccents(getLabel(opt).toLowerCase()).includes(removeAccents(search.toLowerCase()));
   });
 
   return (
@@ -61,7 +66,7 @@ export default function SearchableSelect({
         className={`w-full border rounded-lg px-4 py-3 text-sm text-left flex items-center justify-between text-zinc-800 focus:outline-none focus:ring-1 transition ${ disabled ? "bg-zinc-100 border-zinc-300 text-zinc-400 cursor-not-allowed opacity-70" : hasError ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20 cursor-pointer" : "bg-[#f4f6f8] border-zinc-350 focus:border-[#002b49] focus:ring-[#002b49]/20 cursor-pointer" }`}
       >
         <span className={value ? "text-zinc-800" : "text-zinc-450"}>
-          {value || placeholder}
+          {value ? getLabel(value) : placeholder ?? t("placeholder")}
         </span>
         <ChevronDown className={`h-4 w-4 text-zinc-400 transition-transform ${isOpen ? "rotate-180" : ""}`} />
       </button>
@@ -75,7 +80,7 @@ export default function SearchableSelect({
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Buscar..."
+              placeholder={t("search")}
               className="w-full bg-transparent text-xs text-zinc-800 focus:outline-none placeholder-zinc-450"
               autoFocus
             />
@@ -93,7 +98,7 @@ export default function SearchableSelect({
           {/* Options List */}
           <ul className="max-h-56 overflow-y-auto py-1 text-xs">
             {filteredOptions.length === 0 ? (
-              <li className="px-4 py-3 text-zinc-400 text-center">No se encontraron resultados</li>
+              <li className="px-4 py-3 text-zinc-400 text-center">{t("noResults")}</li>
             ) : (
               filteredOptions.map((opt) => (
                 <li key={opt}>
@@ -107,7 +112,7 @@ export default function SearchableSelect({
                       value === opt ? "bg-[#c8a788]/20 text-amber-950 font-semibold" : "text-zinc-700"
                     }`}
                   >
-                    {opt}
+                    {getLabel(opt)}
                   </button>
                 </li>
               ))

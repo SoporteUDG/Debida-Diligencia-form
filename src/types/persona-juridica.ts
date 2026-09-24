@@ -108,6 +108,9 @@ export interface FormState {
   pepCargo: string;
   pepInstitucion: string;
   pepRelacion: string;
+
+
+  //not used anymore
   actividadComercial: string;
   origenFondos: string;
   destinoFondos: string;

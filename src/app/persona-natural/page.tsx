@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { FormState, INITIAL_FORM_STATE } from "@/types/persona-natural";
 
 import dynamic from "next/dynamic";
@@ -93,6 +94,7 @@ const normalizeFormData = (dbData: any): FormState => {
 };
 
 export default function PersonaNaturalPage() {
+  const t = useTranslations("NaturalForm");
   const [formData, setFormData] = useLocalStorage<FormState>("udg_due_diligence_natural", INITIAL_FORM_STATE);
   const [currentStep, setCurrentStep] = useState(0); // Step 0 is policies screen
   const [isMounted, setIsMounted] = useState(false);
@@ -850,7 +852,7 @@ export default function PersonaNaturalPage() {
                 <div className="space-y-12">
                   <div className="bg-white/5 p-6 rounded-3xl border border-zinc-800 space-y-4">
                     <h2 className="text-[#c8a788] text-sm font-bold uppercase tracking-wider border-b border-zinc-850 pb-2">
-                      I. Datos Personales
+                      {t("BigTitleStep1")}
                     </h2>
                     <Step1DatosPersonales 
                       formData={formData}
@@ -862,7 +864,7 @@ export default function PersonaNaturalPage() {
                   
                   <div className="bg-white/5 p-6 rounded-3xl border border-zinc-800 space-y-4">
                     <h2 className="text-[#c8a788] text-sm font-bold uppercase tracking-wider border-b border-zinc-850 pb-2">
-                      II. Ubicación y Datos Laborales
+                      {t("BigTitleStep2")}
                     </h2>
                     <Step2PerfilFinanciero 
                       formData={formData}
@@ -874,7 +876,7 @@ export default function PersonaNaturalPage() {
 
                   <div className="bg-white/5 p-6 rounded-3xl border border-zinc-800 space-y-4">
                     <h2 className="text-[#c8a788] text-sm font-bold uppercase tracking-wider border-b border-zinc-850 pb-2">
-                      III. Perfil Financiero y PEP
+                      {t("BigTitle3")}
                     </h2>
                     <Step3PerfilFinanciero 
                       formData={formData}

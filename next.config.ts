@@ -1,4 +1,8 @@
 import type { NextConfig } from "next";
+import createNextIntlPlugin from "next-intl/plugin";
+
+// Carga ./src/i18n/request.ts (idioma desde la cookie NEXT_LOCALE)
+const withNextIntl = createNextIntlPlugin();
 
 /**
  * Orígenes autorizados a embeber /view en un iframe.
@@ -77,4 +81,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default withNextIntl(nextConfig);

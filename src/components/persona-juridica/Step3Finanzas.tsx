@@ -558,7 +558,7 @@ export default function Step3Finanzas({
               {(formData.adquiereMasUnidades === "Sí" || formData.adquiereMasUnidades === "Si") && (
                 <div className="bg-[#f8fafc] border border-zinc-300/80 rounded-xl p-4 mt-2 animate-fadeIn space-y-2">
                   <label className="text-xs font-semibold text-zinc-700" htmlFor="cantidadUnidadesInmobiliarias">
-                    En caso afirmativo, indique la cantidad aproximada de unidades: <span className="text-red-500 font-bold">*</span>
+                    Indique la cantidad aproximada de unidades: <span className="text-red-500 font-bold">*</span>
                   </label>
                   <div className="max-w-xs">
                     <input

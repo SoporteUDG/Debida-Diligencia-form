@@ -4,6 +4,9 @@ import SearchableSelect from "@/components/ui/SearchableSelect";
 import { countries } from "@/lib/countries";
 import { FormState } from "@/types/persona-natural";
 import { PHONE_CODES } from "@/types/persona-juridica";
+import { useTranslations } from "next-intl";
+import es from "@/messages/es.json";
+import { optionLabeler } from "@/i18n/optionLabel";
 
 interface Step1Props {
   formData: FormState;
@@ -12,21 +15,30 @@ interface Step1Props {
   errors: Record<string, string>;
 }
 
+const OPTIONS = es.NaturalForm.NaturalFormStep1OptionFields;
+
 export default function Step1DatosPersonales({
   formData,
   onInputChange,
   onSearchableSelectChange,
   errors = {},
 }: Step1Props) {
+
+  const t = useTranslations("NaturalForm.NaturalFormStep1Titles");
+  const p = useTranslations("NaturalForm.NaturalFormStep1PlaceHolders");
+  const civilLabel = optionLabeler(OPTIONS.civilOptions, useTranslations("NaturalForm.NaturalFormStep1OptionFields.civilOptions"));
+  const typeIdLabel = optionLabeler(OPTIONS.TypeIdOption, useTranslations("NaturalForm.NaturalFormStep1OptionFields.TypeIdOption"));
+  const migrationLabel = optionLabeler(OPTIONS.MigrationOption, useTranslations("NaturalForm.NaturalFormStep1OptionFields.MigrationOption"));
+
   return (
     <div className="bg-white rounded-2xl ">
-      
+
       {/* Card A: Proyecto e Información de Contacto Inicial */}
       <div className="px-6 md:px-8 pt-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700 flex items-center gap-1" htmlFor="nombreProyecto">
-              <span>Nombre del Proyecto</span>
+              <span>{t("ProjectTitle")}</span>
               <span className="text-red-500 font-bold">*</span>
             </label>
             <select
@@ -35,13 +47,13 @@ export default function Step1DatosPersonales({
               value={formData.nombreProyecto || ""}
               onChange={onInputChange}
               className={`w-full bg-[#f4f6f8] border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 ${
-                errors.nombreProyecto 
-                  ? "border-red-500 focus:border-red-500 focus:ring-red-500/20" 
+                errors.nombreProyecto
+                  ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
                   : "border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"
               }`}
               required
             >
-              <option value="">Selecciona proyecto</option>
+              <option value="">{p("ProjectPlaceholder")}</option>
               <option value="Altos del Parque">Altos del Parque</option>
               <option value="Caminos de Centennial">Caminos de Centennial</option>
               <option value="Deici">Deici</option>
@@ -62,7 +74,7 @@ export default function Step1DatosPersonales({
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700 font-semibold" htmlFor="formaContacto">
-              ¿Por qué medio nos conoció?
+              {t("MediumTitle")}
             </label>
             <select
               id="formaContacto"
@@ -75,7 +87,7 @@ export default function Step1DatosPersonales({
                   : "border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"
               }`}
             >
-              <option value="">Selecciona opción</option>
+              <option value="">{p("MediumPlaceholder")}</option>
               <option value="Pagina Web">Pagina Web</option>
               <option value="Alta Gerencia">Alta Gerencia</option>
               <option value="BBDD interna">BBDD interna</option>
@@ -109,7 +121,7 @@ export default function Step1DatosPersonales({
           {(formData.formaContacto === "Otros" || formData.formaContacto === "Otro") && (
             <div className="flex flex-col gap-2 md:col-span-2 animate-fadeIn">
               <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="formaContactoDetalle">
-                Especifique Forma de Contacto <span className="text-red-500 font-bold">*</span>
+                {t("OtherMedium")} <span className="text-red-500 font-bold">*</span>
               </label>
               <input
                 type="text"
@@ -117,10 +129,10 @@ export default function Step1DatosPersonales({
                 name="formaContactoDetalle"
                 value={formData.formaContactoDetalle || ""}
                 onChange={onInputChange}
-                placeholder="Escribe el detalle de cómo nos conoció..."
+                placeholder={p("OtherMediumPlaceholder")}
                 className={`bg-[#f4f6f8] border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 ${
-                  errors.formaContactoDetalle 
-                    ? "border-red-500 focus:border-red-500 focus:ring-red-500/20" 
+                  errors.formaContactoDetalle
+                    ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
                     : "border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"
                 }`}
               />
@@ -136,7 +148,7 @@ export default function Step1DatosPersonales({
           {formData.formaContacto === "Referido" && (
             <div className="flex flex-col gap-2 md:col-span-2 animate-fadeIn">
               <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="referidoPor">
-                Nombre de quien lo refirió <span className="text-red-500 font-bold">*</span>
+                {t("referredMedium")} <span className="text-red-500 font-bold">*</span>
               </label>
               <input
                 type="text"
@@ -144,10 +156,10 @@ export default function Step1DatosPersonales({
                 name="referidoPor"
                 value={formData.referidoPor || ""}
                 onChange={onInputChange}
-                placeholder="Escribe el nombre de la persona que lo refirió..."
+                placeholder={p("referredMediumPlaceholder")}
                 className={`bg-[#f4f6f8] border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 ${
-                  errors.referidoPor 
-                    ? "border-red-500 focus:border-red-500 focus:ring-red-500/20" 
+                  errors.referidoPor
+                    ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
                     : "border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"
                 }`}
               />
@@ -164,13 +176,13 @@ export default function Step1DatosPersonales({
       {/* Card B: IDENTIFICACIÓN DEL CLIENTE ** */}
       <div className="p-6 md:p-8 space-y-6 text-[#1a1c1a] font-sans">
         <h3 className="text-sm font-bold tracking-widest text-[#052B48] uppercase border-b border-zinc-200 pb-3 font-sans">
-          IDENTIFICACIÓN DEL CLIENTE
+          {t("FirstSubtitle")}
         </h3>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="firstName">
-              Nombre <span className="text-red-500 font-bold">*</span>
+              {t("NameTitle")} <span className="text-red-500 font-bold">*</span>
             </label>
             <input
               type="text"
@@ -178,10 +190,10 @@ export default function Step1DatosPersonales({
               name="firstName"
               value={formData.firstName || ""}
               onChange={onInputChange}
-              placeholder="Tus nombres"
+              placeholder={p("NamePlaceholder")}
               className={`bg-[#f4f6f8] border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 ${
-                errors.firstName 
-                  ? "border-red-500 focus:border-red-500 focus:ring-red-500/20" 
+                errors.firstName
+                  ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
                   : "border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"
               }`}
               required
@@ -195,7 +207,7 @@ export default function Step1DatosPersonales({
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="lastName">
-              Apellido(s) <span className="text-red-500 font-bold">*</span>
+              {t("LastnameTitle")} <span className="text-red-500 font-bold">*</span>
             </label>
             <input
               type="text"
@@ -203,10 +215,10 @@ export default function Step1DatosPersonales({
               name="lastName"
               value={formData.lastName || ""}
               onChange={onInputChange}
-              placeholder="Tus apellidos"
+              placeholder={p("LastnamePlaceholder")}
               className={`bg-[#f4f6f8] border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 ${
-                errors.lastName 
-                  ? "border-red-500 focus:border-red-500 focus:ring-red-500/20" 
+                errors.lastName
+                  ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
                   : "border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"
               }`}
               required
@@ -220,13 +232,13 @@ export default function Step1DatosPersonales({
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700">
-              País de Nacimiento <span className="text-red-500 font-bold">*</span>
+              {t("BirthCountryTitle")} <span className="text-red-500 font-bold">*</span>
             </label>
             <SearchableSelect
               options={countries}
               value={formData.paisNacimiento || ""}
               onChange={(value) => onSearchableSelectChange("paisNacimiento", value)}
-              placeholder="Selecciona país de nacimiento"
+              placeholder={p("BirthCountryPlaceholder")}
               hasError={!!errors.paisNacimiento}
             />
             {errors.paisNacimiento && (
@@ -238,13 +250,13 @@ export default function Step1DatosPersonales({
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700">
-              País de Residencia Fiscal
+              {t("FiscalCountryTitle")}
             </label>
             <SearchableSelect
               options={countries}
               value={formData.paisResidenciaFiscal || ""}
               onChange={(value) => onSearchableSelectChange("paisResidenciaFiscal", value)}
-              placeholder="Selecciona país de residencia fiscal"
+              placeholder={p("FiscalCountryPlaceholder")}
               hasError={!!errors.paisResidenciaFiscal}
             />
             {errors.paisResidenciaFiscal && (
@@ -256,7 +268,7 @@ export default function Step1DatosPersonales({
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="idTributaria">
-              No. ID. Tributaria (ej. Cédula, NIT, TIN)
+              {t("IdTributaryTitle")}
             </label>
             <input
               type="text"
@@ -264,10 +276,10 @@ export default function Step1DatosPersonales({
               name="idTributaria"
               value={formData.idTributaria || ""}
               onChange={onInputChange}
-              placeholder="Escribe tu ID Tributaria"
+              placeholder={p("IdTributaryPlaceholder")}
               className={`bg-[#f4f6f8] border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 ${
-                errors.idTributaria 
-                  ? "border-red-500 focus:border-red-500 focus:ring-red-500/20" 
+                errors.idTributaria
+                  ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
                   : "border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"
               }`}
             />
@@ -280,13 +292,13 @@ export default function Step1DatosPersonales({
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700">
-              Nacionalidad <span className="text-red-500 font-bold">*</span>
+              {t("NacionalityTitle")} <span className="text-red-500 font-bold">*</span>
             </label>
             <SearchableSelect
               options={countries}
               value={formData.nationality || ""}
               onChange={(value) => onSearchableSelectChange("nationality", value)}
-              placeholder="Selecciona nacionalidad"
+              placeholder={p("NacionalityPlaceholder")}
               hasError={!!errors.nationality}
             />
             {errors.nationality && (
@@ -298,7 +310,7 @@ export default function Step1DatosPersonales({
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="tipoIdentificacion">
-              Tipo de Identificación
+              {t("TypeIdTitle")}
             </label>
             <select
               id="tipoIdentificacion"
@@ -306,16 +318,16 @@ export default function Step1DatosPersonales({
               value={formData.tipoIdentificacion || ""}
               onChange={onInputChange}
               className={`w-full bg-[#f4f6f8] border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 ${
-                errors.tipoIdentificacion 
-                  ? "border-red-500 focus:border-red-500 focus:ring-red-500/20" 
+                errors.tipoIdentificacion
+                  ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
                   : "border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"
               }`}
             >
-              <option value="">Selecciona tipo</option>
-              <option value="Cédula">Cédula</option>
-              <option value="Pasaporte">Pasaporte</option>
-              <option value="Carné de Residente">Carné de Residente</option>
-              <option value="Otro">Otro</option>
+              <option value="">{p("TypeIdPlaceholder")}</option>
+              <option value="Cédula">{typeIdLabel("Cédula")}</option>
+              <option value="Pasaporte">{typeIdLabel("Pasaporte")}</option>
+              <option value="Carné de Residente">{typeIdLabel("Carné de Residente")}</option>
+              <option value="Otro">{typeIdLabel("Otro")}</option>
             </select>
             {errors.tipoIdentificacion && (
               <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
@@ -326,13 +338,13 @@ export default function Step1DatosPersonales({
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700">
-              Otra Nacionalidad
+              {t("OtherNationalityTitle")}
             </label>
             <SearchableSelect
               options={countries}
               value={formData.otraNacionalidad || ""}
               onChange={(value) => onSearchableSelectChange("otraNacionalidad", value)}
-              placeholder="Selecciona otra nacionalidad"
+              placeholder={p("OtherNationalityPlaceholder")}
               hasError={!!errors.otraNacionalidad}
             />
             {errors.otraNacionalidad && (
@@ -345,7 +357,7 @@ export default function Step1DatosPersonales({
           {/* Estado Civil (Ubicación exacta según mockup: entre Otra Nacionalidad y Estatus Migratorio) */}
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="estadoCivil">
-              Estado Civil <span className="text-red-500 font-bold">*</span>
+              {t("CivilTitle")} <span className="text-red-500 font-bold">*</span>
             </label>
             <select
               id="estadoCivil"
@@ -353,18 +365,18 @@ export default function Step1DatosPersonales({
               value={formData.estadoCivil || ""}
               onChange={onInputChange}
               className={`w-full bg-[#f4f6f8] border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 cursor-pointer ${
-                errors.estadoCivil 
-                  ? "border-red-500 focus:border-red-500 focus:ring-red-500/20" 
+                errors.estadoCivil
+                  ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
                   : "border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"
               }`}
               required
             >
-              <option value="">Selecciona estado civil</option>
-              <option value="Casado">Casado</option>
-              <option value="Soltero">Soltero</option>
-              <option value="Divorciado">Divorciado</option>
-              <option value="Viudo">Viudo</option>
-              <option value="Unido">Unido</option>
+              <option value="">{p("CivilPlaceholder")}</option>
+              <option value="Casado">{civilLabel("Casado")}</option>
+              <option value="Soltero">{civilLabel("Soltero")}</option>
+              <option value="Divorciado">{civilLabel("Divorciado")}</option>
+              <option value="Viudo">{civilLabel("Viudo")}</option>
+              <option value="Unido">{civilLabel("Unido")}</option>
             </select>
             {errors.estadoCivil && (
               <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
@@ -375,7 +387,7 @@ export default function Step1DatosPersonales({
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="idNumber">
-              N° de Identificación <span className="text-red-500 font-bold">*</span>
+              {t("IdTitle")} <span className="text-red-500 font-bold">*</span>
             </label>
             <input
               type="text"
@@ -383,10 +395,10 @@ export default function Step1DatosPersonales({
               name="idNumber"
               value={formData.idNumber || ""}
               onChange={onInputChange}
-              placeholder="Ej: PE-123-456"
+              placeholder={p("IdPlaceholder")}
               className={`bg-[#f4f6f8] border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 ${
-                errors.idNumber 
-                  ? "border-red-500 focus:border-red-500 focus:ring-red-500/20" 
+                errors.idNumber
+                  ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
                   : "border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"
               }`}
               required
@@ -400,7 +412,7 @@ export default function Step1DatosPersonales({
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="fechaVencimientoId">
-              Fecha de Vencimiento de Identificación
+              {t("DueDateTitle")}
             </label>
             <input
               type="date"
@@ -409,8 +421,8 @@ export default function Step1DatosPersonales({
               value={formData.fechaVencimientoId || ""}
               onChange={onInputChange}
               className={`bg-[#f4f6f8] border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 ${
-                errors.fechaVencimientoId 
-                  ? "border-red-500 focus:border-red-500 focus:ring-red-500/20 bg-red-50/10" 
+                errors.fechaVencimientoId
+                  ? "border-red-500 focus:border-red-500 focus:ring-red-500/20 bg-red-50/10"
                   : "border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"
               }`}
             />
@@ -424,7 +436,7 @@ export default function Step1DatosPersonales({
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="estatusMigratorio">
-              Estatus Migratorio
+              {t("MigrationTitle")}
             </label>
             <select
               id="estatusMigratorio"
@@ -432,15 +444,15 @@ export default function Step1DatosPersonales({
               value={formData.estatusMigratorio || ""}
               onChange={onInputChange}
               className={`w-full bg-[#f4f6f8] border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 ${
-                errors.estatusMigratorio 
-                  ? "border-red-500 focus:border-red-500 focus:ring-red-500/20" 
+                errors.estatusMigratorio
+                  ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
                   : "border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"
               }`}
             >
-              <option value="">Selecciona opción</option>
-              <option value="Nacional">Nacional</option>
-              <option value="Extranjero">Extranjero</option>
-              <option value="Extranjero - No Residente">Extranjero - No Residente</option>
+              <option value="">{p("MigrationPlaceholder")}</option>
+              <option value="Nacional">{migrationLabel("Nacional")}</option>
+              <option value="Extranjero">{migrationLabel("Extranjero")}</option>
+              <option value="Extranjero - No Residente">{migrationLabel("Extranjero - No Residente")}</option>
             </select>
             {errors.estatusMigratorio && (
               <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
@@ -451,7 +463,7 @@ export default function Step1DatosPersonales({
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="fechaNacimiento">
-              Fecha de Nacimiento <span className="text-red-500 font-bold">*</span>
+              {t("BirthTitle")} <span className="text-red-500 font-bold">*</span>
             </label>
             <input
               type="date"
@@ -460,8 +472,8 @@ export default function Step1DatosPersonales({
               value={formData.fechaNacimiento || ""}
               onChange={onInputChange}
               className={`bg-[#f4f6f8] border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 ${
-                errors.fechaNacimiento 
-                  ? "border-red-500 focus:border-red-500 focus:ring-red-500/20" 
+                errors.fechaNacimiento
+                  ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
                   : "border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"
               }`}
               required
@@ -485,13 +497,8 @@ export default function Step1DatosPersonales({
                   className="mt-1 h-4 w-4 rounded border-zinc-300 bg-[#f4f6f8] text-[#c8a788] accent-[#c8a788] focus:ring-0 focus:ring-offset-0 cursor-pointer"
                 />
                 <label htmlFor="compartirDatosRL" className="text-xs text-zinc-600 leading-normal select-none cursor-pointer">
-                  <span className="font-semibold text-[#052B48]">Guardar mis datos para el formulario de Persona Jurídica.</span>{" "}
-                  Si más adelante completa un formulario de Persona Jurídica en este mismo navegador, sus datos personales
-                  (nombre, fecha de nacimiento, nacionalidad, estado civil, identificación, profesión, actividad económica,
-                  dirección, país de residencia y teléfono) se precargarán en la sección{" "}
-                  <span className="font-semibold">Representante Legal o Apoderado</span>, para no tener que escribirlos de
-                  nuevo. La información se guarda únicamente en este dispositivo y puede desmarcar esta casilla en cualquier
-                  momento para eliminarla.
+                  <span className="font-semibold text-[#052B48]">{t("SaveDataTitle")}.</span>{" "}
+                  {p("SaveDataPlaceholder")}
                 </label>
               </div>
             </div>

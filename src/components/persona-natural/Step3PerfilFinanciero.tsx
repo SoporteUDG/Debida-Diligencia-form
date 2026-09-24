@@ -2,6 +2,9 @@
 import SearchableSelect from "@/components/ui/SearchableSelect";
 import { countries } from "@/lib/countries";
 import { FormState } from "@/types/persona-natural";
+import { useTranslations } from "next-intl";
+import es from "@/messages/es.json";
+import { optionLabeler } from "@/i18n/optionLabel";
 
 interface Step3Props {
   formData: FormState;
@@ -26,6 +29,16 @@ const ORIGEN_PAGO_OPTIONS = [
 ];
 
 export default function Step3PerfilFinanciero({ formData, onInputChange, onSearchableSelectChange, errors = {} }: Step3Props) {
+  const t = useTranslations("NaturalForm.NaturalFormStep3Titles");
+  const p = useTranslations("NaturalForm.NaturalFormStep3Placeholder");
+  const OPTIONS = es.NaturalForm.NaturalFormStep3Options;
+  const paymentLabel = optionLabeler(OPTIONS.PaymentOptions, useTranslations("NaturalForm.NaturalFormStep3Options.PaymentOptions"));
+  const fundsLabel = optionLabeler(OPTIONS.FundsOptions, useTranslations("NaturalForm.NaturalFormStep3Options.FundsOptions"));
+  const purposeLabel = optionLabeler(OPTIONS.PurposeOptions, useTranslations("NaturalForm.NaturalFormStep3Options.PurposeOptions"));
+  const pepRelationLabel = optionLabeler(OPTIONS.PepRelationOptions, useTranslations("NaturalForm.NaturalFormStep3Options.PepRelationOptions"));
+  const tYesNo = useTranslations("NaturalForm.TrueFalseOptions");
+  const yesNoLabel = optionLabeler(es.NaturalForm.TrueFalseOptions, tYesNo);
+
   const selectedMedios = (formData.medioPago || "")
     .split(",")
     .map((s) => s.trim())
@@ -75,16 +88,16 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, onSearc
       <div className="px-6 md:px-8 pt-6 space-y-6 text-[#1a1c1a] font-sans">
         <div className="text-center">
           <h3 className="text-sm font-bold tracking-widest text-[#052B48] uppercase border-b border-zinc-200 pb-3 mb-6 flex items-center justify-between">
-            <span>PERFIL FINANCIERO</span>
+            <span>{t("Title1")}</span>
           </h3>
           <p className="text-xs md:text-sm font-semibold tracking-wider text-zinc-800 italic uppercase">
-            DECLARO QUE TODAS LAS ACTIVIDADES QUE EJERZO SON DE ORIGEN LÍCITO Y LEGAL
+            {t("SubTitle1")}
           </p>
         </div>
 
         <div className="max-w-md mx-auto pt-4 text-left">
           <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700 block mb-2" htmlFor="ingresosMensuales">
-            Ingresos Mensuales Aproximados Son de <span className="text-red-500 font-bold">*</span>
+            {t("MonthlyTitle")} <span className="text-red-500 font-bold">*</span>
           </label>
           <div className="flex items-center gap-3">
             <div className="relative w-full">
@@ -115,7 +128,7 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, onSearc
                     e.preventDefault();
                   }
                 }}
-                placeholder="Monto estimado mensual"
+                placeholder={p("MonthlyPlaceholder")}
                 className={`w-full border rounded-lg pl-8 pr-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 font-medium ${
                   errors.ingresosMensuales
                     ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20"
@@ -139,8 +152,8 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, onSearc
 
           <div className="flex flex-col gap-2.5 md:col-span-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700">
-              Medio de Pago <span className="text-red-500 font-bold">*</span>
-              <span className="text-[10px] font-normal text-zinc-500 lowercase ml-1.5 italic">(puede seleccionar varios)</span>
+              {t("PaymentTitle")} <span className="text-red-500 font-bold">*</span>
+              <span className="text-[10px] font-normal text-zinc-500 lowercase ml-1.5 italic">{t("PaymentSubtitle")}</span>
             </label>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
               {MEDIO_PAGO_OPTIONS.map((opt) => {
@@ -167,7 +180,7 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, onSearc
                         </svg>
                       )}
                     </div>
-                    <span className="truncate">{opt}</span>
+                    <span className="truncate">{paymentLabel(opt)}</span>
                   </button>
                 );
               })}
@@ -181,7 +194,7 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, onSearc
 
           <div className="flex flex-col gap-2.5 md:col-span-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="fuenteFondosInmueble">
-              Usted Adquiere el Bien Inmueble con Fondos <span className="text-red-500 font-bold">*</span>
+              {t("FundsTitle")} <span className="text-red-500 font-bold">*</span>
             </label>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
               {ORIGEN_PAGO_OPTIONS.map((opt) => {
@@ -208,7 +221,7 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, onSearc
                         </svg>
                       )}
                     </div>
-                    <span className="truncate">{opt}</span>
+                    <span className="truncate">{fundsLabel(opt)}</span>
                   </button>
                 );
               })}
@@ -222,7 +235,7 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, onSearc
           {formData.fuenteFondosInmueble.includes("Otros") && (
             <div className="flex flex-col gap-2.5 md:col-span-2">
               <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="ifOtroNombre">
-                Especifique otra fuente de fondos <span className="text-red-500 font-bold">*</span>
+                {t("OtherFundsTitle")} <span className="text-red-500 font-bold">*</span>
               </label>
               <input
                 type="text"
@@ -230,7 +243,7 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, onSearc
                 name="ifOtroNombre"
                 value={formData.ifOtroNombre || ""}
                 onChange={onInputChange}
-                placeholder="Ej: otros"
+                placeholder={p("OtherFundsPlaceholder")}
                 className={`${errors.ifOtroNombre ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800`}
                 required
               />
@@ -239,12 +252,12 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, onSearc
           {formData.fuenteFondosInmueble.includes("Terceros") && (
             <div className="bg-[#f8fafc] border border-zinc-300/80 rounded-xl p-5 md:p-6 space-y-4 animate-fadeIn shadow-sm md:col-span-2">
               <h4 className="text-xs font-bold text-[#052B48] uppercase tracking-wider border-b border-zinc-200 pb-2">
-                Identificación de la Persona que Aportará los Fondos (Terceros)
+                {t("Title2")}
               </h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="flex flex-col gap-2">
                   <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="ifTerceroNombre">
-                    Nombre Completo de Tercero
+                    {t("TerceroNameTitle")}
                   </label>
                   <input
                     type="text"
@@ -252,7 +265,7 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, onSearc
                     name="ifTerceroNombre"
                     value={formData.ifTerceroNombre || ""}
                     onChange={onInputChange}
-                    placeholder="Nombre "
+                    placeholder={p("TerceroNamePlaceholder")}
                     className={`${errors.ifTerceroNombre ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800`}
                     required
                   />
@@ -264,7 +277,7 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, onSearc
                 </div>
                 <div className="flex flex-col gap-2">
                   <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="ifTerceroFuenteDeIngresos">
-                    Fuente de Ingreso
+                    {t("TerceroFundsTitle")}
                   </label>
                   <input
                     type="text"
@@ -272,7 +285,7 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, onSearc
                     name="ifTerceroFuenteDeIngresos"
                     value={formData.ifTerceroFuenteDeIngresos || ""}
                     onChange={onInputChange}
-                    placeholder="Fuente de ingresos"
+                    placeholder={p("TerceroFundsPlaceholder")}
                     className={`${errors.ifTerceroFuenteDeIngresos ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800`}
                     required
                   />
@@ -284,7 +297,7 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, onSearc
                 </div>
                 <div className="flex flex-col gap-2">
                   <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="ifTerceroRelacion">
-                    Relación con el Tercero
+                    {t("TerceroRelationTitle")}
                   </label>
                   <input
                     type="text"
@@ -292,7 +305,7 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, onSearc
                     name="ifTerceroRelacion"
                     value={formData.ifTerceroRelacion || ""}
                     onChange={onInputChange}
-                    placeholder="Vinculo con el Tercero"
+                    placeholder={p("TerceroRelationPlaceholder")}
                     className={`${errors.ifTerceroRelacion ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800`}
                     required
                   />
@@ -304,13 +317,13 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, onSearc
                 </div>
                 <div className="flex flex-col gap-2">
                   <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="ifTerceroNacionalidad">
-                    Nacionalidad
+                    {t("TerceroNationalityTitle")}
                   </label>
                   <SearchableSelect
                     options={countries}
                     value={formData.ifTerceroNacionalidad || ""}
                     onChange={(value) => onSearchableSelectChange("ifTerceroNacionalidad", value)}
-                    placeholder="Selecciona nacionalidad"
+                    placeholder={p("TerceroNationalityPlaceholder")}
                     hasError={!!errors.ifTerceroNacionalidad} />
                   {errors.ifTerceroNacionalidad && (
                     <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
@@ -324,13 +337,14 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, onSearc
           <div className="flex flex-col gap-2 md:col-span-2">
             <div className="grid grid-cols-4 gap-2 items-center">
               <label className="col-span-3 text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="montoServiciosAnuales">
-                ¿Tiene previsto adquirir más de una unidad inmobiliaria durante los próximos 12 meses? <span className="text-red-500 font-bold">*</span>
+                {t("MoreUnitsTitle")} <span className="text-red-500 font-bold">*</span>
               </label>
               <SearchableSelect
                   options={["Sí", "No"]}
                   value={formData.montoServiciosAnuales || ""}
                   onChange={(value) => onSearchableSelectChange("montoServiciosAnuales", value)}
-                  placeholder="Seleccione opción"
+                  placeholder={tYesNo("placeholder")}
+                  getLabel={yesNoLabel}
                   hasError={!!errors.montoServiciosAnuales} />
                 {errors.montoServiciosAnuales && (
                   <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
@@ -342,7 +356,7 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, onSearc
           {formData.montoServiciosAnuales === "Sí" && (
             <div className="flex flex-col gap-2">
               <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="cantidadServiciosAnuales">
-                Indique la cantidad de Servicios Anuales
+                {t("AmountUnitsTitle")}:
               </label>
               <input
                 type="number"
@@ -350,7 +364,7 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, onSearc
                 name="cantidadServiciosAnuales"
                 value={formData.cantidadServiciosAnuales || ""}
                 onChange={onInputChange}
-                placeholder="Ej. 4"
+                placeholder={p("AmountUnitsPlaceholder")}
                 className={`${errors.cantidadServiciosAnuales ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800`}
                 required
               />
@@ -367,14 +381,14 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, onSearc
       {/* Card C: IDENTIFICACIÓN DEL BENEFICIARIO DEL INMUEBLE */}
       <div className="px-6 md:px-8 pt-6 space-y-6 text-[#1a1c1a] font-sans">
         <h3 className="text-sm font-bold tracking-widest text-[#052B48] uppercase border-b border-zinc-200 pb-3">
-          IDENTIFICACIÓN DEL BENEFICIARIO DEL INMUEBLE
+          {t("Title3")}
         </h3>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
 
           <div className="flex flex-col gap-2">
             <span className="text-xs text-zinc-700 leading-normal font-semibold">
-              ¿Usted está adquiriendo el Bien Inmueble a nombre de otra Persona? <span className="text-red-500 font-bold">*</span>
+              {t("OwnerTitle")} <span className="text-red-500 font-bold">*</span>
             </span>
           </div>
           <div className="flex flex-col gap-2">
@@ -390,16 +404,16 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, onSearc
                 ⚠️ {errors.adquiereNombreTercero}
               </span>
             )}
-              <option value="">Selecciona opción</option>
-              <option value="No">No</option>
-              <option value="Sí">Sí</option>
+              <option value="">{tYesNo("placeholder")}</option>
+              <option value="No">{yesNoLabel("No")}</option>
+              <option value="Sí">{yesNoLabel("Sí")}</option>
             </select>
           </div>
           {formData.adquiereNombreTercero === "Sí" && (
             <>
             <div className="flex flex-col gap-2">
               <label className="text-xs text-zinc-700 leading-normal font-semibold" htmlFor="nombreTercero">
-                Nombre Completo de la Persona<span className="text-red-500 font-bold">*</span>
+                {t("OtherOwnerTitle")}<span className="text-red-500 font-bold">*</span>
               </label>
             </div>
             <div className="flex flex-col gap-2">
@@ -409,7 +423,7 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, onSearc
                 name="nombreTercero"
                 value={formData.nombreTercero || ""}
                 onChange={onInputChange}
-                placeholder="Ingrese el nombre completo del tercero"
+                placeholder={p("OtherOwnerPlaceholder")}
                 className={`${errors.nombreTercero ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800`}
                 required
               />
@@ -424,7 +438,7 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, onSearc
 
           <div className="flex flex-col gap-2">
             <span className="text-xs text-zinc-700 leading-normal font-semibold">
-              Propósito, Uso y Destino del Inmueble <span className="text-red-500 font-bold">*</span>
+              {t("PurposeTitle")} <span className="text-red-500 font-bold">*</span>
             </span>
           </div>
           <div className="flex flex-col gap-2">
@@ -440,11 +454,11 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, onSearc
                 ⚠️ {errors.destinoInmueble}
               </span>
             )}
-              <option value="">Selecciona opción</option>
-              <option value="Vivienda Principal">Vivienda Principal</option>
-              <option value="Vivienda Secundaria">Vivienda Secundaria</option>
-              <option value="Inversión">Inversión</option>
-              <option value="Patrimonio">Patrimonio</option>
+              <option value="">{p("PurposePlaceholder")}</option>
+              <option value="Vivienda Principal">{purposeLabel("Vivienda Principal")}</option>
+              <option value="Vivienda Secundaria">{purposeLabel("Vivienda Secundaria")}</option>
+              <option value="Inversión">{purposeLabel("Inversión")}</option>
+              <option value="Patrimonio">{purposeLabel("Patrimonio")}</option>
             </select>
           </div>
         </div>
@@ -453,17 +467,17 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, onSearc
       {/* Card D: PERSONA EXPUESTA POLÍTICAMENTE (PEP) */}
       <div className="px-6 md:px-8 py-6 space-y-6 text-[#1a1c1a] font-sans">
         <h3 className="text-sm font-bold tracking-widest text-[#052B48] uppercase border-b border-zinc-200 pb-3">
-          PERSONA EXPUESTA POLÍTICAMENTE (PEP)
+          {t("Title4")}
         </h3>
 
         <div className="bg-[#f4f6f8] border border-zinc-300 rounded-xl p-5 text-xs text-zinc-600 leading-relaxed max-h-52 overflow-y-auto scrollbar-thin">
-          <strong className="block text-zinc-800 mb-1">DEFINICIÓN:</strong>
-          La legislación de Panamá define como Persona Políticamente Expuesta (PEP) a toda persona natural nacional o extranjera que desempeñe o haya desempeñado funciones públicas de alto nivel o con mando y jurisdicción en un Estado, como son: Los Jefes de Estado o de un gobierno; políticos de alto perfil; funcionarios gubernamentales, judiciales o militares de alta jerarquía; los altos ejecutivos de corporaciones que pertenecen al Estado; los funcionarios públicos que ocupen cargos de elección popular, entre otros que ejerzan la toma de decisiones en las entidades públicas. También aquellas personas que cumplen o a quienes se les ha confiado funciones importantes por una organización internacional, como los miembros de la alta gerencia, es decir, directores, subdirectores y miembros de la junta directiva o funciones equivalentes. El concepto de PEP debe extenderse a sus familiares cercanos entendiéndose por estos el cónyuge, los padres, los hermanos y los hijos del PEP; y a sus estrechos colaboradores, entendiéndose por estos, las personas conocidas por su íntima relación con respecto al PEP, incluyendo a quienes están en posición de realizar transacciones financieras, comerciales o de cualquier naturaleza, ya sea locales e internacionales, en nombre del PEP. Lo anteriormente expuesto no persigue cubrir personas de rango medio o más bajo que las categorías señaladas.
+          <strong className="block text-zinc-800 mb-1">{t("Subtitle4")}:</strong>
+          {t("PepDefinition")}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center pt-4 border-t border-zinc-150">
           <span className="text-xs text-zinc-700 leading-normal font-semibold">
-            ¿Alguna de las personas naturales mencionadas anteriormente en este formulario desempeña, o ha desempeñado en los últimos 2 años, algún cargo público que la catalogue como Persona Expuesta Políticamente (PEP) según el artículo 4, numeral 18, de la Ley 23 de 2015? Asimismo, ¿es cónyuge, mantiene un parentesco dentro del segundo grado de consanguinidad o primero de afinidad, o tiene una relación estrecha con una PEP? <span className="text-red-500 font-bold">*</span>
+            {t("PepTitle")} <span className="text-red-500 font-bold">*</span>
           </span>
           <div>
             <select
@@ -473,9 +487,9 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, onSearc
               className={`${errors.esPep ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full cursor-pointer font-medium`}
               required
             >
-              <option value="">Selecciona opción</option>
-              <option value="No">No</option>
-              <option value="Sí">Sí</option>
+              <option value="">{tYesNo("placeholder")}</option>
+              <option value="No">{yesNoLabel("No")}</option>
+              <option value="Sí">{yesNoLabel("Sí")}</option>
             </select>
             {errors.esPep && (
               <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
@@ -488,12 +502,12 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, onSearc
         {(formData.esPep === "Sí" || formData.esPep === "Si") && (
           <div className="bg-[#f8fafc] border border-zinc-300/80 rounded-xl p-5 md:p-6 mt-4 space-y-4 animate-fadeIn shadow-sm">
             <h4 className="text-xs font-bold text-[#052B48] uppercase tracking-wider border-b border-zinc-200 pb-2">
-              Detalles de la Persona Expuesta Políticamente (PEP)
+              {t("Title5")}
             </h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-zinc-700">
-                  Nombre Completo <span className="text-red-500 font-bold">*</span>
+                  {t("PepNameTitle")} <span className="text-red-500 font-bold">*</span>
                 </label>
                 <input
                   type="text"
@@ -505,7 +519,7 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, onSearc
                       ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
                       : "border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"
                   }`}
-                  placeholder="Ej: Juan Pérez"
+                  placeholder={p("PepNamePlaceholder")}
                 />
                 {errors.pepNombre && (
                   <span className="text-xs text-red-500 font-medium">
@@ -516,7 +530,7 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, onSearc
 
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-zinc-700">
-                  Cargo Desempeñado <span className="text-red-500 font-bold">*</span>
+                  {t("PepCargoTitle")} <span className="text-red-500 font-bold">*</span>
                 </label>
                 <input
                   type="text"
@@ -528,7 +542,7 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, onSearc
                       ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
                       : "border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"
                   }`}
-                  placeholder="Ej: Ministro de Estado"
+                  placeholder={p("PepCargoPlaceholder")}
                 />
                 {errors.pepCargo && (
                   <span className="text-xs text-red-500 font-medium">
@@ -539,7 +553,7 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, onSearc
 
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-zinc-700">
-                  Institución o Entidad <span className="text-red-500 font-bold">*</span>
+                  {t("PepCompanyTitle")} <span className="text-red-500 font-bold">*</span>
                 </label>
                 <input
                   type="text"
@@ -551,7 +565,7 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, onSearc
                       ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
                       : "border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"
                   }`}
-                  placeholder="Ej: Ministerio de Obras Públicas"
+                  placeholder={p("PepCompanyPlaceholder")}
                 />
                 {errors.pepInstitucion && (
                   <span className="text-xs text-red-500 font-medium">
@@ -562,7 +576,7 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, onSearc
 
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-zinc-700">
-                  Relación o Parentesco <span className="text-red-500 font-bold">*</span>
+                  {t("PepRelationTitle")} <span className="text-red-500 font-bold">*</span>
                 </label>
                 <select
                   name="pepRelacion"
@@ -574,14 +588,14 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, onSearc
                       : "border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"
                   }`}
                 >
-                  <option value="">Seleccione parentesco</option>
-                  <option value="Titular (Yo mismo)">Titular (Yo mismo)</option>
-                  <option value="Cónyuge">Cónyuge</option>
-                  <option value="Padre / Madre">Padre / Madre</option>
-                  <option value="Hijo / Hija">Hijo / Hija</option>
-                  <option value="Hermano / Hermana">Hermano / Hermana</option>
-                  <option value="Estrecho Colaborador">Estrecho Colaborador</option>
-                  <option value="Otro">Otro</option>
+                  <option value="">{p("PepRelationPlaceholder")}</option>
+                  <option value="Titular (Yo mismo)">{pepRelationLabel("Titular (Yo mismo)")}</option>
+                  <option value="Cónyuge">{pepRelationLabel("Cónyuge")}</option>
+                  <option value="Padre / Madre">{pepRelationLabel("Padre / Madre")}</option>
+                  <option value="Hijo / Hija">{pepRelationLabel("Hijo / Hija")}</option>
+                  <option value="Hermano / Hermana">{pepRelationLabel("Hermano / Hermana")}</option>
+                  <option value="Estrecho Colaborador">{pepRelationLabel("Estrecho Colaborador")}</option>
+                  <option value="Otro">{pepRelationLabel("Otro")}</option>
                 </select>
                 {errors.pepRelacion && (
                   <span className="text-xs text-red-500 font-medium">

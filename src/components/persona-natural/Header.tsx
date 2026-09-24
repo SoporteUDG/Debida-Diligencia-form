@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 interface HeaderProps {
   isSaving: boolean;
@@ -27,6 +28,8 @@ export default function Header({ isSaving, lastSaved, saveStatus }: HeaderProps)
 
         {/* Right: Save Status & 20 Años Slogan Banner */}
         <div className="flex items-center gap-4 md:gap-6">
+          <LanguageSwitcher />
+
           {/* Real-time Draft Saving Status */}
           <div className="flex items-center gap-2.5 bg-[#081f33] border border-[#DAB38D]/20 px-3.5 py-1.5 rounded-full text-[11px] text-white shadow-sm">
             {saveStatus === "saving" || (saveStatus === undefined && isSaving) ? (
