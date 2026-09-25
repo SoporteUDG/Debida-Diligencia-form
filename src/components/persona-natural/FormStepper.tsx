@@ -1,6 +1,7 @@
 "use client";
 
 import { User, MapPin, Coins, UploadCloud, PenTool, Check } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 interface FormStepperProps {
   currentStep: number;
@@ -9,10 +10,11 @@ interface FormStepperProps {
 }
 
 export default function FormStepper({ currentStep, onStepClick, isStepValid }: FormStepperProps) {
+  const t = useTranslations("NaturalForm.Stepper");
   const steps = [
-    { num: 1, label: "Datos Generales", icon: User },
-    { num: 2, label: "Documentos", icon: UploadCloud },
-    { num: 3, label: "Declaración", icon: PenTool },
+    { num: 1, label: t("GeneralData"), icon: User },
+    { num: 2, label: t("Documents"), icon: UploadCloud },
+    { num: 3, label: t("Declaration"), icon: PenTool },
   ];
 
   return (

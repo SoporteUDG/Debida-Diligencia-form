@@ -2,12 +2,14 @@
 
 import Image from "next/image";
 import { ShieldAlert, Mail, Lock } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 interface AccessRestrictedProps {
   customMessage?: string;
 }
 
 export default function AccessRestricted({ customMessage }: AccessRestrictedProps) {
+  const t = useTranslations("AccessRestricted");
   return (
     <div className="min-h-screen bg-[#002b49] text-zinc-100 flex flex-col justify-between selection:bg-[#c8a788]/30 selection:text-white font-sans">
       {/* Editorial Header */}
@@ -17,7 +19,7 @@ export default function AccessRestricted({ customMessage }: AccessRestrictedProp
             <div className="relative w-28 h-20 flex items-center justify-center">
               <Image
                 src="/Logo UDG V2.png"
-                alt="Logo UDG"
+                alt={t("LogoAlt")}
                 width={125}
                 height={90}
                 className="object-contain"
@@ -50,30 +52,29 @@ export default function AccessRestricted({ customMessage }: AccessRestrictedProp
 
           <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-[#c8a788]/10 border border-[#c8a788]/20 text-[#c8a788] text-[11px] tracking-widest uppercase font-semibold mb-4">
             <ShieldAlert className="w-3.5 h-3.5" />
-            <span>Acceso Privado & Confidencial</span>
+            <span>{t("Badge")}</span>
           </div>
 
           <h1 className="text-2xl md:text-3xl font-serif font-light tracking-wide text-white mb-4">
-            Enlace de Invitación Requerido
+            {t("Title")}
           </h1>
 
           <p className="text-zinc-300 text-sm leading-relaxed mb-6">
-            {customMessage ||
-              "El formulario digital de Debida Diligencia de Urban Development Group (UDG) es de acceso exclusivo para clientes autorizados mediante un enlace seguro y personalizado emitido por nuestro departamento legal o su asesor comercial."}
+            {customMessage || t("DefaultMessage")}
           </p>
 
           <div className="bg-[#00223a]/80 border border-zinc-800 rounded-xl p-5 mb-8 text-left">
             <h4 className="text-xs font-semibold text-[#c8a788] uppercase tracking-wider mb-2 flex items-center gap-2">
               <Mail className="w-4 h-4" />
-              ¿Cómo obtener su acceso?
+              {t("HowToGetAccessTitle")}
             </h4>
             <p className="text-xs text-zinc-400 leading-relaxed">
-              Si usted es cliente de UDG y no ha recibido su enlace o el mismo ha expirado, por favor póngase en contacto con su asesor comercial o solicite la reemisión de su enlace directamente al equipo de Cumplimiento.
+              {t("HowToGetAccessBody")}
             </p>
           </div>
 
           <div className="pt-2 border-t border-zinc-800/80 flex flex-col sm:flex-row items-center justify-center gap-4 text-xs text-zinc-400">
-            <span className="text-zinc-500">Urban Development Group • Cumplimiento Normativo</span>
+            <span className="text-zinc-500">{t("ComplianceFooter")}</span>
           </div>
         </div>
       </main>
@@ -85,7 +86,7 @@ export default function AccessRestricted({ customMessage }: AccessRestrictedProp
             URBAN DEVELOPMENT GROUP (UDG)
           </p>
           <p className="text-[10px] text-zinc-500">
-            © {new Date().getFullYear()} UDG Group. Todos los derechos reservados de conformidad con la ley de protección de datos.
+            {t("Copyright", { year: new Date().getFullYear() })}
           </p>
         </div>
       </footer>

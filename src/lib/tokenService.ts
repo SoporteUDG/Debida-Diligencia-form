@@ -2,6 +2,7 @@ import crypto from "crypto";
 import prisma from "./prisma";
 import { logAuditEvent } from "./auditService";
 import { zoho } from "./zohoService";
+import type { TokenFailureReason } from "./tokenAccess";
 
 // Retrieve the token secret from environment or fallback to a hardcoded string
 const getSecret = () => process.env.TOKEN_SECRET || "default_token_secret_key_udg_2026";
@@ -93,9 +94,9 @@ export async function generateToken(
  */
 export async function verifyToken(
   signedToken: string
-): Promise<{ success: boolean; error?: string; crmContactId?: string; type?: string; uuid?: string }> {
+): Promise<{ success: boolean; error?: string; reason?: TokenFailureReason; crmContactId?: string; type?: string; uuid?: string }> {
   if (!signedToken || typeof signedToken !== "string") {
-    return { success: false, error: "Token no provisto o tipo inválido" };
+    return { success: false, error: "Token no provisto o tipo inválido", reason: "INVALID" };
   }
 
   // Support local/anonymous drafts
@@ -115,11 +116,11 @@ export async function verifyToken(
     });
 
     if (!dbToken) {
-      return { success: false, error: "Token no encontrado en base de datos" };
+      return { success: false, error: "Token no encontrado en base de datos", reason: "NOT_FOUND" };
     }
 
     if (dbToken.used) {
-      return { success: false, error: "Token ya ha sido utilizado o se encuentra revocado" };
+      return { success: false, error: "Token ya ha sido utilizado o se encuentra revocado", reason: "USED" };
     }
 
     // Usaremos dbToken para las validaciones subsiguientes
@@ -129,7 +130,7 @@ export async function verifyToken(
 
   const parts = signedToken.split(".");
   if (parts.length !== 2) {
-    return { success: false, error: "Formato de token alterado o inválido" };
+    return { success: false, error: "Formato de token alterado o inválido", reason: "INVALID" };
   }
 
   const [uuid, signature] = parts;
@@ -137,7 +138,7 @@ export async function verifyToken(
   // 1. Verify cryptographic signature in constant time
   const isSignatureValid = verifySignature(uuid, signature);
   if (!isSignatureValid) {
-    return { success: false, error: "Firma de token alterada o inválida (integridad fallida)" };
+    return { success: false, error: "Firma de token alterada o inválida (integridad fallida)", reason: "INVALID" };
   }
 
   // 2. Fetch the token metadata from database
@@ -146,11 +147,11 @@ export async function verifyToken(
   });
 
   if (!dbToken) {
-    return { success: false, error: "Token no encontrado en base de datos" };
+    return { success: false, error: "Token no encontrado en base de datos", reason: "NOT_FOUND" };
   }
 
   if (dbToken.used) {
-    return { success: false, error: "Token ya ha sido utilizado o se encuentra revocado" };
+    return { success: false, error: "Token ya ha sido utilizado o se encuentra revocado", reason: "USED" };
   }
 
   return checkDbTokenValidity(dbToken, uuid);
@@ -159,7 +160,7 @@ export async function verifyToken(
 /**
  * Helper internal function to check database token expiration and return verification outcome.
  */
-async function checkDbTokenValidity(dbToken: any, uuid: string) {
+async function checkDbTokenValidity(dbToken: any, uuid: string): Promise<{ success: boolean; error?: string; reason?: TokenFailureReason; crmContactId?: string; type?: string; uuid?: string }> {
 
   // 4. Verify expiration date
   if (dbToken.expiresAt < new Date()) {
@@ -190,7 +191,7 @@ async function checkDbTokenValidity(dbToken: any, uuid: string) {
         });
         if (contact && contact.crmId) {
           const crmData = await zoho.service.getContact(contact.crmId);
-          const resolvedModule = crmData.module || "Contacts";
+          const resolvedModule = crmData.module || "Debida_Diligencia";
           await zoho.service.updateClientFormLink(contact.crmId, resolvedModule, undefined, undefined, "Expirado / Revocado");
         }
       } catch (err) {
@@ -208,7 +209,7 @@ async function checkDbTokenValidity(dbToken: any, uuid: string) {
         type: dbToken.type,
       },
     });
-    return { success: false, error: "Token expirado" };
+    return { success: false, error: "Token expirado", reason: "EXPIRED" };
   }
 
   return {
@@ -267,7 +268,7 @@ export async function reactivateToken(
       });
       if (contact && contact.crmId) {
         const crmData = await zoho.service.getContact(contact.crmId);
-        const resolvedModule = crmData.module || "Contacts";
+        const resolvedModule = crmData.module || "Debida_Diligencia";
         await zoho.service.updateClientFormLink(contact.crmId, resolvedModule, undefined, newExpiresAt, "Activo");
       }
     } catch (crmErr) {

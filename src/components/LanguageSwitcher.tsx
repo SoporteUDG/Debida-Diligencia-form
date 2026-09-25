@@ -41,7 +41,7 @@ export default function LanguageSwitcher() {
               active ? "bg-[#DAB38D] text-[#052B48]" : "text-zinc-300 hover:text-white"
             }`}
           >
-            {l}
+            {l === "es"? "Español":"English"}
           </button>
         );
       })}

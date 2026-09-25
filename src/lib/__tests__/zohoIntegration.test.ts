@@ -31,29 +31,27 @@ describe("Zoho CRM & WorkDrive Integration Mocks", () => {
   });
 
   describe("Zoho CRM API Integrations", () => {
-    it("getContact - should map and return Contact from Contacts module when present", async () => {
+    const tokenResponse = {
+      ok: true,
+      json: async () => ({ access_token: "token_abc", expires_in: 3600 }),
+    } as any;
+
+    it("getContact - should map and return the record from Debida_Diligencia when present", async () => {
       const spyFetch = vi.spyOn(global, "fetch").mockImplementation(async (url) => {
         const urlStr = String(url);
-        // OAuth token endpoint response
-        if (urlStr.includes("/oauth/v2/token")) {
+        if (urlStr.includes("/oauth/v2/token")) return tokenResponse;
+        if (urlStr.includes("/Debida_Diligencia/crm-debida-id-1")) {
           return {
             ok: true,
-            json: async () => ({ access_token: "token_abc", expires_in: 3600 }),
-          } as any;
-        }
-        // Contacts endpoint response
-        if (urlStr.includes("/Contacts/crm-contact-id-1")) {
-          return {
-            ok: true,
+            status: 200,
             json: async () => ({
               data: [{
-                Client_Type: "Natural Person",
-                Project_Interest: "Ocean Reef Phase 2",
-                First_Name: "María",
-                Last_Name: "González",
+                Name: "María González",
+                Tipo_de_Persona: "Persona Natural",
+                Proyecto: "Ocean Reef Phase 2",
                 Email: "maria.gonzalez@example.com",
-                Mobile: "50769998888",
-                Identificacion: "PE-123456",
+                Celular: "50769998888",
+                RUC_NIT: "PE-123456",
               }],
             }),
           } as any;
@@ -61,163 +59,95 @@ describe("Zoho CRM & WorkDrive Integration Mocks", () => {
         return { ok: false, status: 404 } as any;
       });
 
-      const result = await zoho.service.getContact("crm-contact-id-1");
+      const result = await zoho.service.getContact("crm-debida-id-1");
 
-      expect(result).toEqual({
-        type: "NATURAL",
-        nombreProyecto: "Ocean Reef Phase 2",
-        firstName: "María",
-        lastName: "González",
-        email: "maria.gonzalez@example.com",
-        celular: "50769998888",
-        idNumber: "PE-123456",
-        module: "Contacts",
-      });
-
+      expect(result.type).toBe("NATURAL");
+      expect(result.nombreProyecto).toBe("Ocean Reef Phase 2");
+      expect(result.email).toBe("maria.gonzalez@example.com");
+      expect(result.idNumber).toBe("PE-123456");
+      expect(result.module).toBe("Debida_Diligencia");
       expect(spyFetch).toHaveBeenCalled();
     });
 
-    it("getContact - should fallback to Leads module when not found in Contacts", async () => {
-      const spyFetch = vi.spyOn(global, "fetch").mockImplementation(async (url) => {
-        const urlStr = String(url);
-        if (urlStr.includes("/oauth/v2/token")) {
-          return {
-            ok: true,
-            json: async () => ({ access_token: "token_abc", expires_in: 3600 }),
-          } as any;
-        }
-        // Contacts fails
-        if (urlStr.includes("/Contacts/crm-lead-id-2")) {
-          return { ok: false, status: 404, text: async () => "Not Found" } as any;
-        }
-        // Leads succeeds
-        if (urlStr.includes("/Leads/crm-lead-id-2")) {
-          return {
-            ok: true,
-            json: async () => ({
-              data: [{
-                Tipo_Cliente: "Corporativo",
-                Proyecto: "Alta Plaza",
-                Company: "Mock Corp S.A.",
-                RUC: "8-888-8888 DV 99",
-                First_Name: "Jorge",
-                Last_Name: "Ramírez",
-                Email: "jorge.ramirez@example.com",
-                Phone: "5073004000",
-                Representante_Legal: "Jorge Ramírez",
-                Cedula_Representante: "8-111-1111",
-              }],
-            }),
-          } as any;
-        }
-        return { ok: false, status: 404 } as any;
-      });
-
-      const result = await zoho.service.getContact("crm-lead-id-2");
-
-      expect(result.type).toBe("JURIDICA");
-      expect(result.razonSocial).toBe("Mock Corp S.A.");
-      expect(result.numeroDocumento).toBe("8-888-8888 DV 99");
-      expect(result.module).toBe("Leads");
-      expect(spyFetch).toHaveBeenCalled();
-    });
-
-    it("getContact - should throw final error when both Contacts and Leads modules fail", async () => {
+    it("getContact - should fallback to Accounts when the record is not in Debida_Diligencia", async () => {
       vi.spyOn(global, "fetch").mockImplementation(async (url) => {
         const urlStr = String(url);
-        if (urlStr.includes("/oauth/v2/token")) {
+        if (urlStr.includes("/oauth/v2/token")) return tokenResponse;
+        if (urlStr.includes("/Accounts/crm-account-id-2")) {
           return {
             ok: true,
-            json: async () => ({ access_token: "token_abc", expires_in: 3600 }),
+            status: 200,
+            json: async () => ({ data: [{ Account_Name: "Mock Corp S.A." }] }),
           } as any;
         }
         return { ok: false, status: 404, text: async () => "Not Found" } as any;
       });
 
+      const result = await zoho.service.getContact("crm-account-id-2");
+
+      expect(result.module).toBe("Accounts");
+    });
+
+    it("getContact - should throw when the record is in neither Debida_Diligencia nor Accounts", async () => {
+      const spyFetch = vi.spyOn(global, "fetch").mockImplementation(async (url) => {
+        const urlStr = String(url);
+        if (urlStr.includes("/oauth/v2/token")) return tokenResponse;
+        return { ok: false, status: 404, text: async () => "Not Found" } as any;
+      });
+
       await expect(zoho.service.getContact("unknown-id")).rejects.toThrow(
-        "No se pudo encontrar ningún Expediente, Contacto o Lead con el ID de CRM"
+        "No se pudo encontrar ningún Expediente de Debida Diligencia o Socio de Negocio con el ID de CRM"
       );
+      const urls = spyFetch.mock.calls.map(([u]) => String(u));
+      expect(urls.some((u) => u.includes("/Contacts/") || u.includes("/Leads/"))).toBe(false);
     });
 
-    it("updateContact - should update record successfully in Contacts module", async () => {
+    it("updateContact - should update the Debida_Diligencia record with the mapped payload", async () => {
       const spyFetch = vi.spyOn(global, "fetch").mockImplementation(async (url) => {
         const urlStr = String(url);
-        if (urlStr.includes("/oauth/v2/token")) {
-          return {
-            ok: true,
-            json: async () => ({ access_token: "token_abc", expires_in: 3600 }),
-          } as any;
-        }
-        if (urlStr.includes("/Contacts/crm-contact-id-1")) {
+        if (urlStr.includes("/oauth/v2/token")) return tokenResponse;
+        if (urlStr.includes("/Debida_Diligencia/crm-debida-id-1")) {
           return {
             ok: true,
             json: async () => ({
-              data: [{
-                status: "success",
-                code: "SUCCESS",
-                message: "Record updated successfully",
-              }],
+              data: [{ status: "success", code: "SUCCESS", message: "record updated" }],
             }),
           } as any;
         }
         return { ok: false, status: 404 } as any;
       });
 
-      const result = await zoho.service.updateContact("crm-contact-id-1", "NATURAL", {
-        firstName: "María",
-        lastName: "González",
-      });
-
-      expect(result.success).toBe(true);
-      expect(result.crmId).toBe("crm-contact-id-1");
-      expect(spyFetch).toHaveBeenCalled();
-    });
-
-    it("updateContact - should fallback and update in Leads module if Contacts PUT returns NOT_FOUND / INVALID_DATA", async () => {
-      const spyFetch = vi.spyOn(global, "fetch").mockImplementation(async (url) => {
-        const urlStr = String(url);
-        if (urlStr.includes("/oauth/v2/token")) {
-          return {
-            ok: true,
-            json: async () => ({ access_token: "token_abc", expires_in: 3600 }),
-          } as any;
-        }
-        // Contacts PUT returns NOT_FOUND
-        if (urlStr.includes("/Contacts/crm-lead-id-2")) {
-          return {
-            ok: true,
-            json: async () => ({
-              data: [{
-                status: "error",
-                code: "NOT_FOUND",
-                message: "record not found",
-              }],
-            }),
-          } as any;
-        }
-        // Leads PUT succeeds
-        if (urlStr.includes("/Leads/crm-lead-id-2")) {
-          return {
-            ok: true,
-            json: async () => ({
-              data: [{
-                status: "success",
-                code: "SUCCESS",
-                message: "Record updated successfully",
-              }],
-            }),
-          } as any;
-        }
-        return { ok: false, status: 404 } as any;
-      });
-
-      const result = await zoho.service.updateContact("crm-lead-id-2", "JURIDICA", {
+      const result = await zoho.service.updateContact("crm-debida-id-1", "JURIDICA", {
         razonSocial: "Mock Corp S.A.",
       });
 
       expect(result.success).toBe(true);
-      expect(result.crmId).toBe("crm-lead-id-2");
-      expect(spyFetch).toHaveBeenCalled();
+      expect(result.crmId).toBe("crm-debida-id-1");
+      const put = spyFetch.mock.calls.find(([u]) => String(u).includes("/Debida_Diligencia/crm-debida-id-1"))!;
+      expect((put[1] as any).method).toBe("PUT");
+      expect(JSON.parse((put[1] as any).body).data[0].Raz_n_social).toBe("Mock Corp S.A.");
+    });
+
+    it("updateContact - should throw when the record does not exist in Debida_Diligencia", async () => {
+      const spyFetch = vi.spyOn(global, "fetch").mockImplementation(async (url) => {
+        const urlStr = String(url);
+        if (urlStr.includes("/oauth/v2/token")) return tokenResponse;
+        if (urlStr.includes("/Debida_Diligencia/crm-missing-id")) {
+          return {
+            ok: true,
+            json: async () => ({
+              data: [{ status: "error", code: "INVALID_DATA", message: "the id given seems to be invalid", details: {} }],
+            }),
+          } as any;
+        }
+        return { ok: false, status: 404 } as any;
+      });
+
+      await expect(zoho.service.updateContact("crm-missing-id", "NATURAL", {})).rejects.toThrow(
+        "No se encontró el registro crm-missing-id en el módulo Debida_Diligencia"
+      );
+      const urls = spyFetch.mock.calls.map(([u]) => String(u));
+      expect(urls.some((u) => u.includes("/Contacts/") || u.includes("/Leads/"))).toBe(false);
     });
   });
 
@@ -421,16 +351,16 @@ describe("Zoho CRM & WorkDrive Integration Mocks", () => {
               expires_in: 3600,
             }),
           } as any;
-        } else if (urlStr.includes("/Contacts/crm-contact-id")) {
+        } else if (urlStr.includes("/Debida_Diligencia/crm-contact-id")) {
           return {
             ok: true,
+            status: 200,
             json: async () => ({
               data: [
                 {
                   id: "crm-contact-id",
+                  Name: "Juan Perez",
                   Email: "test@example.com",
-                  First_Name: "Juan",
-                  Last_Name: "Perez",
                 },
               ],
             }),
@@ -472,7 +402,8 @@ describe("Zoho CRM & WorkDrive Integration Mocks", () => {
 
       expect(noteRes.success).toBe(true);
       expect(noteRes.noteId).toBe("note-id-123");
-      expect(spyFetch).toHaveBeenCalledTimes(5);
+      // token + GET Debida_Diligencia (resolución del módulo) + POST /Notes
+      expect(spyFetch).toHaveBeenCalledTimes(3);
 
       // Verify the POST arguments
       const noteCall = spyFetch.mock.calls.find(call => String(call[0]).includes("/Notes"));
@@ -481,7 +412,7 @@ describe("Zoho CRM & WorkDrive Integration Mocks", () => {
       expect(noteInit?.method).toBe("POST");
       const body = JSON.parse(noteInit?.body as string);
       expect(body.data[0].Note_Title).toBe("Formulario Completado");
-      expect(body.data[0].$se_module).toBe("Contacts");
+      expect(body.data[0].$se_module).toBe("Debida_Diligencia");
     });
 
     it("getContact - should fetch and map record successfully in Debida_Diligencia module", async () => {
@@ -565,7 +496,7 @@ describe("Zoho CRM & WorkDrive Integration Mocks", () => {
             json: async () => ({ access_token: "token_abc", expires_in: 3600 }),
           } as any;
         }
-        if (urlStr.includes("/Debida_Diligencia/crm-debida-id/Attachments") || urlStr.includes("/Contacts/crm-debida-id/Attachments")) {
+        if (urlStr.includes("/Debida_Diligencia/crm-debida-id/Attachments")) {
           return {
             ok: true,
             json: async () => ({
@@ -702,7 +633,8 @@ describe("Zoho CRM & WorkDrive Integration Mocks", () => {
       const [_, init] = debidaPostCall!;
       expect(init?.method).toBe("POST");
       const body = JSON.parse(init?.body as string);
-      expect(body.data[0].Name).toBe("Juan Perez");
+      // Name ya no se envía al crear el registro (zoho_fields_guide.md: no aplica)
+      expect(body.data[0]).not.toHaveProperty("Name");
       expect(body.data[0].Tipo_de_Persona).toBe("Persona Natural");
       expect(body.data[0].Estado_del_enlace).toBe("Activo");
       expect(body.data[0].Estado).toBe("En Proceso");

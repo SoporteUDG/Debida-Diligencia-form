@@ -28,6 +28,9 @@ function findValue(record: any, keys: string[]): string {
   return "";
 }
 
+/** Módulos de Zoho CRM con los que trabaja el portal. */
+export type CrmModule = "Accounts" | "Debida_Diligencia";
+
 export interface MappedCrmData {
   type: "NATURAL" | "JURIDICA";
   nombreProyecto: string;
@@ -57,7 +60,7 @@ export interface MappedCrmData {
   rlProfesionOcupacion?: string;
   rlActividadEconomica?: string;
   
-  module?: "Accounts" | "Debida_Diligencia" | "Contacts" | "Leads";
+  module?: CrmModule;
 }
 
 /**
@@ -140,144 +143,6 @@ export function mapAccountRecord(record: any): MappedCrmData {
 }
 
 /**
- * Maps a raw Zoho CRM Contact or Lead record to the portal's form structures.
- */
-export function mapCrmRecord(record: any, moduleType: "Contacts" | "Leads"): MappedCrmData {
-  // 1. Determine client type (Natural or Jurídica)
-  const rawType = findValue(record, [
-    "Client_Type",
-    "Tipo_Cliente",
-    "Tipo_de_Cliente",
-    "ClientType",
-    "Tipo_de_Persona",
-  ]).toLowerCase();
-
-  // Default to NATURAL unless it matches JURIDICA indicators
-  const isJuridica = 
-    rawType.includes("jurid") || 
-    rawType.includes("corp") || 
-    rawType.includes("empresa") ||
-    rawType.includes("sociedad") ||
-    !!findValue(record, ["Razon_Social", "Razón_Social", "Company", "Empresa"]);
-
-  const type = isJuridica ? "JURIDICA" : "NATURAL";
-
-  // 2. Map project name
-  const nombreProyecto = findValue(record, [
-    "Project_Interest",
-    "Proyecto_de_Interes",
-    "Project",
-    "Proyecto",
-    "Nombre_Proyecto",
-  ]) || "General UDG";
-
-  // Common fields
-  const email = findValue(record, ["Email", "Correo_Electrónico", "Correo", "Email_Address"]);
-  const phone = findValue(record, ["Mobile", "Phone", "Teléfono", "Celular", "Mobile_Phone"]);
-
-  if (type === "NATURAL") {
-    const firstName = findValue(record, ["First_Name", "Nombre", "Nombres", "FirstName"]);
-    const lastName = findValue(record, ["Last_Name", "Apellido", "Apellidos", "LastName"]);
-    const idNumber = findValue(record, ["Identificacion", "Cedula", "Cédula", "N_Identificacion", "RUC", "Ruc", "C_dula", "C_dula_de_Identidad_Personal", "C_dula_o_Pasaporte", "C_I_P_Pasaporte", "RUC_NIT"]);
-
-    return {
-      type,
-      nombreProyecto,
-      firstName,
-      lastName,
-      email,
-      celular: phone,
-      idNumber,
-      module: moduleType,
-    };
-  } else {
-    // JURIDICA mapping
-    const razonSocial = findValue(record, [
-      "Razon_Social",
-      "Razón_Social",
-      "Company",
-      "Account_Name",
-      "Empresa",
-    ]) || findValue(record, ["Company"]);
-
-    const ruc = findValue(record, [
-      "RUC",
-      "Ruc",
-      "Identificacion",
-      "Cedula",
-      "Cédula",
-      "RUC_Razon_Social",
-      "Número_de_RUC",
-      "C_dula",
-      "C_dula_de_Identidad_Personal",
-      "C_dula_o_Pasaporte",
-      "C_I_P_Pasaporte",
-      "RUC_NIT",
-    ]);
-
-    // Split representative names or find representative fields
-    const rlNombre = findValue(record, [
-      "Representante_Legal",
-      "rlNombre",
-      "Nombre_Representante",
-      "Legal_Representative",
-      "Nombre_y_Apellido",
-    ]);
-
-    const rlNoIdentificacion = findValue(record, [
-      "Cedula_Representante",
-      "rlNoIdentificacion",
-      "ID_Representante",
-      "RL_No_Identificaci_n",
-    ]);
-
-    const rlTelefono = findValue(record, ["RL_Tel_fono", "rlTelefono"]);
-    const rlNacionalidad = findValue(record, ["RL_Nacionalidad", "rlNacionalidad"]);
-    const rlFechaNacimiento = findValue(record, ["aaa", "rlFechaNacimiento"]);
-    const rlDireccion = findValue(record, ["RL_Direcci_n", "rlDireccion"]);
-    const rlPaisResidencia = findValue(record, ["RL_Pa_s_de_Residencia", "rlPaisResidencia"]);
-    const rlProfesionOcupacion = findValue(record, ["RL_Profesi_n_Ocupaci_n", "rlProfesionOcupacion"]);
-    const rlActividadEconomica = findValue(record, ["RL_Actividad_Econ_mica", "rlActividadEconomica"]);
-
-    // Use contact name and ID as form contact person
-    const contactFirstName = findValue(record, ["First_Name", "Nombre", "Nombres", "FirstName"]);
-    const contactLastName = findValue(record, ["Last_Name", "Apellido", "Apellidos", "LastName"]);
-    const contactoId = findValue(record, [
-      "Identificacion",
-      "Cedula",
-      "Cédula",
-      "N_Identificacion",
-      "C_dula",
-      "C_dula_de_Identidad_Personal",
-      "C_dula_o_Pasaporte",
-      "C_I_P_Pasaporte",
-    ]);
-
-    return {
-      type,
-      nombreProyecto,
-      razonSocial,
-      numeroDocumento: ruc,
-      contactoNombre: contactFirstName || "Representante",
-      contactoApellido: contactLastName || "Comercial",
-      contactoEmail: email,
-      contactoTelefono: phone,
-      contactoId: contactoId,
-      rlNombre,
-      rlNoIdentificacion,
-      rlTelefono,
-      rlNacionalidad,
-      rlFechaNacimiento,
-      rlDireccion,
-      rlPaisResidencia,
-      rlProfesionOcupacion,
-      rlActividadEconomica,
-      module: moduleType,
-    };
-  }
-}
-
-/**
  * Merges CRM pre-loaded values into the existing draft data.
  * Priority rule: Existing non-empty draft values are preserved (never overwritten).
  * Unfilled draft fields (empty, null, or undefined) are populated with Zoho CRM values.
@@ -306,10 +171,11 @@ export function mergeCrmAndDraft(crmData: Partial<MappedCrmData>, draftData: any
 export const zoho = {
   service: {
     /**
-     * Queries Zoho CRM for a Contact or Lead by ID and returns mapped portal details.
+     * Queries Zoho CRM for a Debida_Diligencia record (or an Account / Socio de Negocio) by ID
+     * and returns mapped portal details.
      * Includes automated retries and a mock fallback mode for development environment.
      *
-     * @param crmId Zoho CRM Contact or Lead unique ID
+     * @param crmId Zoho CRM record unique ID
      */
     getContact: async (crmId: string): Promise<MappedCrmData> => {
       const clientId = process.env.ZOHO_CLIENT_ID;
@@ -327,7 +193,7 @@ export const zoho = {
       if (isPlaceholder || crmId.startsWith("mock-") || crmId === "simulated-crm-contact-id") {
         console.log(`[Zoho Service] Modo placeholder. Generando datos simulados para ID: ${crmId}`);
         const isCrmIdJur = crmId.toLowerCase().includes("jur") || crmId.startsWith("mock-jur");
-        const module = crmId.includes("debida") ? "Debida_Diligencia" as const : "Contacts" as const;
+        const module = "Debida_Diligencia" as const;
         
         if (isCrmIdJur) {
           return {
@@ -357,7 +223,7 @@ export const zoho = {
         }
       }
 
-      // Query Zoho CRM modules (try Debida_Diligencia first, then Contacts/Leads)
+      // Query Zoho CRM modules (Debida_Diligencia first, then Accounts)
       return executeWithRetry(async (accessToken) => {
         const crmBaseUrl = process.env.ZOHO_CRM_BASE_URL || "https://www.zohoapis.com/crm/v2";
 
@@ -435,7 +301,7 @@ export const zoho = {
             }
           }
         } catch (e) {
-          console.log(`[Zoho Service] Error buscando en módulo Debida_Diligencia, intentando estándar...`, e);
+          console.log(`[Zoho Service] Error buscando en módulo Debida_Diligencia, intentando Accounts...`, e);
         }
 
         // 2. Try Accounts Module (Socios de Negocio)
@@ -456,49 +322,15 @@ export const zoho = {
             }
           }
         } catch (accErr) {
-          console.log(`[Zoho Service] Error buscando en módulo Accounts, intentando fallback...`, accErr);
+          console.log(`[Zoho Service] Error buscando en módulo Accounts:`, accErr);
         }
 
-        // 3. Fallback to Contacts Module
-        console.log(`[Zoho Service] Buscando contacto ${crmId} en módulo Contacts...`);
-        let response = await fetch(`${crmBaseUrl}/Contacts/${crmId}`, {
-          method: "GET",
-          headers: {
-            Authorization: `Zoho-oauthtoken ${accessToken}`,
-          },
-        });
-
-        if (response.ok && response.status !== 204) {
-          const resJson = await response.json();
-          if (resJson.data && resJson.data.length > 0) {
-            console.log(`[Zoho Service] Contacto ${crmId} encontrado.`);
-            return mapCrmRecord(resJson.data[0], "Contacts");
-          }
-        }
-
-        // 3. Fallback to Leads Module
-        console.log(`[Zoho Service] Contacto no encontrado en Contacts. Buscando en módulo Leads...`);
-        response = await fetch(`${crmBaseUrl}/Leads/${crmId}`, {
-          method: "GET",
-          headers: {
-            Authorization: `Zoho-oauthtoken ${accessToken}`,
-          },
-        });
-
-        if (response.ok && response.status !== 204) {
-          const resJson = await response.json();
-          if (resJson.data && resJson.data.length > 0) {
-            console.log(`[Zoho Service] Lead ${crmId} encontrado.`);
-            return mapCrmRecord(resJson.data[0], "Leads");
-          }
-        }
-
-        throw new Error(`No se pudo encontrar ningún Expediente, Contacto o Lead con el ID de CRM: ${crmId}`);
+        throw new Error(`No se pudo encontrar ningún Expediente de Debida Diligencia o Socio de Negocio con el ID de CRM: ${crmId}`);
       });
     },
 
     /**
-     * Updates an existing Zoho record in Debida_Diligencia (or fallback to Contacts/Leads) with form data.
+     * Updates an existing Zoho record in Debida_Diligencia with form data.
      * Integrates with oauth automatic retries and development simulation fallback.
      */
     updateContact: async (
@@ -569,35 +401,13 @@ export const zoho = {
           return { success: true, notFound: false };
         };
 
-        // 1. Try updating in Debida_Diligencia
-        try {
-          const updateRes = await tryUpdateInModule("Debida_Diligencia");
-          if (updateRes.success) {
-            console.log(`[Zoho Service] Registro ${crmId} actualizado exitosamente en módulo Debida_Diligencia.`);
-            return { success: true, crmId };
-          }
-        } catch (e) {
-          console.log(`[Zoho Service] Falló actualización en módulo Debida_Diligencia, intentando estándar...`, e);
+        const updateRes = await tryUpdateInModule("Debida_Diligencia");
+        if (!updateRes.success) {
+          throw new Error(`No se encontró el registro ${crmId} en el módulo Debida_Diligencia de Zoho CRM.`);
         }
 
-        // 2. Try updating in Contacts
-        let updateRes = await tryUpdateInModule("Contacts");
-        if (updateRes.success) {
-          console.log(`[Zoho Service] Registro ${crmId} actualizado exitosamente en módulo Contacts.`);
-          return { success: true, crmId };
-        }
-
-        // 3. Try updating in Leads
-        if (updateRes.notFound) {
-          console.log(`[Zoho Service] Registro no encontrado en Contacts. Intentando en Leads...`);
-          updateRes = await tryUpdateInModule("Leads");
-          if (updateRes.success) {
-            console.log(`[Zoho Service] Registro ${crmId} actualizado exitosamente en módulo Leads.`);
-            return { success: true, crmId };
-          }
-        }
-
-        throw new Error(`No se pudo encontrar ni actualizar ningún registro con el ID de CRM: ${crmId}`);
+        console.log(`[Zoho Service] Registro ${crmId} actualizado exitosamente en módulo Debida_Diligencia.`);
+        return { success: true, crmId };
       });
     },
 
@@ -609,7 +419,7 @@ export const zoho = {
         name: string;
         email: string;
         phone: string;
-        module: "Accounts" | "Debida_Diligencia" | "Contacts" | "Leads";
+        module: CrmModule;
         type: "NATURAL" | "JURIDICA";
         projectInterest?: string;
       }>
@@ -678,7 +488,7 @@ export const zoho = {
           name: string;
           email: string;
           phone: string;
-          module: "Accounts" | "Debida_Diligencia" | "Contacts" | "Leads";
+          module: CrmModule;
           type: "NATURAL" | "JURIDICA";
           projectInterest?: string;
         }> = [];
@@ -799,7 +609,6 @@ export const zoho = {
         }
 
         const recordPayload: any = {
-          Name: params.name || "Nuevo Expediente DD",
           Tipo_de_Persona: params.clientType === "NATURAL" ? "Persona Natural" : "Persona Jurídica",
           Estado_del_enlace: "Activo",
           Estado: "En Proceso",
@@ -885,7 +694,7 @@ export const zoho = {
      */
     updateClientFormLink: async (
       crmId: string,
-      module: "Accounts" | "Debida_Diligencia" | "Contacts" | "Leads",
+      module: CrmModule,
       formLink?: string,
       expiresAt?: Date,
       linkStatus?: string
@@ -962,7 +771,7 @@ export const zoho = {
     },
 
     /**
-     * Creates an activity note in Zoho CRM associated with a Contact, Lead or Debida_Diligencia.
+     * Creates an activity note in Zoho CRM associated with a Debida_Diligencia or Account record.
      */
     createNote: async (
       crmId: string,
@@ -989,8 +798,8 @@ export const zoho = {
       return executeWithRetry(async (accessToken) => {
         const crmBaseUrl = process.env.ZOHO_CRM_BASE_URL || "https://www.zohoapis.com/crm/v2";
 
-        // Determine if it is under Accounts, Debida_Diligencia, Contacts or Leads
-        let resolvedModule: "Accounts" | "Debida_Diligencia" | "Contacts" | "Leads" = "Debida_Diligencia";
+        // Determine if it is under Accounts or Debida_Diligencia
+        let resolvedModule: CrmModule = "Debida_Diligencia";
         try {
           const contactInfo = await zoho.service.getContact(crmId);
           resolvedModule = contactInfo.module || "Debida_Diligencia";
@@ -1039,13 +848,13 @@ export const zoho = {
 
     /**
      * Uploads a file buffer directly as an Attachment to a record in Zoho CRM
-     * (Debida_Diligencia, Accounts, Contacts, or Leads).
+     * (Debida_Diligencia or Accounts).
      */
     uploadAttachment: async (
       crmId: string,
       fileName: string,
       fileBuffer: Buffer,
-      moduleOverride?: "Accounts" | "Debida_Diligencia" | "Contacts" | "Leads"
+      moduleOverride?: CrmModule
     ): Promise<{ success: boolean; attachmentId?: string; mocked?: boolean }> => {
       const clientId = process.env.ZOHO_CLIENT_ID;
       const clientSecret = process.env.ZOHO_CLIENT_SECRET;
@@ -1067,7 +876,7 @@ export const zoho = {
       return executeWithRetry(async (accessToken) => {
         const crmBaseUrl = process.env.ZOHO_CRM_BASE_URL || "https://www.zohoapis.com/crm/v2";
 
-        let resolvedModule: "Accounts" | "Debida_Diligencia" | "Contacts" | "Leads" = moduleOverride || "Debida_Diligencia";
+        let resolvedModule: CrmModule = moduleOverride || "Debida_Diligencia";
         if (!moduleOverride) {
           try {
             const contactInfo = await zoho.service.getContact(crmId);
@@ -1113,89 +922,281 @@ export const zoho = {
   },
 };
 
+// ==========================================
+// Helpers para el mapeo formulario -> Zoho CRM
+// ==========================================
+
+/** Texto recortado, o undefined si está vacío (el campo no se envía). */
+function text(v: unknown): string | undefined {
+  if (v === null || v === undefined) return undefined;
+  const s = String(v).trim();
+  return s === "" ? undefined : s;
+}
+
+/** "Sí" / "Si" / true -> true. Cualquier otro valor -> false. */
+function isYes(v: unknown): boolean {
+  return v === true || /^s[ií]$/i.test(String(v ?? "").trim());
+}
+
+/** Opciones "Otros" / "Otro" / "OTROS" que se reemplazan por su campo de detalle. */
+function isOtros(v: unknown): boolean {
+  return /^otros?$/i.test(String(v ?? "").trim());
+}
+
+/** Código de país + número, como en el formulario: "+507 6000-0000". */
+function phone(code: unknown, num: unknown): string | undefined {
+  const n = text(num);
+  if (!n) return undefined;
+  const c = text(code);
+  return c ? `${c} ${n}` : n;
+}
+
+/** Campos Money / Decimal / Porcentaje: "$1,500.50" -> 1500.5 */
+function toNumber(v: unknown): number | undefined {
+  const s = text(v)?.replace(/[$%\s,]/g, "");
+  return s && /^\d+(\.\d+)?$/.test(s) ? parseFloat(s) : undefined;
+}
+
+/** Zoho espera fechas yyyy-MM-dd. */
+function toDate(v: unknown): string | undefined {
+  const s = text(v);
+  return s && /^\d{4}-\d{2}-\d{2}/.test(s) ? s.slice(0, 10) : undefined;
+}
+
+/** Picklist múltiple: el formulario guarda "Efectivo, Cheque". */
+function toList(v: unknown): string[] | undefined {
+  const items = (Array.isArray(v) ? v : String(v ?? "").split(","))
+    .map((x) => String(x).trim())
+    .filter(Boolean);
+  return items.length ? items : undefined;
+}
+
+function hasFile(v: unknown): boolean {
+  return Array.isArray(v) ? v.some((x) => !!text(x)) : !!text(v);
+}
+
+function hasPersonDoc(docs: unknown, personType: "GJC" | "BF" | "RL"): boolean {
+  return Array.isArray(docs) && docs.some((d: any) => d?.personType === personType && !!text(d?.fileName));
+}
+
+function rowHasContent(row: Record<string, any>): boolean {
+  return Object.entries(row).some(([k, v]) => k !== "id" && !!text(v));
+}
+
+/** Copia al payload solo los campos con valor. */
+function assign(payload: Record<string, unknown>, fields: Record<string, unknown>) {
+  for (const [key, value] of Object.entries(fields)) {
+    if (value !== undefined) payload[key] = value;
+  }
+}
+
 /**
- * Maps the complete portal form state structure into standard and potential custom Zoho CRM fields.
+ * Maps the complete portal form state into the Debida_Diligencia fields listed in
+ * zoho_fields_guide.md. API names follow the real Zoho module (e.g. Tipo_de_Cliente,
+ * Promedio_mensual, Aviso_de_Operaciones), which in a few rows differs from the guide.
  */
 export function mapFormToCrmPayload(clientType: "NATURAL" | "JURIDICA", formData: any): any {
-  const payload: any = {
+  const d = formData || {};
+  const payload: Record<string, unknown> = {
     "Estado": "Completado",
     "Fecha_de_Ingreso": new Date().toISOString().split("T")[0],
-    "Tipo_de_Persona": clientType === "NATURAL" ? "Persona Natural" : "Persona Jurídica",
     "Estado_del_enlace": "Expirado / Revocado",
   };
 
-  // Mapear Proyecto si está definido
-  const project = formData.nombreProyecto || formData.projectName || "";
-  if (project) {
-    payload["Proyecto"] = project;
-  }
+  // 1. Datos de cabecera
+  assign(payload, {
+    "Proyecto": text(d.nombreProyecto || d.projectName),
+    "Forma_de_contacto": isOtros(d.formaContacto) ? text(d.formaContactoDetalle) : text(d.formaContacto),
+    "Referido_por": d.formaContacto === "Referido" ? text(d.referidoPor) : undefined,
+  });
 
-  if (clientType === "NATURAL") {
-    const fullName = `${formData.firstName || ""} ${formData.lastName || ""}`.trim();
-    payload["Name"] = fullName || "Expediente Natural";
-    
-    if (formData.idNumber) payload["RUC_NIT"] = formData.idNumber;
-    if (formData.email) payload["Email"] = formData.email;
-    if (formData.celular || formData.telefono) payload["Tel_fono"] = formData.celular || formData.telefono;
-    if (formData.profession) payload["Actividad_Principal"] = formData.profession;
-    if (formData.paisResidencial) payload["Pa_s"] = formData.paisResidencial;
-    if (formData.provinciaEstado) payload["Provincia"] = formData.provinciaEstado;
-    if (formData.ciudad) payload["Ciudad"] = formData.ciudad;
-    if (formData.direccionResidencial) payload["Direccion_Calle"] = formData.direccionResidencial;
-    
-    if (formData.fuenteFondosInmueble || formData.origenFondos) {
-      payload["Origen_de_Fondos"] = formData.fuenteFondosInmueble || formData.origenFondos;
-    }
-    if (formData.medioPago) payload["Medio_de_Pago"] = formData.medioPago;
-    if (formData.propositoInmueble) payload["Prop_sito_del_inmueble"] = formData.propositoInmueble;
-    if (formData.ingresosMensuales) payload["Monto_mensual_estimado"] = formData.ingresosMensuales;
-    payload["A_nombre_de_otro"] = !!formData.terceroNombre;
-  } else {
-    payload["Name"] = formData.razonSocial || "Expediente Jurídico";
-    if (formData.razonSocial) payload["Raz_n_social"] = formData.razonSocial;
-    if (formData.numeroDocumento) payload["RUC_NIT"] = formData.numeroDocumento;
-    if (formData.fechaConstitucion) payload["Fecha_de_constituci_n"] = formData.fechaConstitucion;
-    
-    if (formData.empresaDireccion) payload["Direccion_Calle"] = formData.empresaDireccion;
-    if (formData.empresaCiudad) payload["Ciudad"] = formData.empresaCiudad;
-    if (formData.empresaProvincia) payload["Provincia"] = formData.empresaProvincia;
-    if (formData.empresaPais) payload["Pa_s"] = formData.empresaPais;
-    
-    if (formData.empresaTelefono) payload["Tel_fono"] = formData.empresaTelefono;
-    if (formData.empresaEmail) {
-      payload["Email"] = formData.empresaEmail;
-      payload["Email_corporativo"] = formData.empresaEmail;
-    }
-    
-    if (formData.empresaActividad || formData.actividadPrincipal) {
-      payload["Actividad_Principal"] = formData.empresaActividad || formData.actividadPrincipal;
-    }
-    if (formData.medioPago) payload["Medio_de_Pago"] = formData.medioPago;
-    if (formData.origenFondos) payload["Origen_de_Fondos"] = formData.origenFondos;
-    if (formData.propositoInmueble) payload["Prop_sito_del_inmueble"] = formData.propositoInmueble;
-    if (formData.ingresosMensuales || formData.montoAnualEstimado) {
-      payload["Monto_mensual_estimado"] = formData.ingresosMensuales || formData.montoAnualEstimado;
-    }
+  const esPep = isYes(d.esPep);
+  const pep = {
+    "Es_PEP": esPep,
+    "PEP_nombre": esPep ? text(d.pepNombre) : undefined,
+    "PEP_cargo": esPep ? text(d.pepCargo) : undefined,
+    "PEP_instituci_n": esPep ? text(d.pepInstitucion) : undefined,
+    "PEP_relaci_n": esPep ? text(d.pepRelacion) : undefined,
+  };
+  const conTercero = String(d.fuenteFondosInmueble ?? "").includes("Terceros");
 
-    // Subformulario: Beneficiarios Finales
-    const bfMembers = formData.bfMembers || [];
-    payload["Beneficiario_Finales"] = bfMembers.map((m: any) => ({
-      "Nombre_completo": m.name || m.nombreCompleto || "",
-      "No_Identificaci_n": m.idNumber || m.noIdentificacion || "",
-      "Nacionalidad": m.nationality || m.nacionalidad || "",
-      "Participaci_n": parseFloat(String(m.percentage || m.porcentajeParticipacion || 0)),
-      "Pais_nac_Residencia": m.country || m.paisNacimiento || "",
-    }));
+  if (clientType === "JURIDICA") {
+    const ocupaCargo = isYes(d.ifContacto);
+    const masUnidades = isYes(d.adquiereMasUnidades);
+
+    assign(payload, {
+      // Datos de identificación jurídica
+      "Raz_n_social": text(d.razonSocial),
+      "Tipo_de_sociedad": text(d.tipoSociedad),
+      "Tipo_de_Cliente": text(d.tipoCliente),
+      "Estado_sociedad": text(d.estadoSociedad),
+      "Tipo_de_identificacion": text(d.tipoDocumentoIdentidad),
+      "Actividad_Principal": text(d.actividadPrincipal),
+      "RUC_NIT": text(d.numeroDocumento),
+      "Fecha_vencimiento_ID": toDate(d.fechaVencimientoId),
+      "ID_tributaria": text(d.numeroIdTributaria),
+      "Pa_s_donde_tributa": text(d.paisTributacion),
+      "Pa_s_donde_opera": text(d.paisOpera),
+      "Fecha_de_constituci_n": toDate(d.fechaConstitucion),
+      "Pais_de_inscripci_n": text(d.paisInscripcion),
+
+      // Persona de contacto
+      "Nombre_contacto": text(`${d.contactoNombre || ""} ${d.contactoApellido || ""}`),
+      "Identificaci_n_Contacto": text(d.contactoId),
+      "Telefono_contacto": text(d.contactoTelefono),
+      "Correo_de_contacto": text(d.contactoEmail),
+      "Ocupa_cargo": ocupaCargo,
+      "Cargo_de_contacto": ocupaCargo ? text(d.contactoCargo) : undefined,
+
+      // Datos generales de la empresa
+      "Direccion_Calle": text(d.empresaDireccion),
+      "Ciudad": text(d.empresaCiudad),
+      "Provincia": text(d.empresaProvincia),
+      "Pa_s": text(d.empresaPais),
+      "Tel_fono": phone(d.empresaTelefonoCodigo, d.empresaTelefono),
+      "Celular": phone(d.empresaCelularCodigo, d.empresaCelular),
+      "Email_corporativo": text(d.empresaEmail),
+
+      // Representante legal o apoderado
+      "Nombre_natural": text(d.rlNombre),
+      "Estado_Civil": text(d.rlEstadoCivil),
+      "Nacionalidad": text(d.rlNacionalidad),
+      "Numero_Identificacion": text(d.rlNoIdentificacion),
+      "Fecha_de_nacimiento": toDate(d.rlFechaNacimiento),
+      "Profesi_n": text(d.rlProfesionOcupacion),
+      "Actividad_Persona": text(d.rlActividadEconomica),
+      "Pais_de_residencia_fiscal": text(d.rlPaisResidencia),
+      "Direccion_Representante": text(d.rlDireccion),
+      "Telefono_Representante": text(d.rlTelefono),
+      "Declaraci_n_del_origen_il_cito_firmada": isYes(d.rlObjetoInvestigacion),
+
+      // Perfil financiero
+      "Promedio_mensual": toNumber(d.ingresosMensuales),
+      "Medios_de_Pago": toList(d.medioPago),
+      "Fuente_de_Fondos": text(d.fuenteFondosInmueble),
+      "Mas_unidades_inmobiliarias": masUnidades,
+      "Cantidad_inmuebles": masUnidades ? toNumber(d.cantidadUnidadesInmobiliarias) : undefined,
+
+      // Tercero aportante (solo si los fondos provienen de terceros)
+      "Tercero_Aportante_Nombre": conTercero ? text(d.terceroNombre) : undefined,
+      "Tercero_Aportante_Nacionalidad": conTercero ? text(d.terceroNacionalidad) : undefined,
+      "Tercero_Aportante_Relaci_n": conTercero ? text(d.terceroVinculo) : undefined,
+      "Tercero_Aportante_Fuente_de_Fondos": conTercero ? text(d.terceroFuenteFondos) : undefined,
+
+      ...pep,
+
+      // Documentos recibidos
+      "C_dula_de_Representante_Legal": hasPersonDoc(d.personDocuments, "RL"),
+      "Carta_de_Junta_Directiva": hasPersonDoc(d.personDocuments, "GJC"),
+      "Declaraci_n_Jurada_de_Beneficiario_Final": hasPersonDoc(d.personDocuments, "BF"),
+      "Aviso_de_Operaciones": hasFile(d.avisoOperacionesFile),
+      "Estados_Financieros": hasFile(d.origenFondosFile),
+      "Pacto_Social": hasFile(d.pactoSocialFile),
+      "Certificado_de_Registro_P_blico": hasFile(d.certRegistroFile),
+      "Certificado_Bancario": hasFile(d.certBancariaFile),
+      "Carta_de_compra_de_beneficiarios": hasFile(d.certComprasFile),
+    });
 
     // Subformulario: Gobierno Corporativo / Junta Directiva
-    const gjcMembers = formData.gjcMembers || [];
-    payload["Gobierno_Coporativo_Junta_Directiva"] = gjcMembers.map((m: any) => ({
+    payload["Gobierno_Coporativo_Junta_Directiva"] = (d.gjcMembers || []).filter(rowHasContent).map((m: any) => ({
       "Nombre_y_apellido": `${m.nombre || ""} ${m.apellidos || ""}`.trim(),
       "Cargo": m.cargo || "",
       "Nacionalidad": m.nacionalidad || "",
-      "Fecha_de_nacimiento": m.fechaNacimiento || null,
+      "Fecha_de_nacimiento": toDate(m.fechaNacimiento) ?? null,
       "No_Identificaci_n": m.nroId || "",
+      "Direcci_n": m.direccion || "",
     }));
+
+    // Subformulario: Beneficiarios Finales
+    payload["Beneficiario_Finales"] = (d.bfMembers || []).filter(rowHasContent).map((m: any) => ({
+      "Nombre_completo": m.nombreCompleto || "",
+      "No_Identificaci_n": m.noIdentificacion || "",
+      "Nacionalidad": m.nacionalidad || "",
+      "Participaci_n": toNumber(m.porcentajeParticipacion) ?? null,
+      "Pais_nac_Residencia": m.paisNacimiento || "",
+      "Fecha_de_BF": toDate(m.fechaAdquisicion) ?? null,
+      "Direcci_n": m.direccion || "",
+    }));
+  } else {
+    const patrimonio = !!text(d.esPropietario) && d.esPropietario !== "No";
+    const masUnidades = isYes(d.montoServiciosAnuales);
+    const aNombreDeOtro = isYes(d.adquiereNombreTercero);
+
+    // "Otros" como fuente de fondos se reemplaza por el detalle escrito por el cliente
+    let fuenteFondos = text(d.fuenteFondosInmueble);
+    const otroDetalle = text(d.ifOtroNombre);
+    if (fuenteFondos && otroDetalle && fuenteFondos.includes("Otros")) {
+      fuenteFondos = isOtros(fuenteFondos) ? otroDetalle : `${fuenteFondos} - ${otroDetalle}`;
+    }
+
+    assign(payload, {
+      // Datos de identificación
+      "Nombre_natural": text(`${d.firstName || ""} ${d.lastName || ""}`),
+      "Pais_de_nacimiento": text(d.paisNacimiento),
+      "Pais_de_residencia_fiscal": text(d.paisResidenciaFiscal),
+      "ID_tributaria": text(d.idTributaria),
+      "Nacionalidad": text(d.nationality),
+      "Tipo_de_identificacion": text(d.tipoIdentificacion),
+      "Otra_nacionalidad": text(d.otraNacionalidad),
+      "Estado_Civil": text(d.estadoCivil),
+      "Numero_Identificacion": text(d.idNumber),
+      "Fecha_vencimiento_ID": toDate(d.fechaVencimientoId),
+      "Fecha_de_nacimiento": toDate(d.fechaNacimiento),
+      "Estado_migratorio": text(d.estatusMigratorio),
+
+      // Jurisdicción / ubicación geográfica
+      "Direccion_Calle": text(d.direccionResidencial),
+      "Ciudad": text(d.ciudad),
+      "Provincia": text(d.provinciaEstado),
+      "Pa_s": text(d.paisResidencial),
+      "Tel_fono": phone(d.telefonoCodigo, d.telefono),
+      "Celular": phone(d.celularCodigo, d.celular),
+      "Email_corporativo": text(d.email),
+
+      // Datos laborales
+      "Profesi_n": isOtros(d.profession) ? text(d.profesionOtros) : text(d.profession),
+      "Pa_s_de_Empresa": text(d.paisActividadLaboral),
+      "Empresa_donde_labora": text(d.employer),
+      "Actividad_Empresa": isOtros(d.actividadLaboral) ? text(d.actividadLaboralOtros) : text(d.actividadLaboral),
+      "Direcci_n_laboral": text(d.direccionLaboral),
+      "Cargo_en_la_Empresa": text(d.cargoDesempena),
+      "Patrimonio_en_la_empresa": patrimonio,
+      "Fondos_provienen_de_la_Empresa": patrimonio && isYes(d.usaFondos),
+
+      // Actividades económicas o profesionales
+      "Actividad_Persona": isOtros(d.actEconPrincipal) ? text(d.otroActEcon) : text(d.actEconPrincipal),
+      "Porcentaje_Actividad_principal": toNumber(d.pctDedicacionPrincipal),
+      "Jurisdicci_n_de_Operaci_n_Principal": text(d.jurisdiccionPrincipal),
+      "Otras_Actividades": text(d.actEconSecundaria),
+      "Porcentaje_Otra_Actividad": toNumber(d.pctDedicacionSecundaria),
+      "Jurisdicci_n_de_Otra_operaci_n": text(d.jurisdiccionSecundaria),
+
+      // Perfil financiero
+      "Promedio_mensual": toNumber(d.ingresosMensuales),
+      "Medios_de_Pago": toList(d.medioPago),
+      "Fuente_de_Fondos": fuenteFondos,
+      "Mas_unidades_inmobiliarias": masUnidades,
+      "Cantidad_inmuebles": masUnidades ? toNumber(d.cantidadServiciosAnuales) : undefined,
+
+      // Tercero aportante (solo si los fondos provienen de terceros)
+      "Tercero_Aportante_Nombre": conTercero ? text(d.ifTerceroNombre) : undefined,
+      "Tercero_Aportante_Nacionalidad": conTercero ? text(d.ifTerceroNacionalidad) : undefined,
+      "Tercero_Aportante_Relaci_n": conTercero ? text(d.ifTerceroRelacion) : undefined,
+      "Tercero_Aportante_Fuente_de_Fondos": conTercero ? text(d.ifTerceroFuenteDeIngresos) : undefined,
+
+      // Identificación del beneficiario del inmueble
+      "A_nombre_de_otro": aNombreDeOtro,
+      "Nombre_de_Otro": aNombreDeOtro ? text(d.nombreTercero) : undefined,
+      "Prop_sito_del_inmueble": text(d.destinoInmueble),
+
+      ...pep,
+
+      // Documentos recibidos
+      "Carta_de_Certificaci_n_Bancaria": hasFile(d.hasCertificacionBancaria),
+      "Certificaci_n_de_Ingresos": hasFile(d.origenFondosFile),
+      "Movimientos_Bancarios_6_Meses": hasFile(d.hasEstadoCuenta),
+      "Identificaci_n_Personal": hasFile(d.idFile),
+    });
   }
 
   return payload;

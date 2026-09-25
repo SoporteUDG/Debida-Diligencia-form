@@ -35,6 +35,7 @@ export async function POST(request: NextRequest) {
     const motivoCambio = String(motivo || reason || "").trim() || null;
 
     if (!recordId) {
+      console.log(`[API Reactivar] El recordId de Zoho CRM es requerido`);
       return NextResponse.json(
         { success: false, error: "El recordId de Zoho CRM es requerido" },
         { status: 400 }
@@ -42,6 +43,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (!responsable) {
+      console.log(`[API Reactivar] El campo 'responsable' es requerido: identifica a quien autoriza la modificación del expediente.`);
       return NextResponse.json(
         {
           success: false,

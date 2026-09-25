@@ -3,6 +3,7 @@
 import { FormState } from "@/types/persona-natural";
 import { useEffect, useRef, useState } from "react";
 import { Trash2, PenTool, Type } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 interface Step4Props {
   formData: FormState;
@@ -11,6 +12,8 @@ interface Step4Props {
 }
 
 export default function Step4FirmaDeclaracion({ formData, onInputChange, errors = {} }: Step4Props) {
+  const t = useTranslations("NaturalForm.SignatureStep.Titles");
+  const p = useTranslations("NaturalForm.SignatureStep.Placeholders");
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [signatureMode, setSignatureMode] = useState<"draw" | "type">("draw");
@@ -183,47 +186,47 @@ export default function Step4FirmaDeclaracion({ formData, onInputChange, errors 
       <div className="bg-white rounded-2xl p-6 md:p-8 shadow-xl border border-zinc-200 space-y-6 text-[#1a1c1a] font-sans">
         <div className="border-b border-zinc-250 pb-4">
           <h2 className="text-xl font-serif text-[#052B48] font-bold tracking-wide">
-            FIRMA Y DECLARACIÓN DEL CLIENTE
+            {t("MainTitle")}
           </h2>
         </div>
 
         <div className="bg-[#f4f6f8] border border-zinc-300 rounded-xl p-5 text-xs text-zinc-700 space-y-4 max-h-[380px] overflow-y-auto leading-relaxed font-sans scrollbar-thin">
           <p>
-            Declaro de manera voluntaria, libre de cualquier error, fuerza o dolo que todas las afirmaciones y respuestas que he manifestado en este documento son correctas, veraces, completas y autorizo a URBAN DEVELOPMENT GROUP a verificar toda la información detallada. Además, me obligo a informar a URBAN DEVELOPMENT GROUP de cualquier cambio o actualización de información que pueda afectar las afirmaciones y respuestas anotadas en este formulario.
+            {t("Declaration0")}
           </p>
           <p>
-            1. Declaro y certifico que toda la información brindada en este formulario es correcta, verdadera y que las fotocopias de pasaportes, documentos de identidad personal y otros documentos requeridos en esta solicitud son verdaderos.
+            {t("Declaration1")}
           </p>
           <p>
-            2. Declara el firmante que acepta que nuestra empresa puede verificar la información proporcionada en este formulario, en cualquier momento de la relación comercial.
+            {t("Declaration2")}
           </p>
           <p>
-            3. Declara el firmante que, de acuerdo con lo dispuesto en la Ley 23 del 27 de abril de 2015 y sus reglamentaciones, emitidas por la Superintendencia de Sujetos no Financieros, nuestra empresa solicitará la actualización de esta información anualmente, mientras dure la relación comercial.
+            {t("Declaration3")}
           </p>
           <p>
-            4. Declara el firmante que no ha estado involucrado o no ha sido condenado en Panamá, ni en ningún otro país por la comisión de delitos relacionados al lavado de dinero, tráfico de drogas, terrorismo, fraude o delitos de cualquier naturaleza.
+            {t("Declaration4")}
           </p>
           <p>
-            5. Declara el firmante que los servicios o bienes solicitados a nuestra empresa solo serán utilizados para fines lícitos.
+            {t("Declaration5")}
           </p>
           <p>
-            6. Declara el firmante que reconoce que esta empresa está autorizada a suministrar cualquier información requerida por la Autoridad Competente.
+            {t("Declaration6")}
           </p>
           <p>
-            7. Declara el firmante que exonera a nuestra empresa de cualquier responsabilidad en caso de que una Autoridad competente nos requiera información relacionada con la relación comercial.
+            {t("Declaration7")}
           </p>
           <p>
-            8. Declara el firmante que se compromete a informar a nuestra empresa de cualquier cambio de la información suministrada en el formulario. URBAN DEVELOPMENT GROUP y sus empresas asociadas, de ahora en adelante denominadas El Grupo, manejará los datos personales proporcionados por usted a través de la página web, formularios digitales o físicos, correos electrónicos, aplicaciones móviles o cualquier medio en el cual usted proporcionen sus datos conforme a lo siguiente:
+            {t("Declaration8")}
           </p>
           <p>
-            a) FINALIDAD DEL TRATAMIENTO DE DATOS PERSONALES: Que mis datos personales serán tratados por UDG, para las siguientes finalidades: a) Remisión de información referente a nuestros proyectos; el trámite de mi solicitud de vinculación como contraparte contractual ii) el proceso de negociación del contrato de compra, iii) la ejecución y el cumplimiento de los contratos que celebre, iv) el control y la prevención del fraude, v) relación con el banco del CLIENTE vi) Efectuar las gestiones pertinentes para el desarrollo del objeto social y actividades empresariales de EL CLIENTE, así como para el giro de sus negocios, proyectos, campañas, contacto, información, ventas, ofertas, e iniciativas de innovación, entre otras; (b) Efectuar las gestiones pertinentes para permitir la completa ejecución de los procesos y deberes precontractuales, contractuales y post contractuales con EL CLIENTE, respecto de cualquiera de los productos, servicios u obligaciones ofrecidos por UDG, que haya o no adquirido, o respecto de cualquier relación negoció subyacente que tenga con ella, incluyendo cobros prejudiciales y judiciales; (c) Realizar campañas, concursos, evaluaciones de calidad de servicios, encuestas de satisfacción, comunicaciones y envío de información al titular relativa a eventos, productos, servicios, ofertas, promociones, publicidad, mercadeo, alianzas, concursos, de desarrollo de servicios, comerciales y contenidos propios, de terceros y/o de sus aliados comerciales, directamente o a través de terceros; (d) Implementar estrategias de relacionamiento con clientes, proveedores, accionistas y otros terceros con los cuales UDG tenga relaciones contractuales o legales; (e) Invitar a eventos, ofertar nuevos productos, y la realización de todas aquellas actividades asociadas a la relación comercial o vínculo existente con UDG o aquel que llegare a tener; (f) Acceder, consultar, comparar, evaluar y reportar toda la información que sobre EL CLIENTE que se encuentre almacenada en las bases de datos de cualquier central de riesgo crediticio, financiero, de antecedentes judiciales o de seguridad, de naturaleza estatal o privada, nacional o extranjera, o cualquier base de datos comercial o de servicios, que permita establecer de manera integral e histórica completa, el comportamiento que como deudor, usuario, cliente, garante, endosante, afiliado, beneficiario, suscriptor, contribuyente, empleado, contratista y/o como titular de servicios financieros, comerciales o de cualquier otra índole, así como listas y bases de datos nacionales e internacionales, propias y de terceros, para la prevención de actividades ilícitas como el lavado de activos y la financiación del terrorismo. Todo lo anterior se realizará en beneficio propio o de terceros aliados; (g) Responder requerimientos judiciales o administrativos y el cumplimiento de mandatos judiciales o legales; (j) Controlar el acceso a las instalaciones, establecer medidas de seguridad, incluyendo la videovigilancia y la grabación de circuito cerrado de televisión y medidas de bioseguridad obligatorias, para proteger la integridad y seguridad de las personas y bienes, el cumplimiento de horarios y obligaciones laborales, entre otros. Estos datos son aquellos: (i) recolectados directamente en las garitas, puntos de seguridad y de atención, (ii) tomados de los documentos que suministran las personas al personal de seguridad y (iii) obtenidos de las videograbaciones que se Declaro de manera voluntaria, libre de cualquier error, fuerza o dolo que todas las afirmaciones y respuestas que he manifestado en este documento son correctas, veraces, completas y autorizo a La Empresa., a verificar toda la información detallada. Además, me obligo a informar a La Empresa, de cualquier cambio o actualización de información que pueda afectar las afirmaciones y respuestas anotadas en este formulario, en un término no mayor a 30 días.
+            {t("Declaration9")}
           </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6 pt-4 border-t border-zinc-200">
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="signerName">
-              Nombre del Cliente <span className="text-red-500 font-bold">*</span>
+              {t("ClientNameLabel")} <span className="text-red-500 font-bold">*</span>
             </label>
             <input
               type="text"
@@ -231,7 +234,7 @@ export default function Step4FirmaDeclaracion({ formData, onInputChange, errors 
               name="signerName"
               value={formData.signerName}
               onChange={onInputChange}
-              placeholder="Escribe tu nombre completo"
+              placeholder={p("SignerName")}
               className={`bg-[#f4f6f8] border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 ${
                 errors.signerName
                   ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
@@ -248,7 +251,7 @@ export default function Step4FirmaDeclaracion({ formData, onInputChange, errors 
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="signatureDate">
-              Fecha <span className="text-red-500 font-bold">*</span>
+              {t("DateLabel")} <span className="text-red-500 font-bold">*</span>
             </label>
             <input
               type="date"
@@ -276,7 +279,7 @@ export default function Step4FirmaDeclaracion({ formData, onInputChange, errors 
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700">
-                Firma Digital del Cliente <span className="text-red-500 font-bold">*</span>
+                {t("SignatureLabel")} <span className="text-red-500 font-bold">*</span>
               </label>
             </div>
             
@@ -295,7 +298,7 @@ export default function Step4FirmaDeclaracion({ formData, onInputChange, errors 
                 }`}
               >
                 <PenTool className="h-3 w-3" />
-                Dibujar
+                {t("DrawMode")}
               </button>
               <button
                 type="button"
@@ -310,7 +313,7 @@ export default function Step4FirmaDeclaracion({ formData, onInputChange, errors 
                 }`}
               >
                 <Type className="h-3 w-3" />
-                Texto Cursivo
+                {t("TypeMode")}
               </button>
             </div>
           </div>
@@ -340,14 +343,14 @@ export default function Step4FirmaDeclaracion({ formData, onInputChange, errors 
                 
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[10px] font-bold tracking-wider uppercase text-zinc-500">
-                    Escribe tu nombre para la firma caligráfica:
+                    {t("TypedNameLabel")}
                   </label>
                   <input
                     type="text"
                     name="signerName"
                     value={formData.signerName}
                     onChange={onInputChange}
-                    placeholder="Escribe tu nombre aquí..."
+                    placeholder={p("TypedSignerName")}
                     className="w-full bg-white border border-zinc-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-[#052B48] focus:ring-1 focus:ring-[#052B48] transition text-zinc-800"
                   />
                 </div>
@@ -361,7 +364,7 @@ export default function Step4FirmaDeclaracion({ formData, onInputChange, errors 
                       {formData.signerName}
                     </div>
                   ) : (
-                    <span className="text-xs text-zinc-400 italic">Escribe tu nombre arriba para generar tu firma cursiva</span>
+                    <span className="text-xs text-zinc-400 italic">{t("TypedEmptyHint")}</span>
                   )}
                 </div>
                 
@@ -379,7 +382,7 @@ export default function Step4FirmaDeclaracion({ formData, onInputChange, errors 
                             : "bg-white text-[#052B48] border-zinc-300 hover:bg-zinc-100"
                         }`}
                       >
-                        Estilo {idx + 1}
+                        {t("StyleButton", { number: idx + 1 })}
                       </button>
                     ))}
                   </div>
@@ -393,10 +396,10 @@ export default function Step4FirmaDeclaracion({ formData, onInputChange, errors 
                 type="button"
                 onClick={clearSignature}
                 className="absolute bottom-3 right-3 bg-white hover:bg-red-50 text-red-500 border border-red-200 px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-sm transition active:scale-95 cursor-pointer"
-                title="Borrar firma"
+                title={t("ClearTitle")}
               >
                 <Trash2 className="h-3.5 w-3.5" />
-                Limpiar
+                {t("ClearButton")}
               </button>
             )}
           </div>
@@ -417,7 +420,7 @@ export default function Step4FirmaDeclaracion({ formData, onInputChange, errors 
                 required
               />
               <label htmlFor="termsAccepted" className="text-xs text-zinc-600 leading-normal select-none cursor-pointer">
-                Doy consentimiento legal expreso, certifico que la información declarada es verídica e íntegra, y autorizo el análisis conforme a la Ley de Prevención de Capitales. <span className="text-red-500 font-bold">*</span>
+                {t("TermsAcceptedLabel")} <span className="text-red-500 font-bold">*</span>
               </label>
             </div>
             {errors.termsAccepted && (
@@ -440,7 +443,7 @@ export default function Step4FirmaDeclaracion({ formData, onInputChange, errors 
                 required
               />
               <label htmlFor="signatureConfirmed" className="text-xs text-zinc-600 leading-normal select-none cursor-pointer">
-                Confirmo que los datos son correctos, acepto la validez de mi firma digital en este acto y me comprometo a proporcionar mi firma física cuando sea requerida. <span className="text-red-500 font-bold">*</span>
+                {t("SignatureConfirmedLabel")} <span className="text-red-500 font-bold">*</span>
               </label>
             </div>
             {errors.signatureConfirmed && (

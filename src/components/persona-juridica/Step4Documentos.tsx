@@ -2,6 +2,20 @@
 
 import { FormState, DocumentTarget  } from "@/types/persona-juridica";
 import { Check, FileCheck2, UploadCloud, X } from "lucide-react";
+import { useTranslations } from "next-intl";
+import es from "@/messages/es.json";
+import { optionLabeler } from "@/i18n/optionLabel";
+
+// Translation keys (JuridicaForm.DocumentsStep.Titles) for each static document slot.
+// Used only at render time; staticDocumentFields keeps its original Spanish labels.
+const staticDocumentKeys = {
+  avisoOperacionesFile: { title: "AvisoOperacionesTitle", subtitle: undefined },
+  origenFondosFile: { title: "OrigenFondosTitle", subtitle: "OrigenFondosSubtitle" },
+  pactoSocialFile: { title: "PactoSocialTitle", subtitle: "PactoSocialSubtitle" },
+  certBancariaFile: { title: "CertBancariaTitle", subtitle: "CertBancariaSubtitle" },
+  certRegistroFile: { title: "CertRegistroTitle", subtitle: "CertRegistroSubtitle" },
+  certComprasFile: { title: "CertComprasTitle", subtitle: "CertComprasSubtitle" },
+} as const;
 
 // consistent for both static fields and per-person targets.
 export function docKey(target: DocumentTarget): string {
@@ -122,8 +136,22 @@ export default function Step4Documentos({
   onInputChange,
   errors = {},
 }: Step4Props) {
+  const t = useTranslations("JuridicaForm.DocumentsStep.Titles");
+  const cargoLabel = optionLabeler(es.JuridicaForm.JuridicaFormStep2Options.CargoOptions, useTranslations("JuridicaForm.JuridicaFormStep2Options.CargoOptions"));
+
+  // Render-time labels for static document slots (fallback: original Spanish label)
+  const slotTitle = (doc: (typeof staticDocumentFields)[number]) => {
+    const keys = staticDocumentKeys[doc.field as keyof typeof staticDocumentKeys];
+    return keys ? t(keys.title) : doc.title;
+  };
+  const slotSubtitle = (doc: (typeof staticDocumentFields)[number]) => {
+    const keys = staticDocumentKeys[doc.field as keyof typeof staticDocumentKeys];
+    return keys?.subtitle ? t(keys.subtitle) : doc.Subtitle;
+  };
+
   // One "copiaIdFile" upload target per real person: every GJC member,
   // every BF member, and the (singleton) legal representative.
+  // Display-only labels (translated); targets/keys are unchanged data.
   const idDocumentTargets: {
     target: DocumentTarget;
     title: string;
@@ -133,23 +161,23 @@ export default function Step4Documentos({
   }[] = [
     {
       target: { kind: "person" as const, personType: "RL" as const, personId: "rl", documentType: "copiaIdFile" as const },
-      title: "Cédula o pasaporte",
-      roleLabel: "Representante Legal",
-      personLabel: formData.rlNombre || "Sin nombre aún",
+      title: t("IdDocumentTitle"),
+      roleLabel: t("RoleLegalRepresentative"),
+      personLabel: formData.rlNombre || t("NoNameYet"),
       required: true,
     },
     ...formData.gjcMembers.map((m) => ({
       target: { kind: "person" as const, personType: "GJC" as const, personId: m.id, documentType: "copiaIdFile" as const },
-      title: "Cédula o pasaporte",
-      roleLabel: m.cargo || "Gobierno Corporativo",
-      personLabel: `${m.nombre} ${m.apellidos}`.trim() || "Sin nombre aún",
+      title: t("IdDocumentTitle"),
+      roleLabel: m.cargo ? cargoLabel(m.cargo) : t("RoleCorporateGovernance"),
+      personLabel: `${m.nombre} ${m.apellidos}`.trim() || t("NoNameYet"),
       required: true,
     })),
     ...formData.bfMembers.map((m) => ({
       target: { kind: "person" as const, personType: "BF" as const, personId: m.id, documentType: "copiaIdFile" as const },
-      title: "Cédula o pasaporte",
-      roleLabel: "Beneficiario Final",
-      personLabel: m.nombreCompleto || "Sin nombre aún",
+      title: t("IdDocumentTitle"),
+      roleLabel: t("RoleFinalBeneficiary"),
+      personLabel: m.nombreCompleto || t("NoNameYet"),
       required: true,
     })),
   ];
@@ -182,21 +210,21 @@ export default function Step4Documentos({
       
       {/* Top Section Checklist: DOCUMENTOS ENTREGADOS */}
       <h3 className="text-sm font-bold tracking-widest text-[#c8a788] uppercase pb-2 mb-4">
-        DOCUMENTOS ADJUNTOS
+        {t("SectionTitle")}
       </h3>
       <div className="border border-zinc-800/65 text-xs leading-relaxed text-zinc-300  bg-[#040e16]/30 p-6 rounded-xl space-y-4">
         <p className="font-bold text-zinc-200">
-          ESTIMADOS CLIENTES
+          {t("PrivacyNoticeTitle")}
         </p>
         <p>
-          Entendemos la importancia de su privacidad. Por ello, toda la información personal y los documentos que comparta con nosotros serán manejados bajo los más altos estándares de seguridad y confidencialidad. Sus datos se utilizarán exclusivamente para nuestro proceso de debida diligencia. Como Sujeto No Financiero y en estricto cumplimiento de la Ley 23 del 27 de abril de 2015, garantizamos la reserva y custodia legal de su expediente, el cual no será compartido con terceros salvo requerimiento expreso de las autoridades supervisoras.
+          {t("PrivacyNoticeText")}
         </p>
       </div>
 
       {/* File Uploaders Grid */}
       <div className="space-y-6">
         <div className="border-b border-zinc-800/60 pb-2">
-          <h4 className="text-xs text font-bold uppercase tracking-wider text-zinc-400">Documentos de Identificacion</h4>
+          <h4 className="text-xs text font-bold uppercase tracking-wider text-zinc-400">{t("IdDocumentsTitle")}</h4>
         </div>
         <div className="grid grid-rows gap-6">
           {idDocumentTargets.map(({ target, title, roleLabel, personLabel, required }) => {
@@ -231,7 +259,7 @@ export default function Step4Documentos({
                   {status === "idle" && !hasFile && (
                     <label className="inline-flex items-center gap-2 bg-[#040e16] border border-[#c8a788]/30 text-[#c8a788] px-4 py-2.5 rounded-lg text-xs font-semibold hover:bg-[#c8a788]/10 hover:border-[#c8a788]/60 transition cursor-pointer active:scale-95">
                       <UploadCloud className="h-4 w-4" />
-                        Choose File
+                        {t("ChooseFileButton")}
                         <input
                           type="file"
                           accept=".pdf,.jpg,.jpeg"
@@ -248,7 +276,7 @@ export default function Step4Documentos({
                   {status === "uploading" && (
                     <div className="w-full space-y-1.5">
                       <div className="flex justify-between text-[10px] font-semibold text-zinc-400">
-                        <span>Subiendo...</span>
+                        <span>{t("UploadingStatus")}</span>
                         <span>{progress}%</span>
                       </div>
                       <div className="w-full bg-zinc-950/60 rounded-full h-1.5 overflow-hidden">
@@ -264,13 +292,13 @@ export default function Step4Documentos({
                     <div className="flex items-center gap-3">
                       <div className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-3 py-1.5 rounded-lg text-xs font-medium inline-flex items-center gap-1.5">
                         <Check className="h-3.5 w-3.5" />
-                        Cargado
+                        {t("UploadedStatus")}
                       </div>
                       <button
                         type="button"
                         onClick={() => handlePersonFileRemoval(target)}
                         className="p-2 text-zinc-500 hover:text-red-500 hover:bg-red-500/10 rounded transition cursor-pointer"
-                        title="Quitar archivo"
+                        title={t("RemoveFileButton")}
                       >
                         <X className="h-4 w-4" />
                       </button>
@@ -283,7 +311,7 @@ export default function Step4Documentos({
           })}
         </div>
         <div className="border-b border-zinc-800/60 pb-2">
-          <h4 className="text-xs font-bold uppercase tracking-wider text-zinc-400">Documentos Requeridos</h4>
+          <h4 className="text-xs font-bold uppercase tracking-wider text-zinc-400">{t("RequiredDocumentsTitle")}</h4>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -305,10 +333,10 @@ export default function Step4Documentos({
               >
                 <div className="space-y-1">
                   <h4 className="text-xs md:text-sm font-semibold text-zinc-200">
-                    {doc.title}
+                    {slotTitle(doc)}
                   </h4>
                   {doc.Subtitle && (
-                    <p className="text-[11px] text-zinc-500">{doc.Subtitle}</p>
+                    <p className="text-[11px] text-zinc-500">{slotSubtitle(doc)}</p>
                   )}
 
                   {doc.multiple && fileList.length > 0 && (
@@ -323,7 +351,7 @@ export default function Step4Documentos({
                           type="button"
                           onClick={() => handleFileRemoval(doc.field, fname)}
                           className="p-1 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 rounded transition cursor-pointer shrink-0"
-                          title="Quitar archivo"
+                          title={t("RemoveFileButton")}
                         >
                           <X className="h-3.5 w-3.5" />
                         </button>
@@ -351,7 +379,7 @@ export default function Step4Documentos({
                   {status === "idle" && (doc.multiple || !hasFile) && (
                     <label className="inline-flex items-center gap-2 bg-[#040e16] border border-[#c8a788]/30 text-[#c8a788] px-4 py-2.5 rounded-lg text-xs font-semibold hover:bg-[#c8a788]/10 hover:border-[#c8a788]/60 transition cursor-pointer active:scale-95">
                       <UploadCloud className="h-4 w-4" />
-                      Choose File
+                      {t("ChooseFileButton")}
                       <input 
                         type="file" 
                         accept=".pdf,.jpg,.jpeg"
@@ -369,7 +397,7 @@ export default function Step4Documentos({
                   {status === "uploading" && (
                     <div className="w-full space-y-1.5">
                       <div className="flex justify-between text-[10px] font-semibold text-zinc-400">
-                        <span>Subiendo...</span>
+                        <span>{t("UploadingStatus")}</span>
                         <span>{progress}%</span>
                       </div>
                       <div className="w-full bg-zinc-950/60 rounded-full h-1.5 overflow-hidden">
@@ -385,13 +413,13 @@ export default function Step4Documentos({
                   <div className="flex items-center gap-3">
                     <div className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-3 py-1.5 rounded-lg text-xs font-medium inline-flex items-center gap-1.5">
                       <Check className="h-3.5 w-3.5" />
-                      Cargado
+                      {t("UploadedStatus")}
                     </div>
                     <button
                       type="button"
                       onClick={() => handleFileRemoval(doc.field)}
                       className="p-2 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 rounded transition cursor-pointer"
-                      title="Quitar archivo"
+                      title={t("RemoveFileButton")}
                     >
                       <X className="h-4 w-4" />
                     </button>

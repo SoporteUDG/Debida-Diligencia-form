@@ -113,7 +113,7 @@ describe("Admin Router tRPC Procedures", () => {
 
   it("should search crm contacts via searchCrmContacts query", async () => {
     const mockContacts = [
-      { id: "123", name: "Alice", email: "alice@example.com", phone: "123", module: "Contacts" as const, type: "NATURAL" as const }
+      { id: "123", name: "Alice", email: "alice@example.com", phone: "123", module: "Debida_Diligencia" as const, type: "NATURAL" as const }
     ];
     vi.mocked(zoho.service.searchContacts).mockResolvedValue(mockContacts);
 
@@ -168,7 +168,7 @@ describe("Admin Router tRPC Procedures", () => {
       clientType: "NATURAL",
       projectName: "Santa Maria Tower",
       advisorName: "Adviser John",
-      module: "Contacts"
+      module: "Debida_Diligencia"
     });
 
     expect(result).toBeDefined();
@@ -337,7 +337,7 @@ describe("Admin Router tRPC Procedures", () => {
     vi.mocked(zoho.service.getContact).mockResolvedValue({
       type: "NATURAL",
       nombreProyecto: "Coastal Building",
-      module: "Contacts"
+      module: "Debida_Diligencia"
     });
     vi.mocked(zoho.service.updateClientFormLink).mockResolvedValue({ success: true });
 
@@ -387,7 +387,7 @@ describe("Admin Router tRPC Procedures", () => {
     vi.mocked(zoho.service.getContact).mockResolvedValue({
       type: "NATURAL",
       nombreProyecto: "Coastal Building",
-      module: "Contacts"
+      module: "Debida_Diligencia"
     });
     vi.mocked(zoho.service.updateClientFormLink).mockResolvedValue({ success: true });
 

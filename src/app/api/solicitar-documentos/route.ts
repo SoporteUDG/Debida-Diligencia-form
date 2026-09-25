@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
     // 4. Crear una nota en Zoho CRM notificando la reactivación por documentos faltantes
     try {
       const crmData = await zoho.service.getContact(contact.crmId);
-      const resolvedModule = crmData.module || "Contacts";
+      const resolvedModule = crmData.module || "Debida_Diligencia";
       
       await zoho.service.createNote(
         contact.crmId,

@@ -272,7 +272,7 @@ export const appRouter = router({
       const newDraft = await ctx.prisma.draft.create({
         data: {
           token: ctx.client!.tokenUuid as string,
-          type: ctx.client!.type as any,
+          type: (ctx.client!.formType ?? ctx.client!.type) as any,
           data: mergedData,
           step: 0,
           crmContactId: ctx.client!.crmContactId || null,
@@ -386,7 +386,7 @@ export const appRouter = router({
         try {
           // Fetch the CRM record using getContact to resolve which module it lives in
           const crmData = await zoho.service.getContact(crmContact.crmId);
-          const resolvedModule = crmData.module || "Contacts";
+          const resolvedModule = crmData.module || "Debida_Diligencia";
 
           const expiresAt = new Date();
           expiresAt.setDate(expiresAt.getDate() + input.expiresInDays);
@@ -479,7 +479,7 @@ export const appRouter = router({
 
       // 3. Fetch the CRM record using getContact to resolve which module it lives in
       const crmData = await zoho.service.getContact(crmContact.crmId);
-      const resolvedModule = crmData.module || "Contacts";
+      const resolvedModule = crmData.module || "Debida_Diligencia";
 
       // 4. Re-push the link to Zoho CRM to trigger CRM workflows/emails
       const syncResult = await zoho.service.updateClientFormLink(crmContact.crmId, resolvedModule, clientUrl);
@@ -726,7 +726,7 @@ export const appRouter = router({
       }
     }),
 
-  // Admin query: Search Contacts and Leads from Zoho CRM
+  // Admin query: Search Debida_Diligencia records and Accounts (Socios de Negocio) in Zoho CRM
   searchCrmContacts: adminProcedure
     .input(
       z.object({
@@ -746,7 +746,7 @@ export const appRouter = router({
         clientType: z.enum(["NATURAL", "JURIDICA"]),
         projectName: z.string().min(1, "El nombre del proyecto es requerido"),
         advisorName: z.string().min(1, "El nombre del asesor es requerido"),
-        module: z.enum(["Accounts", "Debida_Diligencia", "Contacts", "Leads"]),
+        module: z.enum(["Accounts", "Debida_Diligencia"]),
       })
     )
     .mutation(async ({ input, ctx }) => {
@@ -762,7 +762,7 @@ export const appRouter = router({
       const estadoCivil = crmData.estadoCivil || "";
 
       let targetCrmId = input.crmId;
-      let targetModule: "Accounts" | "Debida_Diligencia" | "Contacts" | "Leads" = input.module;
+      let targetModule: "Accounts" | "Debida_Diligencia" = input.module;
 
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + 30);

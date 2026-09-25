@@ -132,7 +132,7 @@ export async function generateServerPDF(
       } else {
         // JURÍDICA
         y = drawSectionTitle(doc, y, "1. Información de la Empresa / Sociedad", NAVY);
-        y = drawFieldRow(doc, y, "Razón Social", data.razonSocial || "-", "R.U.C. / Registro", data.ruc || "-");
+        y = drawFieldRow(doc, y, "Razón Social", data.razonSocial || "-", "R.U.C. / Registro", data.numeroDocumento || "-");
         y = drawFieldRow(doc, y, "Fecha Constitución", data.fechaConstitucion || "-", "País de Inscripción", data.paisInscripcion || "-");
         y = drawFieldRow(doc, y, "País donde Opera", data.paisOpera || "-", "Tipo de Sociedad", data.tipoSociedad || "-");
         y = drawFieldRow(doc, y, "Tipo de Cliente", data.tipoCliente || "-", "Actividad Principal", `${data.actividadPrincipal || "-"} (${data.porcentajeActividad || "100"}%)`);
@@ -184,14 +184,13 @@ export async function generateServerPDF(
         y += 5;
         y = checkPageBreak(doc, y, 80);
         y = drawSectionTitle(doc, y, "5. Perfil Financiero y de Cumplimiento", NAVY);
-        y = drawFieldRow(doc, y, "Ingresos Mensuales", data.ingresosMensuales || "-", "Volumen Ventas Anual", data.volumenVentas || "-");
+        y = drawField(doc, y, "Ingresos Mensuales", data.ingresosMensuales || "-");
         y = drawFieldRow(doc, y, "Medio de Pago", data.medioPago || "-", "Fondos de Adquisición", data.fuenteFondosInmueble || "-");
         if (muestraBloqueTercero("juridica", data)) {
           y = drawField(doc, y, "Aportante Tercero", `Nombre: ${data.terceroNombre || "-"} | Nac: ${data.terceroNacionalidad || "-"} | Vínculo: ${data.terceroVinculo || "-"} | Fuente: ${data.terceroFuenteFondos || "-"}`);
         }
-        y = drawFieldRow(doc, y, "¿Previsto >1 Unidad (12m)?", `${data.adquiereMasUnidades || "No"}${isFieldVisible("juridica", "cantidadUnidadesInmobiliarias", data) && data.cantidadUnidadesInmobiliarias ? ` (${data.cantidadUnidadesInmobiliarias} unidades)` : ""}`, "Banco de Referencia", data.bancoReferencia || "-");
-        y = drawFieldRow(doc, y, "Fuente / Origen Fondos", data.origenFondos || "-", "Destino de Fondos", data.destinoFondos || "-");
-        y = drawFieldRow(doc, y, "¿Persona PEP?", data.esPep || "No", "Actividad Comercial", data.actividadComercial || "-");
+        y = drawField(doc, y, "¿Previsto >1 Unidad (12m)?", `${data.adquiereMasUnidades || "No"}${isFieldVisible("juridica", "cantidadUnidadesInmobiliarias", data) && data.cantidadUnidadesInmobiliarias ? ` (${data.cantidadUnidadesInmobiliarias} unidades)` : ""}`);
+        y = drawField(doc, y, "¿Persona PEP?", data.esPep || "No");
         if (muestraBloquePep(data)) {
           y = drawField(doc, y, "Detalles PEP", `Nombre: ${data.pepNombre || "-"} | Cargo: ${data.pepCargo || "-"} | Institución: ${data.pepInstitucion || "-"} | Relación: ${data.pepRelacion || "-"}`);
         }

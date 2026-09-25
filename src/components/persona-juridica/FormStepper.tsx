@@ -1,6 +1,7 @@
 "use client";
 
 import { Building2, Users, Coins, UploadCloud, PenTool, Check } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 interface FormStepperProps {
   currentStep: number;
@@ -9,10 +10,11 @@ interface FormStepperProps {
 }
 
 export default function FormStepper({ currentStep, onStepClick, isStepValid }: FormStepperProps) {
+  const t = useTranslations("JuridicaForm.Stepper");
   const steps = [
-    { num: 1, label: "Identificación y Gobierno", icon: Building2 },
-    { num: 2, label: "Documentos", icon: UploadCloud },
-    { num: 3, label: "Declaración", icon: PenTool },
+    { num: 1, label: t("StepIdentification"), icon: Building2 },
+    { num: 2, label: t("StepDocuments"), icon: UploadCloud },
+    { num: 3, label: t("StepDeclaration"), icon: PenTool },
   ];
 
   return (

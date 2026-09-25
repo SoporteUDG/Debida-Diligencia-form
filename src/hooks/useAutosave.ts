@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import { FORM_TYPE_HEADER } from "@/lib/tokenAccess";
 
 export type SaveStatus = "idle" | "saving" | "saved" | "error" | "conflict";
 
@@ -54,6 +55,7 @@ export function useAutosave({ data, type, step, draftToken, onConflict }: UseAut
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${token}`,
+          [FORM_TYPE_HEADER]: typeRef.current === "natural" ? "NATURAL" : "JURIDICA",
         },
         body: JSON.stringify({
           data: dataRef.current,

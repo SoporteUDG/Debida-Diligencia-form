@@ -5,6 +5,8 @@ import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
+import { useErrorTranslator, useTranslatedErrors } from "@/i18n/translateError";
 import { BfMember, DocumentTarget, FormState, GjcMember, INITIAL_FORM_STATE } from "@/types/persona-juridica";
 
 import { docKey, isDocumentUploaded, staticDocumentFields } from "@/components/persona-juridica/Step4Documentos";
@@ -15,6 +17,8 @@ import Header from "@/components/persona-juridica/Header";
 import PoliciesScreen from "@/components/persona-juridica/PoliciesScreen";
 import FormStepper from "@/components/persona-juridica/FormStepper";
 import AccessRestricted from "@/components/AccessRestricted";
+import BlockedAccess from "@/components/BlockedAccess";
+import { FORM_TYPE_HEADER, tokenReasonFromResponse, type TokenFailureReason } from "@/lib/tokenAccess";
 
 const Step1Identificacion = dynamic(() => import("@/components/persona-juridica/Step1Identificacion"), { ssr: false });
 const Step2GobiernoRL = dynamic(() => import("@/components/persona-juridica/Step2GobiernoRL"), { ssr: false });
@@ -52,17 +56,6 @@ const getStepForField = (field: string): number => {
   return 1;
 };
 
-const getStepName = (step: number): string => {
-  switch (step) {
-    case 1: return "Datos de la Empresa";
-    case 2: return "Representación y Junta";
-    case 3: return "Beneficiarios y Finanzas";
-    case 4: return "Documentos Adjuntos";
-    case 5: return "Firma y Declaración";
-    default: return "Datos";
-  }
-};
-
 interface ValidationSummaryItem {
   step: number;
   message: string;
@@ -95,10 +88,25 @@ const normalizeFormData = (dbData: any): FormState => {
 };
 
 export default function PersonaJuridicaPage() {
+  const t = useTranslations("JuridicaForm");
+  const tp = useTranslations("JuridicaForm.Page");
+
+  const getStepName = (step: number): string => {
+    switch (step) {
+      case 1: return tp("StepName1");
+      case 2: return tp("StepName2");
+      case 3: return tp("StepName3");
+      case 4: return tp("StepName4");
+      case 5: return tp("StepName5");
+      default: return tp("StepNameDefault");
+    }
+  };
   const [formData, setFormData] = useLocalStorage<FormState>("udg_due_diligence_juridica", INITIAL_FORM_STATE);
   const [currentStep, setCurrentStep] = useState(0); // Step 0 is policies screen
   const [isMounted, setIsMounted] = useState(false);
   const [draftToken, setDraftToken] = useState<string | null>(null);
+  // Acceso del enlace: se confirma con getDraft antes de mostrar el formulario
+  const [accessStatus, setAccessStatus] = useState<"checking" | "granted" | TokenFailureReason>("checking");
 
   // Precarga del Representante Legal con los datos guardados en Persona Natural
   const [draftCargado, setDraftCargado] = useState(false);
@@ -119,6 +127,9 @@ export default function PersonaJuridicaPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [validationSummary, setValidationSummary] = useState<{ step: number; message: string }[] | null>(null);
+  // Los mensajes de validación se guardan en español; solo se traducen al mostrarlos
+  const shownErrors = useTranslatedErrors(errors);
+  const translateError = useErrorTranslator();
 
   // Versión del servidor retenida cuando hay conflicto de concurrencia.
   // El formulario NO se toca hasta que el usuario elija qué conservar.
@@ -160,7 +171,7 @@ export default function PersonaJuridicaPage() {
     data: formData,
     type: "juridica",
     step: currentStep,
-    draftToken,
+    draftToken: accessStatus === "granted" ? draftToken : null,
     onConflict: (dbData, dbStep, dbUpdatedAt) => {
       // Nunca se sobrescribe lo que el usuario tiene en pantalla: se retiene la
       // versión del servidor y se le pide que decida.
@@ -201,11 +212,23 @@ export default function PersonaJuridicaPage() {
         const response = await fetch("/api/trpc/getDraft", {
           headers: {
             "Authorization": `Bearer ${draftToken}`,
+            [FORM_TYPE_HEADER]: "JURIDICA",
           },
         });
 
-        if (response.ok) {
-          const resJson = await response.json();
+        const resJson = await response.json().catch(() => null);
+
+        // Enlace usado, revocado, vencido o de otro formulario: no se muestra el formulario
+        const reason = tokenReasonFromResponse(resJson);
+        if (reason) {
+          // Un enlace ya utilizado se conserva para seguir mostrando "Formulario ya completado"
+          if (reason !== "USED") localStorage.removeItem("udg_due_diligence_juridica_token");
+          setAccessStatus(reason);
+          return;
+        }
+        setAccessStatus("granted");
+
+        if (response.ok && resJson) {
           if (resJson.error) {
             console.error("[Juridica Page] Error loading draft from tRPC:", resJson.error);
             return;
@@ -227,6 +250,7 @@ export default function PersonaJuridicaPage() {
         }
       } catch (error) {
         console.error("[Juridica Page] Error fetching draft:", error);
+        setAccessStatus("granted");
       } finally {
         setDraftCargado(true);
       }
@@ -450,6 +474,7 @@ export default function PersonaJuridicaPage() {
           headers: {
             "Content-Type": "application/json",
             "Authorization": `Bearer ${draftToken}`,
+            [FORM_TYPE_HEADER]: "JURIDICA",
           },
           body: JSON.stringify({
             fileName: file.name,
@@ -467,13 +492,13 @@ export default function PersonaJuridicaPage() {
         clearInterval(progressInterval);
 
         if (!response.ok) {
-          const errMsg = resJson.error?.message || "Error al subir el archivo.";
+          const errMsg = resJson.error?.message || tp("UploadError");
           throw new Error(errMsg);
         }
 
         const data = resJson.result?.data;
         if (!data || !data.document) {
-          throw new Error("Respuesta de servidor inválida.");
+          throw new Error(tp("InvalidServerResponse"));
         }
 
         // El servidor ya guardó el nombre en el borrador: sincronizar la marca
@@ -531,14 +556,14 @@ export default function PersonaJuridicaPage() {
         setUploadStatus(prev => ({ ...prev, [key]: "idle" }));
         setUploadProgress(prev => ({ ...prev, [key]: 0 }));
         setErrors(prev => ({ ...prev, [key]: error.message || "Fallo en la carga del archivo" }));
-        alert(error.message || "Fallo al subir el archivo.");
+        alert(error.message || tp("UploadFailed"));
       }
     };
     reader.onerror = () => {
       clearInterval(progressInterval);
       setUploadStatus(prev => ({ ...prev, [key]: "idle" }));
       setUploadProgress(prev => ({ ...prev, [key]: 0 }));
-      alert("Error al leer el archivo local.");
+      alert(tp("LocalFileReadError"));
     };
   };
 
@@ -550,7 +575,7 @@ export default function PersonaJuridicaPage() {
         : isDocumentUploaded(formData, target);
     if (!hadFile) return;
 
-    if (confirm("¿Estás seguro de que deseas eliminar este documento cargado?")) {
+    if (confirm(tp("ConfirmDeleteDocument"))) {
       try {
         setUploadStatus(prev => ({ ...prev, [key]: "uploading" }));
         setUploadProgress(prev => ({ ...prev, [key]: 50 }));
@@ -564,6 +589,7 @@ export default function PersonaJuridicaPage() {
           headers: {
             "Content-Type": "application/json",
             "Authorization": `Bearer ${draftToken}`,
+            [FORM_TYPE_HEADER]: "JURIDICA",
           },
           body: JSON.stringify({
             draftId: draftToken,
@@ -577,7 +603,7 @@ export default function PersonaJuridicaPage() {
 
         const resJson = await response.json();
         if (!response.ok) {
-          throw new Error(resJson.error?.message || "Error al eliminar el archivo.");
+          throw new Error(resJson.error?.message || tp("DeleteError"));
         }
 
         // El borrado también modifica el borrador en el servidor: sin esta
@@ -614,13 +640,13 @@ export default function PersonaJuridicaPage() {
         console.error("[Juridica Page] Error deleting file:", error);
         setUploadStatus(prev => ({ ...prev, [key]: "success" }));
         setUploadProgress(prev => ({ ...prev, [key]: 100 }));
-        alert(error.message || "Fallo al eliminar el archivo.");
+        alert(error.message || tp("DeleteFailed"));
       }
     }
   };
 
   const handleClearDraft = async () => {
-    if (confirm("¿Estás seguro de que deseas vaciar todos los campos del borrador?")) {
+    if (confirm(tp("ConfirmClearDraft"))) {
       if (draftToken) {
         try {
           await fetch(`/api/draft?token=${draftToken}`, { method: "DELETE" });
@@ -732,37 +758,37 @@ export default function PersonaJuridicaPage() {
 
     // Check for empty optional fields to present warning
     const optionalFieldsToCheck = [
-      { key: "formaContacto", label: "Forma de Contacto", step: 1 },
-      { key: "tipoSociedad", label: "Tipo de Sociedad", step: 1 },
-      { key: "tipoCliente", label: "Tipo de Cliente", step: 1 },
-      { key: "actividadPrincipal", label: "Actividad Principal de la Empresa", step: 1 },
-      { key: "numeroIdTributaria", label: "NIF / ID Tributaria de la Empresa", step: 1 },
-      { key: "paisTributacion", label: "País de Tributación", step: 1 },
-      { key: "paisOpera", label: "País de Operaciones", step: 1 },
-      { key: "paisInscripcion", label: "País de Inscripción", step: 1 },
-      { key: "empresaCiudad", label: "Ciudad de la Empresa", step: 1 },
-      { key: "empresaProvincia", label: "Provincia de la Empresa", step: 1 },
-      { key: "empresaPais", label: "País de la Empresa", step: 1 },
-      { key: "empresaTelefono", label: "Teléfono Fijo de la Empresa", step: 1 },
-      { key: "empresaCelular", label: "Celular de la Empresa", step: 1 },
-      { key: "empresaEmail", label: "Email de la Empresa", step: 1 },
-      { key: "rlActividadEconomica", label: "Actividad Económica del Representante Legal", step: 1 },
-      { key: "rlDireccion", label: "Dirección del Representante Legal", step: 1 },
-      { key: "rlPaisResidencia", label: "País de Residencia del Representante Legal", step: 1 },
-      { key: "rlTelefono", label: "Teléfono del Representante Legal", step: 1 },
+      { key: "formaContacto", label: tp("OptionalFields.formaContacto"), step: 1 },
+      { key: "tipoSociedad", label: tp("OptionalFields.tipoSociedad"), step: 1 },
+      { key: "tipoCliente", label: tp("OptionalFields.tipoCliente"), step: 1 },
+      { key: "actividadPrincipal", label: tp("OptionalFields.actividadPrincipal"), step: 1 },
+      { key: "numeroIdTributaria", label: tp("OptionalFields.numeroIdTributaria"), step: 1 },
+      { key: "paisTributacion", label: tp("OptionalFields.paisTributacion"), step: 1 },
+      { key: "paisOpera", label: tp("OptionalFields.paisOpera"), step: 1 },
+      { key: "paisInscripcion", label: tp("OptionalFields.paisInscripcion"), step: 1 },
+      { key: "empresaCiudad", label: tp("OptionalFields.empresaCiudad"), step: 1 },
+      { key: "empresaProvincia", label: tp("OptionalFields.empresaProvincia"), step: 1 },
+      { key: "empresaPais", label: tp("OptionalFields.empresaPais"), step: 1 },
+      { key: "empresaTelefono", label: tp("OptionalFields.empresaTelefono"), step: 1 },
+      { key: "empresaCelular", label: tp("OptionalFields.empresaCelular"), step: 1 },
+      { key: "empresaEmail", label: tp("OptionalFields.empresaEmail"), step: 1 },
+      { key: "rlActividadEconomica", label: tp("OptionalFields.rlActividadEconomica"), step: 1 },
+      { key: "rlDireccion", label: tp("OptionalFields.rlDireccion"), step: 1 },
+      { key: "rlPaisResidencia", label: tp("OptionalFields.rlPaisResidencia"), step: 1 },
+      { key: "rlTelefono", label: tp("OptionalFields.rlTelefono"), step: 1 },
       
-      { key: "origenFondosFile", label: "Documento: Origen de Fondos", step: 2 },
-      { key: "pactoSocialFile", label: "Documento: Copia de Pacto Social", step: 2 },
-      { key: "certBancariaFile", label: "Documento: Certificación Bancaria", step: 2 },
-      { key: "certRegistroFile", label: "Documento: Certificado de Registro Público", step: 2 }
+      { key: "origenFondosFile", label: tp("OptionalFields.origenFondosFile"), step: 2 },
+      { key: "pactoSocialFile", label: tp("OptionalFields.pactoSocialFile"), step: 2 },
+      { key: "certBancariaFile", label: tp("OptionalFields.certBancariaFile"), step: 2 },
+      { key: "certRegistroFile", label: tp("OptionalFields.certRegistroFile"), step: 2 }
     ];
 
     if (formData.esPep === "Sí") {
       optionalFieldsToCheck.push(
-        { key: "pepNombre", label: "PEP: Nombre Completo", step: 1 },
-        { key: "pepCargo", label: "PEP: Cargo", step: 1 },
-        { key: "pepInstitucion", label: "PEP: Institución", step: 1 },
-        { key: "pepRelacion", label: "PEP: Relación/Parentesco", step: 1 }
+        { key: "pepNombre", label: tp("OptionalFields.pepNombre"), step: 1 },
+        { key: "pepCargo", label: tp("OptionalFields.pepCargo"), step: 1 },
+        { key: "pepInstitucion", label: tp("OptionalFields.pepInstitucion"), step: 1 },
+        { key: "pepRelacion", label: tp("OptionalFields.pepRelacion"), step: 1 }
       );
     }
 
@@ -794,6 +820,7 @@ export default function PersonaJuridicaPage() {
           headers: {
             "Content-Type": "application/json",
             "Authorization": `Bearer ${draftToken}`,
+            [FORM_TYPE_HEADER]: "JURIDICA",
           },
           body: JSON.stringify({ draftId: draftToken }),
         });
@@ -809,6 +836,7 @@ export default function PersonaJuridicaPage() {
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${draftToken}`,
+          [FORM_TYPE_HEADER]: "JURIDICA",
         },
         body: JSON.stringify({}),
       });
@@ -826,12 +854,12 @@ export default function PersonaJuridicaPage() {
               allErrors[path] = err.message;
             });
             setErrors(allErrors);
-            alert("El servidor detectó errores de validación. Por favor, revíselos.");
+            alert(tp("ServerValidationErrors"));
           } else {
-            alert(`Error al enviar el expediente: ${trpcError.message}`);
+            alert(tp("SubmitErrorWithMessage", { message: trpcError.message }));
           }
         } else {
-          alert("Error al enviar el expediente.");
+          alert(tp("SubmitError"));
         }
         setIsSubmitting(false);
         return;
@@ -839,7 +867,7 @@ export default function PersonaJuridicaPage() {
 
       const data = result.result?.data;
       if (!data || !data.success) {
-        throw new Error(data?.message || "Error al procesar el envío en el servidor.");
+        throw new Error(data?.message || tp("ServerProcessingError"));
       }
 
       const submissionId = data.submissionId || newId;
@@ -870,25 +898,35 @@ export default function PersonaJuridicaPage() {
       setSaveStatus("idle");
     } catch (e: any) {
       console.error("Error saving submission:", e);
-      alert(e.message || "Error al enviar el formulario a la base de datos.");
+      alert(e.message || tp("DatabaseSubmitError"));
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  if (!isMounted) {
-    return (
+  const loadingScreen = (
       <div className="flex min-h-screen items-center justify-center bg-[#002b49] text-white">
         <div className="text-center">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#c8a788] border-t-transparent mx-auto mb-4"></div>
-          <p className="text-zinc-400 font-serif tracking-widest text-xs uppercase">Cargando Portal de Debida Diligencia...</p>
+          <p className="text-zinc-400 font-serif tracking-widest text-xs uppercase">{tp("LoadingPortal")}</p>
         </div>
       </div>
-    );
+  );
+
+  if (!isMounted) {
+    return loadingScreen;
   }
 
   if (!draftToken) {
     return <AccessRestricted />;
+  }
+
+  if (accessStatus === "checking") {
+    return loadingScreen;
+  }
+
+  if (accessStatus !== "granted") {
+    return <BlockedAccess reason={accessStatus} header={<Header isSaving={false} lastSaved={null} />} />;
   }
 
   if (isSubmitted) {
@@ -905,30 +943,30 @@ export default function PersonaJuridicaPage() {
             
             <div className="space-y-3">
               <h2 className="text-3xl md:text-4xl font-serif font-light text-[#052B48] tracking-wide">
-                Formulario Enviado
+                {tp("SuccessTitle")}
               </h2>
               <p className="text-xs md:text-sm text-zinc-600 max-w-lg mx-auto leading-relaxed">
-                Su formulario de Debida Diligencia para Persona Jurídica ha sido recibido y registrado exitosamente. Nuestro equipo de cumplimiento revisará la documentación a la brevedad posible y, de ser necesario, nos pondremos en contacto con usted para solicitar información complementaria.
+                {tp("SuccessMessage")}
               </p>
             </div>
 
             <div className="bg-white border border-zinc-200 rounded-2xl p-6 text-left text-xs text-zinc-700 space-y-3.5 font-sans max-w-md mx-auto shadow-sm">
               <div className="flex justify-between border-b border-zinc-150 pb-2.5">
-                <span className="font-medium text-zinc-500">ID del Expediente</span>
+                <span className="font-medium text-zinc-500">{tp("SubmissionIdLabel")}</span>
                 <span className="font-bold text-[#052B48] select-all font-mono">{submissionId}</span>
               </div>
               <div className="flex justify-between border-b border-zinc-150 pb-2.5">
-                <span className="font-medium text-zinc-500">Sociedad / Razón Social</span>
+                <span className="font-medium text-zinc-500">{tp("CompanyNameLabel")}</span>
                 <span className="font-bold text-[#052B48]">
                   {submittedData?.razonSocial || "N/A"}
                 </span>
               </div>
               <div className="flex justify-between border-b border-zinc-150 pb-2.5">
-                <span className="font-medium text-zinc-500">Proyecto</span>
+                <span className="font-medium text-zinc-500">{tp("ProjectLabel")}</span>
                 <span className="font-bold text-[#052B48]">{submittedData?.nombreProyecto || "UDG General"}</span>
               </div>
               <div className="flex justify-between">
-                <span className="font-medium text-zinc-500">Fecha de Envío</span>
+                <span className="font-medium text-zinc-500">{tp("SubmissionDateLabel")}</span>
                 <span className="font-bold text-[#052B48]">{submissionDate}</span>
               </div>
             </div>
@@ -946,14 +984,14 @@ export default function PersonaJuridicaPage() {
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
-                Descargar Documento en PDF
+                {tp("DownloadPdf")}
               </button>
             </div>
           </div>
         </main>
         <footer className="border-t border-zinc-800/40 bg-black/30 py-6 text-center text-xs text-zinc-400">
           <p className="font-sans text-[11px] font-normal tracking-wider text-zinc-400">
-            © {new Date().getFullYear()} UDG Group. Todos los derechos reservados de conformidad con la ley de protección de datos.
+            {tp("FooterCopyright", { year: new Date().getFullYear() })}
           </p>
         </footer>
       </div>
@@ -972,15 +1010,14 @@ export default function PersonaJuridicaPage() {
           <div className="max-w-5xl mx-auto px-6 py-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div className="text-xs leading-relaxed text-amber-100">
               <p className="font-bold text-amber-200 uppercase tracking-wider text-[11px] mb-1">
-                No se pudo guardar automáticamente
+                {tp("ConflictTitle")}
               </p>
               <p>
-                Este formulario fue modificado en otra pestaña o dispositivo
+                {tp("ConflictModified")}
                 {conflictoBorrador.updatedAt && (
-                  <> (última versión del servidor: {new Date(conflictoBorrador.updatedAt).toLocaleTimeString()})</>
+                  <> {tp("ConflictServerVersion", { time: new Date(conflictoBorrador.updatedAt).toLocaleTimeString() })}</>
                 )}
-                . <span className="font-semibold">Sus cambios siguen en pantalla y no se han perdido.</span> Elija cuál
-                versión conservar.
+                . <span className="font-semibold">{tp("ConflictChangesKept")}</span> {tp("ConflictChooseVersion")}
               </p>
             </div>
             <div className="flex shrink-0 gap-2">
@@ -989,14 +1026,14 @@ export default function PersonaJuridicaPage() {
                 onClick={usarVersionDelServidor}
                 className="rounded-lg border border-amber-300/50 px-3 py-2 text-[11px] font-semibold text-amber-100 transition hover:bg-amber-400/10 cursor-pointer"
               >
-                Descartar y cargar la del servidor
+                {tp("ConflictUseServer")}
               </button>
               <button
                 type="button"
                 onClick={conservarCambiosLocales}
                 className="rounded-lg bg-[#c8a788] px-3 py-2 text-[11px] font-bold text-[#052B48] transition hover:bg-[#d8bb9f] cursor-pointer"
               >
-                Conservar mis cambios
+                {tp("ConflictKeepLocal")}
               </button>
             </div>
           </div>
@@ -1032,30 +1069,29 @@ export default function PersonaJuridicaPage() {
                 <div className="space-y-12">
                   <div className="bg-white/5 p-6 rounded-3xl border border-zinc-800 space-y-4">
                     <h2 className="text-[#c8a788] text-sm font-bold uppercase tracking-wider border-b border-zinc-850 pb-2">
-                      I. Identificación de la Empresa
+                      {t("BigTitleStep1")}
                     </h2>
                     <Step1Identificacion 
                       formData={formData}
                       onInputChange={handleInputChange}
                       onSearchableSelectChange={handleSearchableSelectChange}
-                      errors={errors}
+                      errors={shownErrors}
                     />
                   </div>
 
                   <div className="bg-white/5 p-6 rounded-3xl border border-zinc-800 space-y-4">
                     <h2 className="text-[#c8a788] text-sm font-bold uppercase tracking-wider border-b border-zinc-850 pb-2">
-                      II. Representante Legal y Gobierno Corporativo
+                      {t("BigTitleStep2")}
                     </h2>
 
                     {avisoPrecargaRL && (
                       <div className="flex flex-col gap-2 rounded-2xl border border-[#c8a788]/40 bg-[#c8a788]/10 px-4 py-3 animate-fadeIn md:flex-row md:items-center md:justify-between">
                         <p className="text-xs leading-relaxed text-[#e8d7c5]">
-                          Se precargaron los datos del <span className="font-semibold">Representante Legal o Apoderado</span>{" "}
-                          con la información que guardó en su formulario de Persona Natural
+                          {tp.rich("RlPrefillNotice", { b: (chunks) => <span className="font-semibold">{chunks}</span> })}
                           {avisoPrecargaRL.guardadoEn && (
-                            <> el {new Date(avisoPrecargaRL.guardadoEn).toLocaleDateString("es-PA")}</>
+                            <> {tp("RlPrefillSavedOn", { date: new Date(avisoPrecargaRL.guardadoEn).toLocaleDateString("es-PA") })}</>
                           )}
-                          . Verifique que sea correcta y modifíquela si es necesario.
+                          . {tp("RlPrefillVerify")}
                         </p>
                         <div className="flex shrink-0 gap-2">
                           <button
@@ -1068,14 +1104,14 @@ export default function PersonaJuridicaPage() {
                             }}
                             className="rounded-lg border border-zinc-600 px-3 py-1.5 text-[11px] font-semibold text-zinc-300 transition hover:bg-white/5 cursor-pointer"
                           >
-                            Limpiar campos
+                            {tp("RlClearFields")}
                           </button>
                           <button
                             type="button"
                             onClick={() => setAvisoPrecargaRL(null)}
                             className="rounded-lg bg-[#c8a788] px-3 py-1.5 text-[11px] font-semibold text-[#052B48] transition hover:bg-[#d8bb9f] cursor-pointer"
                           >
-                            Entendido
+                            {tp("RlAcknowledge")}
                           </button>
                         </div>
                       </div>
@@ -1088,13 +1124,13 @@ export default function PersonaJuridicaPage() {
                       onAddGjcMember={handleAddGjcMember}
                       onRemoveGjcMember={handleRemoveGjcMember}
                       onGjcMemberChange={handleGjcMemberChange}
-                      errors={errors}
+                      errors={shownErrors}
                     />
                   </div>
 
                   <div className="bg-white/5 p-6 rounded-3xl border border-zinc-800 space-y-4">
                     <h2 className="text-[#c8a788] text-sm font-bold uppercase tracking-wider border-b border-zinc-850 pb-2">
-                      III. Beneficiarios Finales y Perfil Financiero
+                      {t("BigTitleStep3")}
                     </h2>
                     <Step3Finanzas 
                       formData={formData}
@@ -1102,7 +1138,7 @@ export default function PersonaJuridicaPage() {
                       onAddBfMember={handleAddBfMember}
                       onRemoveBfMember={handleRemoveBfMember}
                       onBfMemberChange={handleBfMemberChange}
-                      errors={errors}
+                      errors={shownErrors}
                     />
                   </div>
                 </div>
@@ -1116,7 +1152,7 @@ export default function PersonaJuridicaPage() {
                   onFileUpload={handleFileUpload}
                   onRemoveFile={handleRemoveFile}
                   onInputChange={handleInputChange}
-                  errors={errors}
+                  errors={shownErrors}
                 />
               )}
 
@@ -1124,7 +1160,7 @@ export default function PersonaJuridicaPage() {
                 <Step5Declaracion 
                   formData={formData}
                   onInputChange={handleInputChange}
-                  errors={errors}
+                  errors={shownErrors}
                 />
               )}
 
@@ -1148,14 +1184,14 @@ export default function PersonaJuridicaPage() {
       <footer className="border-t border-zinc-900/60 bg-black/30 py-8 text-center text-xs text-zinc-500 font-sans text-white">
         <div className="max-w-6xl mx-auto px-6 flex flex-row items-center justify-center text-center gap-2">
           <Image src="/UDG_LOGO.png"
-            alt="Logo UDG"
+            alt={tp("LogoAlt")}
             width={60}
             height={30}
             className="object-contain h-8 md:h-8 w-auto opacity-50"
             priority
           />
           <p className="text-[10px] text-zinc-500">
-            © {new Date().getFullYear()} UDG Group. Todos los derechos reservados de conformidad con la ley de protección de datos.
+            {tp("FooterCopyright", { year: new Date().getFullYear() })}
           </p>
         </div>
       </footer>
@@ -1166,7 +1202,7 @@ export default function PersonaJuridicaPage() {
             {/* Header */}
             <div className="px-6 py-4 bg-gradient-to-r from-[#0b243b] to-[#081b2a] border-b border-[#c8a788]/20 flex justify-between items-center">
               <h3 className="text-sm font-semibold tracking-wider text-[#c8a788] uppercase">
-                Requisitos Pendientes
+                {tp("ValidationSummaryTitle")}
               </h3>
               <button 
                 onClick={() => setValidationSummary(null)}
@@ -1179,7 +1215,7 @@ export default function PersonaJuridicaPage() {
             {/* Body */}
             <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
               <p className="text-xs text-zinc-300">
-                Por favor complete la siguiente información y documentos obligatorios antes de enviar su expediente:
+                {tp("ValidationSummaryIntro")}
               </p>
               
               {/* Render grouped errors */}
@@ -1187,7 +1223,7 @@ export default function PersonaJuridicaPage() {
                 <div key={stepNum} className="bg-[#002b49]/40 border border-[#c8a788]/10 rounded-xl p-4 space-y-2">
                   <div className="flex justify-between items-center">
                     <span className="text-[11px] font-bold tracking-wider text-[#c8a788] uppercase">
-                      Paso {stepNum}: {getStepName(parseInt(stepNum))}
+                      {tp("StepHeading", { step: stepNum, name: getStepName(parseInt(stepNum)) })}
                     </span>
                     <button
                       onClick={() => {
@@ -1196,13 +1232,13 @@ export default function PersonaJuridicaPage() {
                       }}
                       className="text-[10px] font-semibold text-[#c8a788] hover:underline cursor-pointer"
                     >
-                      Ir a este paso →
+                      {tp("GoToStep")}
                     </button>
                   </div>
                   <ul className="list-disc pl-5 space-y-1">
                     {items.map((item, idx) => (
                       <li key={idx} className="text-xs text-zinc-300">
-                        {item.message}
+                        {translateError(item.message)}
                       </li>
                     ))}
                   </ul>
@@ -1216,7 +1252,7 @@ export default function PersonaJuridicaPage() {
                 onClick={() => setValidationSummary(null)}
                 className="bg-[#c8a788] hover:bg-[#b08e6f] text-[#002b49] text-xs font-bold px-6 py-3 rounded-lg transition tracking-wider uppercase shadow-md select-none cursor-pointer"
               >
-                Entendido, Completar
+                {tp("ValidationSummaryAcknowledge")}
               </button>
             </div>
           </div>
@@ -1228,7 +1264,7 @@ export default function PersonaJuridicaPage() {
             {/* Header */}
             <div className="px-6 py-4 bg-gradient-to-r from-[#0b243b] to-[#081b2a] border-b border-[#c8a788]/20 flex justify-between items-center">
               <h3 className="text-sm font-semibold tracking-wider text-[#c8a788] uppercase">
-                Información Pendiente (Opcional)
+                {tp("OptionalFieldsTitle")}
               </h3>
               <button 
                 onClick={() => setPendingOptionalFields(null)}
@@ -1241,7 +1277,7 @@ export default function PersonaJuridicaPage() {
             {/* Body */}
             <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
               <p className="text-xs text-zinc-300 leading-relaxed">
-                Hemos detectado que algunos campos opcionales han quedado vacíos. Aunque **no son obligatorios** para enviar su expediente hoy, recuerde que deberá suministrar esta información más adelante.
+                {tp("OptionalFieldsIntro")}
               </p>
               
               {/* Render grouped optional fields */}
@@ -1252,7 +1288,7 @@ export default function PersonaJuridicaPage() {
                   <div key={stepNum} className="bg-[#002b49]/40 border border-[#c8a788]/10 rounded-xl p-4 space-y-2">
                     <div className="flex justify-between items-center">
                       <span className="text-[11px] font-bold tracking-wider text-[#c8a788] uppercase">
-                        Paso {stepNum}: {getStepName(stepNum)}
+                        {tp("StepHeading", { step: stepNum, name: getStepName(stepNum) })}
                       </span>
                       <button
                         onClick={() => {
@@ -1261,7 +1297,7 @@ export default function PersonaJuridicaPage() {
                         }}
                         className="text-[10px] font-semibold text-[#c8a788] hover:underline cursor-pointer"
                       >
-                        Ir a este paso →
+                        {tp("GoToStep")}
                       </button>
                     </div>
                     <ul className="list-disc pl-5 space-y-1">
@@ -1282,7 +1318,7 @@ export default function PersonaJuridicaPage() {
                 onClick={() => setPendingOptionalFields(null)}
                 className="border border-zinc-500 hover:border-zinc-400 text-zinc-300 hover:text-white text-xs font-bold px-4 py-2.5 rounded-lg transition tracking-wider uppercase select-none cursor-pointer"
               >
-                Completar datos
+                {tp("CompleteData")}
               </button>
               <button
                 disabled={isSubmitting}
@@ -1291,7 +1327,7 @@ export default function PersonaJuridicaPage() {
                 }}
                 className="bg-[#c8a788] hover:bg-[#b08e6f] text-[#002b49] text-xs font-bold px-4 py-2.5 rounded-lg transition tracking-wider uppercase shadow-md select-none cursor-pointer disabled:opacity-50"
               >
-                {isSubmitting ? "Enviando..." : "Enviar de todos modos"}
+                {isSubmitting ? tp("Submitting") : tp("SubmitAnyway")}
               </button>
             </div>
           </div>

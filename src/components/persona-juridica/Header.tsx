@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
+import { useTranslations } from "next-intl";
 
 interface HeaderProps {
   isSaving: boolean;
@@ -11,6 +12,7 @@ interface HeaderProps {
 }
 
 export default function Header({ isSaving, lastSaved, saveStatus }: HeaderProps) {
+  const t = useTranslations("JuridicaForm.Header");
   return (
     <header className="border-b border-zinc-800/40 bg-[#052B48]/95 backdrop-blur-md sticky top-0 z-50 text-white">
       <div className="max-w-6xl mx-auto px-6 h-20 md:h-24 flex items-center justify-between">
@@ -18,7 +20,7 @@ export default function Header({ isSaving, lastSaved, saveStatus }: HeaderProps)
         <div className="flex items-center gap-3 select-none">
           <Image
             src="/UDG_LOGO.png"
-            alt="Logo UDG"
+            alt={t("LogoAlt")}
             width={120}
             height={50}
             className="object-contain h-8 md:h-12 w-auto"
@@ -35,27 +37,27 @@ export default function Header({ isSaving, lastSaved, saveStatus }: HeaderProps)
             {saveStatus === "saving" || (saveStatus === undefined && isSaving) ? (
               <>
                 <div className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-ping"></div>
-                <span className="text-zinc-300 font-medium">Guardando borrador...</span>
+                <span className="text-zinc-300 font-medium">{t("SavingDraft")}</span>
               </>
             ) : saveStatus === "conflict" ? (
               <>
                 <div className="h-1.5 w-1.5 rounded-full bg-amber-400"></div>
-                <span className="text-amber-200 font-medium">Sin guardar: conflicto</span>
+                <span className="text-amber-200 font-medium">{t("UnsavedConflict")}</span>
               </>
             ) : saveStatus === "error" ? (
               <>
                 <div className="h-1.5 w-1.5 rounded-full bg-red-400"></div>
-                <span className="text-red-200 font-medium">No se pudo guardar</span>
+                <span className="text-red-200 font-medium">{t("SaveError")}</span>
               </>
             ) : lastSaved ? (
               <>
                 <div className="h-1.5 w-1.5 rounded-full bg-emerald-400"></div>
-                <span className="text-zinc-200 font-medium">Borrador autoguardado ({lastSaved})</span>
+                <span className="text-zinc-200 font-medium">{t("DraftSavedAt", { time: lastSaved })}</span>
               </>
             ) : (
               <>
                 <div className="h-1.5 w-1.5 rounded-full bg-emerald-400"></div>
-                <span className="text-zinc-200 font-medium">Borrador autoguardado</span>
+                <span className="text-zinc-200 font-medium">{t("DraftSaved")}</span>
               </>
             )}
           </div>
@@ -64,7 +66,7 @@ export default function Header({ isSaving, lastSaved, saveStatus }: HeaderProps)
           <div className="relative h-9 md:h-12 w-auto hidden sm:flex items-center justify-end">
             <Image
               src="/SLOGAN_LEMA.png"
-              alt="20 Años Construyendo tu futuro"
+              alt={t("SloganAlt")}
               width={240}
               height={50}
               className="object-contain h-8 md:h-11 w-auto"

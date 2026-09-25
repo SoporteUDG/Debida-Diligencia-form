@@ -370,7 +370,7 @@ export async function generatePDF(
             <td colspan="3" style="color: #1f2937; padding: 4px 0;">${data.rlDireccion || "-"}</td>
           </tr>
           <tr>
-            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">involucrado en AML:</td>
+            <td style="font-weight: bold; color: #4b5563; padding: 4px 0;">Investigado por AML:</td>
             <td colspan="3" style="color: #1f2937; padding: 4px 0;">${data.rlObjetoInvestigacion || "-"}</td>
           </tr>
         </table>
@@ -583,7 +583,7 @@ export async function generatePDF(
           
             ${data.bfMembers && data.bfMembers.length > 0 ? data.bfMembers.map((m: any) => `
               <tr style="border-bottom: 1px solid #e5e7eb;">
-                <td style="padding: 4px;">${("Documento de identificacion del Beneficiarios - "+m.nombreCompleto) || "-"} </td>
+                <td style="padding: 4px;">${("Documento de identificacion de Beneficiario - "+m.nombreCompleto) || "-"} </td>
                 <td style="padding: 4px; text-align: center; font-weight: bold; color: ${docIdentidad("BF", m.id) ? "#059669" : "#dc2626"};">${docIdentidad("BF", m.id) ? "SÍ" : "NO"}</td>
                 <td style="padding: 4px; color: #6b7280; font-size: 8px;">${docIdentidad("BF", m.id) || "-"}</td>
               </tr>
@@ -595,7 +595,7 @@ export async function generatePDF(
             `}
             ${data.gjcMembers && data.gjcMembers.length > 0 ? data.gjcMembers.map((m: any) => `
               <tr style="border-bottom: 1px solid #e5e7eb;">
-                <td style="padding: 4px;">${"Documento de identificación del miembro - " + nombreGjc(m)} </td>
+                <td style="padding: 4px;">${"Documento de identificación de miembro - " + nombreGjc(m)} </td>
                 <td style="padding: 4px; text-align: center; font-weight: bold; color: ${docIdentidad("GJC", m.id) ? "#059669" : "#dc2626"};">${docIdentidad("GJC", m.id) ? "SÍ" : "NO"}</td>
                 <td style="padding: 4px; color: #6b7280; font-size: 8px;">${docIdentidad("GJC", m.id) || "-"}</td>
               </tr>

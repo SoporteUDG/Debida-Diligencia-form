@@ -1,6 +1,15 @@
 import { initTRPC, TRPCError } from "@trpc/server";
 import { Context } from "./context";
 import { verifyToken, verifySignature } from "@/lib/tokenService";
+import { FORM_TYPE_HEADER, type ClientFormType, type TokenFailureReason } from "@/lib/tokenAccess";
+
+/** Rechazo de un enlace de cliente; el motivo viaja al navegador en `data.tokenReason`. */
+export class TokenAccessError extends Error {
+  constructor(public readonly reason: TokenFailureReason, message: string) {
+    super(message);
+    this.name = "TokenAccessError";
+  }
+}
 
 const t = initTRPC.context<Context>().create({
   errorFormatter({ shape, error }) {
@@ -9,6 +18,7 @@ const t = initTRPC.context<Context>().create({
       data: {
         ...shape.data,
         zodError: error.cause && error.cause.name === "ZodError" ? error.cause : null,
+        tokenReason: error.cause instanceof TokenAccessError ? error.cause.reason : null,
       },
     };
   },
@@ -45,18 +55,41 @@ const isClientTokenAuthorized = t.middleware(async ({ next, ctx }) => {
   const token = authHeader?.replace("Bearer ", "");
 
   if (!token) {
-    throw new TRPCError({
-      code: "UNAUTHORIZED",
-      message: "Se requiere un token de acceso del cliente para este procedimiento",
-    });
+    const message = "Se requiere un token de acceso del cliente para este procedimiento";
+    throw new TRPCError({ code: "UNAUTHORIZED", message, cause: new TokenAccessError("INVALID", message) });
   }
 
   const verification = await verifyToken(token);
   if (!verification.success) {
+    const message = verification.error || "Token de acceso del cliente inválido o expirado";
     throw new TRPCError({
       code: "UNAUTHORIZED",
-      message: verification.error || "Token de acceso del cliente inválido o expirado",
+      message,
+      cause: new TokenAccessError(verification.reason || "INVALID", message),
     });
+  }
+
+  // Cada página declara qué formulario tiene abierto: un enlace de persona natural
+  // no sirve en persona jurídica ni al revés. El tipo del enlace es el del borrador
+  // que se registró al generarlo (Token.type es siempre ACCESS); los borradores
+  // locales lo llevan en el prefijo (draft-nat- / draft-jur-).
+  const headerValue = ctx.req.headers.get(FORM_TYPE_HEADER)?.toUpperCase();
+  const pageFormType: ClientFormType | undefined =
+    headerValue === "NATURAL" || headerValue === "JURIDICA" ? headerValue : undefined;
+
+  let linkFormType: ClientFormType | undefined =
+    verification.type === "NATURAL" || verification.type === "JURIDICA" ? verification.type : undefined;
+  if (pageFormType && !linkFormType && verification.uuid) {
+    const draft = await ctx.prisma.draft.findUnique({
+      where: { token: verification.uuid },
+      select: { type: true },
+    });
+    linkFormType = draft?.type;
+  }
+
+  if (pageFormType && linkFormType && pageFormType !== linkFormType) {
+    const message = `Este enlace corresponde al formulario de ${linkFormType === "NATURAL" ? "Persona Natural" : "Persona Jurídica"}`;
+    throw new TRPCError({ code: "FORBIDDEN", message, cause: new TokenAccessError("WRONG_FORM", message) });
   }
 
   return next({
@@ -66,6 +99,8 @@ const isClientTokenAuthorized = t.middleware(async ({ next, ctx }) => {
         crmContactId: verification.crmContactId,
         type: verification.type,
         tokenUuid: verification.uuid,
+        /** NATURAL / JURIDICA del enlace (o de la página si el enlace aún no tiene borrador). */
+        formType: linkFormType ?? pageFormType,
       },
     },
   });

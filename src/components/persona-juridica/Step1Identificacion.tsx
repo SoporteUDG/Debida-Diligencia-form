@@ -1,5 +1,8 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+import es from "@/messages/es.json";
+import { optionLabeler } from "@/i18n/optionLabel";
 import SearchableSelect from "@/components/ui/SearchableSelect";
 import { countries } from "@/lib/countries";
 import { FormState, PHONE_CODES } from "@/types/persona-juridica";
@@ -17,6 +20,16 @@ export default function Step1Identificacion({
   onSearchableSelectChange,
   errors = {},
 }: Step1Props) {
+  const t = useTranslations("JuridicaForm.JuridicaFormStep1Titles");
+  const p = useTranslations("JuridicaForm.JuridicaFormStep1Placeholders");
+  const OPTIONS = es.JuridicaForm.JuridicaFormStep1Options;
+  const tipoSociedadLabel = optionLabeler(OPTIONS.TipoSociedadOptions, useTranslations("JuridicaForm.JuridicaFormStep1Options.TipoSociedadOptions"));
+  const tipoClienteLabel = optionLabeler(OPTIONS.TipoClienteOptions, useTranslations("JuridicaForm.JuridicaFormStep1Options.TipoClienteOptions"));
+  const estadoSociedadLabel = optionLabeler(OPTIONS.EstadoSociedadOptions, useTranslations("JuridicaForm.JuridicaFormStep1Options.EstadoSociedadOptions"));
+  const formaContactoLabel = optionLabeler(OPTIONS.FormaContactoOptions, useTranslations("JuridicaForm.JuridicaFormStep1Options.FormaContactoOptions"));
+  const tipoDocumentoLabel = optionLabeler(OPTIONS.TipoDocumentoOptions, useTranslations("JuridicaForm.JuridicaFormStep1Options.TipoDocumentoOptions"));
+  const yesNoLabel = optionLabeler(es.JuridicaForm.TrueFalseOptions, useTranslations("JuridicaForm.TrueFalseOptions"));
+
   return (
     <div className={`bg-white rounded-2xl shadow-xl border border-zinc-200`}>
       
@@ -25,7 +38,7 @@ export default function Step1Identificacion({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700 flex items-center gap-1" htmlFor="nombreProyecto">
-              <span>Nombre del Proyecto</span>
+              <span>{t("NombreProyectoTitle")}</span>
               <span className="text-red-500 font-bold">*</span>
             </label>
             <select
@@ -36,7 +49,7 @@ export default function Step1Identificacion({
               className={`${errors.nombreProyecto ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
               required
             >
-              <option value="">Selecciona proyecto</option>
+              <option value="">{p("NombreProyectoPlaceholder")}</option>
               <option value="Altos del Parque">Altos del Parque</option>
               <option value="Caminos de Centennial">Caminos de Centennial</option>
               <option value="Deici">Deici</option>
@@ -57,7 +70,7 @@ export default function Step1Identificacion({
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="formaContacto">
-              ¿Por qué medio nos conoció?
+              {t("FormaContactoTitle")}
             </label>
             <select
               id="formaContacto"
@@ -66,13 +79,13 @@ export default function Step1Identificacion({
               onChange={onInputChange}
               className={`${errors.formaContacto ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
             >
-              <option value="">Selecciona opción</option>
-              <option value="Mercadeo (feria, evento, revista, valla)">Mercadeo (feria, evento, revista, valla)</option>
-              <option value="Redes Sociales">Redes Sociales</option>
-              <option value="Referencia Interna (ej. colaborador, vendedor, sala de ventas)">Referencia Interna (ej. colaborador, vendedor, sala de ventas)</option>
-              <option value="Referencia Externa (ej. corredor, broker, cliente, familiar, cliente antiguo)">Referencia Externa (ej. corredor, broker, cliente, familiar, cliente antiguo)</option>
-              <option value="Referido">Referido</option>
-              <option value="Otros">Otros</option>
+              <option value="">{p("FormaContactoPlaceholder")}</option>
+              <option value="Mercadeo (feria, evento, revista, valla)">{formaContactoLabel("Mercadeo (feria, evento, revista, valla)")}</option>
+              <option value="Redes Sociales">{formaContactoLabel("Redes Sociales")}</option>
+              <option value="Referencia Interna (ej. colaborador, vendedor, sala de ventas)">{formaContactoLabel("Referencia Interna (ej. colaborador, vendedor, sala de ventas)")}</option>
+              <option value="Referencia Externa (ej. corredor, broker, cliente, familiar, cliente antiguo)">{formaContactoLabel("Referencia Externa (ej. corredor, broker, cliente, familiar, cliente antiguo)")}</option>
+              <option value="Referido">{formaContactoLabel("Referido")}</option>
+              <option value="Otros">{formaContactoLabel("Otros")}</option>
             </select>
             {errors.formaContacto && (
               <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
@@ -85,7 +98,7 @@ export default function Step1Identificacion({
           {(formData.formaContacto === "Otros" || formData.formaContacto === "Otro") && (
             <div className="flex flex-col gap-2 md:col-span-2 animate-fadeIn">
               <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="formaContactoDetalle">
-                Especifique Forma de Contacto <span className="text-red-500 font-bold">*</span>
+                {t("FormaContactoDetalleTitle")} <span className="text-red-500 font-bold">*</span>
               </label>
               <input
                 type="text"
@@ -93,7 +106,7 @@ export default function Step1Identificacion({
                 name="formaContactoDetalle"
                 value={formData.formaContactoDetalle || ""}
                 onChange={onInputChange}
-                placeholder="Escribe el detalle de cómo nos conoció..."
+                placeholder={p("FormaContactoDetallePlaceholder")}
                 className={`bg-[#f4f6f8] border border-zinc-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[#052B48] focus:ring-1 focus:ring-[#052B48] transition text-zinc-800 ${
                   errors.formaContactoDetalle ? "border-red-500 bg-red-50/10" : ""
                 }`}
@@ -110,7 +123,7 @@ export default function Step1Identificacion({
           {formData.formaContacto === "Referido" && (
             <div className="flex flex-col gap-2 md:col-span-2 animate-fadeIn">
               <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="referidoPor">
-                Nombre de quien lo refirió <span className="text-red-500 font-bold">*</span>
+                {t("ReferidoPorTitle")} <span className="text-red-500 font-bold">*</span>
               </label>
               <input
                 type="text"
@@ -118,7 +131,7 @@ export default function Step1Identificacion({
                 name="referidoPor"
                 value={formData.referidoPor || ""}
                 onChange={onInputChange}
-                placeholder="Escribe el nombre de la persona que lo refirió..."
+                placeholder={p("ReferidoPorPlaceholder")}
                 className={`bg-[#f4f6f8] border border-zinc-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[#052B48] focus:ring-1 focus:ring-[#052B48] transition text-zinc-800 ${
                   errors.referidoPor ? "border-red-500 bg-red-50/10" : ""
                 }`}
@@ -136,14 +149,14 @@ export default function Step1Identificacion({
       {/* Card B: IDENTIFICACIÓN DEL CLIENTE */}
       <div className="px-6 md:px-8 pt-6">
         <h3 className="text-sm font-bold tracking-widest text-[#052B48] uppercase border-b border-zinc-200 pb-3 mb-6 flex items-center justify-between">
-          <span>IDENTIFICACIÓN DEL CLIENTE</span>
-          <span className="text-[10px] text-zinc-400 lowercase font-normal italic">Información Registral</span>
+          <span>{t("IdentificacionClienteTitle")}</span>
+          <span className="text-[10px] text-zinc-400 lowercase font-normal italic">{t("IdentificacionClienteSubtitle")}</span>
         </h3>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="razonSocial">
-              Nombre de Razón Social <span className="text-red-500 font-bold">*</span>
+              {t("RazonSocialTitle")} <span className="text-red-500 font-bold">*</span>
             </label>
             <input
               type="text"
@@ -151,7 +164,7 @@ export default function Step1Identificacion({
               name="razonSocial"
               value={formData.razonSocial}
               onChange={onInputChange}
-              placeholder="Ej: Inversiones UDG, S.A."
+              placeholder={p("RazonSocialPlaceholder")}
               className={`${errors.razonSocial ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
               required
             />
@@ -164,7 +177,7 @@ export default function Step1Identificacion({
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="tipoSociedad">
-              Tipo de Sociedad
+              {t("TipoSociedadTitle")}
             </label>
             <select
               id="tipoSociedad"
@@ -173,12 +186,12 @@ export default function Step1Identificacion({
               onChange={onInputChange}
               className={`${errors.tipoSociedad ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
             >
-              <option value="">Selecciona tipo</option>
-              <option value="Sociedad Anónima">Sociedad Anónima</option>
-              <option value="Sociedad Civil">Sociedad Civil</option>
-              <option value="Fundación">Fundación</option>
-              <option value="Fundación de Interés Privado">Fundación de Interés Privado</option>
-              <option value="Otros">Otros</option>
+              <option value="">{p("SeleccionaTipoPlaceholder")}</option>
+              <option value="Sociedad Anónima">{tipoSociedadLabel("Sociedad Anónima")}</option>
+              <option value="Sociedad Civil">{tipoSociedadLabel("Sociedad Civil")}</option>
+              <option value="Fundación">{tipoSociedadLabel("Fundación")}</option>
+              <option value="Fundación de Interés Privado">{tipoSociedadLabel("Fundación de Interés Privado")}</option>
+              <option value="Otros">{tipoSociedadLabel("Otros")}</option>
             </select>
             {errors.tipoSociedad && (
               <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
@@ -190,7 +203,7 @@ export default function Step1Identificacion({
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="tipoCliente">
-              Tipo de Cliente
+              {t("TipoClienteTitle")}
             </label>
             <select
               id="tipoCliente"
@@ -199,9 +212,9 @@ export default function Step1Identificacion({
               onChange={onInputChange}
               className={`${errors.tipoCliente ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
             >
-              <option value="">Selecciona tipo</option>
-              <option value="Persona Jurídica Nacional">Persona Jurídica Nacional</option>
-              <option value="Persona Jurídica Extranjera">Persona Jurídica Extranjera</option>
+              <option value="">{p("SeleccionaTipoPlaceholder")}</option>
+              <option value="Persona Jurídica Nacional">{tipoClienteLabel("Persona Jurídica Nacional")}</option>
+              <option value="Persona Jurídica Extranjera">{tipoClienteLabel("Persona Jurídica Extranjera")}</option>
             </select>
             {errors.tipoCliente && (
               <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
@@ -212,7 +225,7 @@ export default function Step1Identificacion({
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="estadoSociedad">
-              Estado de la Sociedad
+              {t("EstadoSociedadTitle")}
             </label>
             <select
               id="estadoSociedad"
@@ -221,9 +234,9 @@ export default function Step1Identificacion({
               onChange={onInputChange}
               className={`${errors.estadoSociedad ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
             >
-              <option value="">Selecciona tipo</option>
-              <option value="Operativa">Operativa</option>
-              <option value="No Operativa">No Operativa</option>
+              <option value="">{p("SeleccionaTipoPlaceholder")}</option>
+              <option value="Operativa">{estadoSociedadLabel("Operativa")}</option>
+              <option value="No Operativa">{estadoSociedadLabel("No Operativa")}</option>
             </select>
             {errors.estadoSociedad && (
               <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
@@ -234,7 +247,7 @@ export default function Step1Identificacion({
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="tipoDocumentoIdentidad">
-              Documento de Identidad <span className="text-red-500 font-bold">*</span>
+              {t("TipoDocumentoIdentidadTitle")} <span className="text-red-500 font-bold">*</span>
             </label>
             <select
               id="tipoDocumentoIdentidad"
@@ -244,12 +257,12 @@ export default function Step1Identificacion({
               className={`${errors.tipoDocumentoIdentidad ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
               required
             >
-              <option value="">Selecciona documento</option>
-              <option value="RUC Empresarial">RUC Empresarial</option>
-              <option value="Ficha o Doc">Ficha o Doc</option>
-              <option value="Aviso de Operaciones">Aviso de Operaciones</option>
-              <option value="NIT">NIT</option>
-              <option value="Otro ID">Otro ID</option>
+              <option value="">{p("TipoDocumentoIdentidadPlaceholder")}</option>
+              <option value="RUC Empresarial">{tipoDocumentoLabel("RUC Empresarial")}</option>
+              <option value="Ficha o Doc">{tipoDocumentoLabel("Ficha o Doc")}</option>
+              <option value="Aviso de Operaciones">{tipoDocumentoLabel("Aviso de Operaciones")}</option>
+              <option value="NIT">{tipoDocumentoLabel("NIT")}</option>
+              <option value="Otro ID">{tipoDocumentoLabel("Otro ID")}</option>
             </select>
             {errors.tipoDocumentoIdentidad && (
               <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
@@ -262,7 +275,7 @@ export default function Step1Identificacion({
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="actividadPrincipal">
-              Actividad Principal A La Que Se Dedica Su Empresa
+              {t("ActividadPrincipalTitle")}
             </label>
             <input
               type="text"
@@ -270,14 +283,14 @@ export default function Step1Identificacion({
               name="actividadPrincipal"
               value={formData.actividadPrincipal}
               onChange={onInputChange}
-              placeholder="Ej: Comercio, Inversiones"
+              placeholder={p("ActividadPrincipalPlaceholder")}
               className={`bg-[#f4f6f8] border border-zinc-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[#052B48] focus:ring-1 focus:ring-[#052B48] transition text-zinc-800`}
             />
           </div>
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="numeroDocumento">
-              No. de Documento <span className="text-red-500 font-bold">*</span>
+              {t("NumeroDocumentoTitle")} <span className="text-red-500 font-bold">*</span>
             </label>
             <input
               type="text"
@@ -285,7 +298,7 @@ export default function Step1Identificacion({
               name="numeroDocumento"
               value={formData.numeroDocumento}
               onChange={onInputChange}
-              placeholder="Número del documento elegido arriba"
+              placeholder={p("NumeroDocumentoPlaceholder")}
               className={`${errors.numeroDocumento ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
               required
             />
@@ -298,7 +311,7 @@ export default function Step1Identificacion({
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="fechaVencimientoId">
-              Fecha de Vencimiento de Identificación
+              {t("FechaVencimientoIdTitle")}
             </label>
             <input
               type="date"
@@ -322,7 +335,7 @@ export default function Step1Identificacion({
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="numeroIdTributaria">
-              No. de ID Tributaria
+              {t("NumeroIdTributariaTitle")}
             </label>
             <input
               type="text"
@@ -330,7 +343,7 @@ export default function Step1Identificacion({
               name="numeroIdTributaria"
               value={formData.numeroIdTributaria}
               onChange={onInputChange}
-              placeholder="Si aplica (ej. R.T.N / Tax ID)"
+              placeholder={p("NumeroIdTributariaPlaceholder")}
               className={`${errors.numeroIdTributaria ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
             />
             {errors.numeroIdTributaria && (
@@ -342,14 +355,14 @@ export default function Step1Identificacion({
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="paisTributacion">
-              País donde Tributa Ingresos
+              {t("PaisTributacionTitle")}
             </label>
             <SearchableSelect
               id="paisTributacion"
               value={formData.paisTributacion}
               onChange={(val) => onSearchableSelectChange("paisTributacion", val)}
               options={countries}
-              placeholder="Buscar país..."
+              placeholder={p("BuscarPaisPlaceholder")}
              hasError={!!errors.paisTributacion} />
             {errors.paisTributacion && (
               <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
@@ -360,7 +373,7 @@ export default function Step1Identificacion({
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="fechaConstitucion">
-              Fecha de Constitución
+              {t("FechaConstitucionTitle")}
             </label>
             <input
               type="date"
@@ -379,14 +392,14 @@ export default function Step1Identificacion({
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="paisOpera">
-              País Donde Opera
+              {t("PaisOperaTitle")}
             </label>
             <SearchableSelect
               id="paisOpera"
               value={formData.paisOpera}
               onChange={(val) => onSearchableSelectChange("paisOpera", val)}
               options={countries}
-              placeholder="Buscar país..."
+              placeholder={p("BuscarPaisPlaceholder")}
              hasError={!!errors.paisOpera} />
             {errors.paisOpera && (
               <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
@@ -397,14 +410,14 @@ export default function Step1Identificacion({
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="paisInscripcion">
-              País de Inscripción
+              {t("PaisInscripcionTitle")}
             </label>
             <SearchableSelect
               id="paisInscripcion"
               value={formData.paisInscripcion}
               onChange={(val) => onSearchableSelectChange("paisInscripcion", val)}
               options={countries}
-              placeholder="Buscar país..."
+              placeholder={p("BuscarPaisPlaceholder")}
              hasError={!!errors.paisInscripcion} />
             {errors.paisInscripcion && (
               <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
@@ -421,14 +434,14 @@ export default function Step1Identificacion({
       {/* Card C: PERSONA DE CONTACTO */}
       <div className="px-6 md:px-8 pt-6">
         <h3 className="text-sm font-bold tracking-widest text-[#052B48] uppercase border-b border-zinc-200 pb-3 mb-6 flex items-center justify-between">
-          <span>PERSONA DE CONTACTO</span>
-          <span className="text-[10px] text-zinc-400 lowercase font-normal italic">Representante Operativo</span>
+          <span>{t("PersonaContactoTitle")}</span>
+          <span className="text-[10px] text-zinc-400 lowercase font-normal italic">{t("PersonaContactoSubtitle")}</span>
         </h3>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="contactoNombre">
-              Nombre <span className="text-red-500 font-bold">*</span>
+              {t("ContactoNombreTitle")} <span className="text-red-500 font-bold">*</span>
             </label>
             <input
               type="text"
@@ -436,7 +449,7 @@ export default function Step1Identificacion({
               name="contactoNombre"
               value={formData.contactoNombre}
               onChange={onInputChange}
-              placeholder="Nombre"
+              placeholder={p("ContactoNombrePlaceholder")}
               className={`${errors.contactoNombre ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
               required
             />
@@ -449,7 +462,7 @@ export default function Step1Identificacion({
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="contactoApellido">
-              Apellido <span className="text-red-500 font-bold">*</span>
+              {t("ContactoApellidoTitle")} <span className="text-red-500 font-bold">*</span>
             </label>
             <input
               type="text"
@@ -457,7 +470,7 @@ export default function Step1Identificacion({
               name="contactoApellido"
               value={formData.contactoApellido}
               onChange={onInputChange}
-              placeholder="Apellido"
+              placeholder={p("ContactoApellidoPlaceholder")}
               className={`${errors.contactoApellido ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
               required
             />
@@ -470,7 +483,7 @@ export default function Step1Identificacion({
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="contactoId">
-              Nº de identificación
+              {t("ContactoIdTitle")}
             </label>
             <input
               type="text"
@@ -478,7 +491,7 @@ export default function Step1Identificacion({
               name="contactoId"
               value={formData.contactoId}
               onChange={onInputChange}
-              placeholder="Cédula o pasaporte"
+              placeholder={p("ContactoIdPlaceholder")}
               className={`${errors.contactoId ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
             />
             {errors.contactoId && (
@@ -490,7 +503,7 @@ export default function Step1Identificacion({
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="contactoTelefono">
-              Teléfono/Celular <span className="text-red-500 font-bold">*</span>
+              {t("ContactoTelefonoTitle")} <span className="text-red-500 font-bold">*</span>
             </label>
             <input
               type="tel"
@@ -498,7 +511,7 @@ export default function Step1Identificacion({
               name="contactoTelefono"
               value={formData.contactoTelefono}
               onChange={onInputChange}
-              placeholder="Celular"
+              placeholder={p("ContactoTelefonoPlaceholder")}
               className={`${errors.contactoTelefono ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
               required
             />
@@ -511,7 +524,7 @@ export default function Step1Identificacion({
 
           <div className="flex flex-col gap-2 md:col-span-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="contactoEmail">
-              Correo Electrónico <span className="text-red-500 font-bold">*</span>
+              {t("ContactoEmailTitle")} <span className="text-red-500 font-bold">*</span>
             </label>
             <input
               type="email"
@@ -519,7 +532,7 @@ export default function Step1Identificacion({
               name="contactoEmail"
               value={formData.contactoEmail}
               onChange={onInputChange}
-              placeholder="correo@ejemplo.com"
+              placeholder={p("ContactoEmailPlaceholder")}
               className={`${errors.contactoEmail ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
               required
             />
@@ -532,7 +545,7 @@ export default function Step1Identificacion({
           </div>
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="ifContacto">
-              Ocupa un cargo dentro de la sociedad
+              {t("IfContactoTitle")}
             </label>
             <select
               id="ifContacto"
@@ -542,9 +555,9 @@ export default function Step1Identificacion({
               className={`${errors.ifContacto ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
               required
             >
-              <option value="">Selecciona opcion</option>
-              <option value="Sí">Sí</option>
-              <option value="No">No</option>
+              <option value="">{p("IfContactoPlaceholder")}</option>
+              <option value="Sí">{yesNoLabel("Sí")}</option>
+              <option value="No">{yesNoLabel("No")}</option>
             </select>
             {errors.ifContacto && (
               <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
@@ -555,7 +568,7 @@ export default function Step1Identificacion({
           {formData.ifContacto === "Sí" && (  
             <div className="flex flex-col gap-2 md:col-span-2">
               <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="contactoCargo">
-                Cargo que ocupa dentro de la sociedad
+                {t("ContactoCargoTitle")}
               </label>
               <input
                 type="text"
@@ -563,7 +576,7 @@ export default function Step1Identificacion({
                 name="contactoCargo"
                 value={formData.contactoCargo}
                 onChange={onInputChange}
-                placeholder="Ej. miembro del directorio"
+                placeholder={p("ContactoCargoPlaceholder")}
                 className={`${errors.contactoCargo ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
                 required
               />
@@ -581,14 +594,14 @@ export default function Step1Identificacion({
       {/* Card D: DATOS GENERALES DE LA EMPRESA */}
       <div className="px-6 md:px-8 py-6">
         <h3 className="text-sm font-bold tracking-widest text-[#052B48] uppercase border-b border-zinc-200 pb-3 mb-6 flex items-center justify-between">
-          <span>DATOS GENERALES DE LA EMPRESA</span>
-          <span className="text-[10px] text-zinc-400 lowercase font-normal italic">Domicilio y Contacto Corporativo</span>
+          <span>{t("DatosGeneralesEmpresaTitle")}</span>
+          <span className="text-[10px] text-zinc-400 lowercase font-normal italic">{t("DatosGeneralesEmpresaSubtitle")}</span>
         </h3>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="flex flex-col gap-2 md:col-span-3">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="empresaDireccion">
-              Dirección Comercial (Calle, Número, Urbanización/Edificio, Piso, Local, etc.) <span className="text-red-500 font-bold">*</span>
+              {t("EmpresaDireccionTitle")} <span className="text-red-500 font-bold">*</span>
             </label>
             <textarea
               id="empresaDireccion"
@@ -596,7 +609,7 @@ export default function Step1Identificacion({
               value={formData.empresaDireccion}
               onChange={onInputChange}
               rows={3}
-              placeholder="Completa la dirección física"
+              placeholder={p("EmpresaDireccionPlaceholder")}
               className={`w-full bg-[#f4f6f8] border border-zinc-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[#052B48] focus:ring-1 focus:ring-[#052B48] transition text-zinc-800 resize-none`}
               required
             />
@@ -604,7 +617,7 @@ export default function Step1Identificacion({
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="empresaCiudad">
-              Ciudad
+              {t("EmpresaCiudadTitle")}
             </label>
             <input
               type="text"
@@ -612,7 +625,7 @@ export default function Step1Identificacion({
               name="empresaCiudad"
               value={formData.empresaCiudad}
               onChange={onInputChange}
-              placeholder="Ciudad"
+              placeholder={p("EmpresaCiudadPlaceholder")}
               className={`${errors.empresaCiudad ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
             />
             {errors.empresaCiudad && (
@@ -624,7 +637,7 @@ export default function Step1Identificacion({
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="empresaProvincia">
-              Provincia
+              {t("EmpresaProvinciaTitle")}
             </label>
             <input
               type="text"
@@ -632,7 +645,7 @@ export default function Step1Identificacion({
               name="empresaProvincia"
               value={formData.empresaProvincia}
               onChange={onInputChange}
-              placeholder="Provincia / Estado"
+              placeholder={p("EmpresaProvinciaPlaceholder")}
               className={`${errors.empresaProvincia ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
             />
             {errors.empresaProvincia && (
@@ -644,14 +657,14 @@ export default function Step1Identificacion({
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="empresaPais">
-              País
+              {t("EmpresaPaisTitle")}
             </label>
             <SearchableSelect
               id="empresaPais"
               value={formData.empresaPais}
               onChange={(val) => onSearchableSelectChange("empresaPais", val)}
               options={countries}
-              placeholder="Buscar país..."
+              placeholder={p("BuscarPaisPlaceholder")}
              hasError={!!errors.empresaPais} />
             {errors.empresaPais && (
               <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
@@ -662,7 +675,7 @@ export default function Step1Identificacion({
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="empresaTelefono">
-              Teléfono
+              {t("EmpresaTelefonoTitle")}
             </label>
             <div className="flex gap-2">
               <select
@@ -683,7 +696,7 @@ export default function Step1Identificacion({
                 name="empresaTelefono"
                 value={formData.empresaTelefono}
                 onChange={onInputChange}
-                placeholder="Número fijo"
+                placeholder={p("EmpresaTelefonoPlaceholder")}
                 className={`${errors.empresaTelefono ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
               />
             {errors.empresaTelefono && (
@@ -696,7 +709,7 @@ export default function Step1Identificacion({
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="empresaCelular">
-              Celular
+              {t("EmpresaCelularTitle")}
             </label>
             <div className="flex gap-2">
               <select
@@ -717,7 +730,7 @@ export default function Step1Identificacion({
                 name="empresaCelular"
                 value={formData.empresaCelular}
                 onChange={onInputChange}
-                placeholder="Número móvil"
+                placeholder={p("EmpresaCelularPlaceholder")}
                 className={`${errors.empresaCelular ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
               />
             {errors.empresaCelular && (
@@ -730,7 +743,7 @@ export default function Step1Identificacion({
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="empresaEmail">
-              E-mail
+              {t("EmpresaEmailTitle")}
             </label>
             <input
               type="email"
@@ -738,7 +751,7 @@ export default function Step1Identificacion({
               name="empresaEmail"
               value={formData.empresaEmail}
               onChange={onInputChange}
-              placeholder="contacto@empresa.com"
+              placeholder={p("EmpresaEmailPlaceholder")}
               className={`${errors.empresaEmail ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
             />
             {errors.empresaEmail && (

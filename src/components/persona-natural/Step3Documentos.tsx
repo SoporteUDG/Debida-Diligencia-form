@@ -2,6 +2,9 @@
 
 import { FormState } from "@/types/persona-natural";
 import { Check, FileCheck2, UploadCloud, X } from "lucide-react";
+import { useTranslations } from "next-intl";
+import es from "@/messages/es.json";
+import { optionLabeler } from "@/i18n/optionLabel";
 
 interface Step3Props {
   formData: FormState;
@@ -23,7 +26,9 @@ export default function Step3Documentos({
   onInputChange,
   errors = {},
 }: Step3Props) {
-  
+  const t = useTranslations("NaturalForm.DocumentsStep.Titles");
+  const p = useTranslations("NaturalForm.DocumentsStep.Placeholders");
+  const typeIdLabel = optionLabeler(es.NaturalForm.NaturalFormStep1OptionFields.TypeIdOption, useTranslations("NaturalForm.NaturalFormStep1OptionFields.TypeIdOption"));
 
   // Helper render for document file upload field
   const renderUploadField = (fieldName: keyof FormState, label: string, description: string, isRequired = true, multiple = false) => {
@@ -57,7 +62,7 @@ export default function Step3Documentos({
                   type="button"
                   onClick={() => onRemoveFile(fieldName, fname)}
                   className="p-1 text-zinc-500 hover:text-red-500 hover:bg-red-50 rounded transition cursor-pointer shrink-0"
-                  title="Quitar archivo"
+                  title={t("RemoveFile")}
                 >
                   <X className="h-3.5 w-3.5" />
                 </button>
@@ -73,11 +78,11 @@ export default function Step3Documentos({
           {status === "idle" && (multiple || !hasFile) && (
             <div className="flex items-center justify-between w-full">
               <span className="text-xs text-zinc-400 font-medium">
-                {multiple && hasFile ? "Agregar otro archivo (.pdf, .jpeg)" : "Choose File (.pdf, .jpeg)"}
+                {multiple && hasFile ? p("AddAnotherFile") : p("ChooseFile")}
               </span>
               <label className="bg-[#052B48] text-white px-3.5 py-1.5 rounded-lg text-xs font-bold hover:bg-[#081827] transition cursor-pointer flex items-center gap-1.5 active:scale-95">
                 <UploadCloud className="h-3.5 w-3.5" />
-                Cargar
+                {t("UploadButton")}
                 <input
                   type="file"
                   accept=".pdf,.jpg,.jpeg"
@@ -97,7 +102,7 @@ export default function Step3Documentos({
           {status === "uploading" && (
             <div className="w-full space-y-1.5">
               <div className="flex justify-between text-[10px] font-semibold text-zinc-500">
-                <span>Subiendo...</span>
+                <span>{t("Uploading")}</span>
                 <span>{progress}%</span>
               </div>
               <div className="w-full bg-zinc-200 rounded-full h-1.5 overflow-hidden">
@@ -119,13 +124,13 @@ export default function Step3Documentos({
               <div className="flex items-center gap-2">
                 <span className="bg-emerald-500/10 text-emerald-600 border border-emerald-500/25 px-2.5 py-1 rounded-md text-[10px] font-bold flex items-center gap-1">
                   <Check className="h-3 w-3" />
-                  Cargado
+                  {t("Uploaded")}
                 </span>
                 <button
                   type="button"
                   onClick={() => onRemoveFile(fieldName)}
                   className="p-1.5 text-zinc-500 hover:text-red-500 hover:bg-red-50 rounded-lg transition cursor-pointer"
-                  title="Quitar archivo"
+                  title={t("RemoveFile")}
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -146,14 +151,14 @@ export default function Step3Documentos({
     <div className="bg-white rounded-2xl p-6 md:p-8 shadow-xl border border-zinc-200 text-[#1a1c1a] font-sans">
       <div className="border-b border-zinc-250 pb-4 mb-6">
         <h3 className="text-sm font-bold tracking-widest text-[#052B48] uppercase mb-4">
-          DOCUMENTOS ADJUNTOS
+          {t("MainTitle")}
         </h3>
         <div className="bg-[#f4f6f8] p-5 rounded-xl border border-zinc-200 text-xs leading-relaxed text-zinc-700 space-y-2">
           <p className="font-bold text-[#052B48]">
-            ESTIMADOS CLIENTES
+            {t("NoticeTitle")}
           </p>
           <p>
-            Entendemos la importancia de su privacidad. Por ello, toda la información personal y los documentos que comparta con nosotros serán manejados bajo los más altos estándares de seguridad y confidencialidad. Sus datos se utilizarán exclusivamente para nuestro proceso de debida diligencia. Como Sujeto No Financiero y en estricto cumplimiento de la Ley 23 del 27 de abril de 2015, garantizamos la reserva y custodia legal de su expediente, el cual no será compartido con terceros salvo requerimiento expreso de las autoridades supervisoras.
+            {t("NoticeText")}
           </p>
         </div>
       </div>
@@ -166,13 +171,13 @@ export default function Step3Documentos({
         <div className="space-y-6">
           {renderUploadField(
             "idFile",
-            `Documento de ${formData.tipoIdentificacion} (Solo admite un archivo)`,
+            t("IdFileLabel", { type: typeIdLabel(formData.tipoIdentificacion || "") }),
             "",
             true
           )}
           {renderUploadField(
             "hasCertificacionBancaria",
-            "Certificación bancaria que incluya cifras promedio en la cuenta. (Solo admite un archivo)",
+            t("BankCertLabel"),
             "",
             false
           )}
@@ -183,7 +188,7 @@ export default function Step3Documentos({
         <div className="space-y-6">
           {renderUploadField(
             "hasEstadoCuenta",
-            "Estado de Cuenta Bancario de los últimos 6 meses (Múltiples archivos)",
+            t("BankStatementLabel"),
             "",
             false,
             true
@@ -191,8 +196,8 @@ export default function Step3Documentos({
 
           {renderUploadField(
             "origenFondosFile",
-            "Sustento de Ingresos (Múltiples archivos)",
-            "Adjunte los archivos que sustenteten el origen de sus fondos: Carta de Trabajo,  Ficha de Seguro social, Declaración de Renta más reciente, Comprobante de Pago entre otros.",
+            t("IncomeProofLabel"),
+            t("IncomeProofDescription"),
             false,
             true
           )}

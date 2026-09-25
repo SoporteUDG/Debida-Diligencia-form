@@ -1,73 +1,7 @@
 import { vi, describe, it, expect } from "vitest";
-import { mapCrmRecord, mergeCrmAndDraft, zoho, mapFormToCrmPayload } from "../zohoService";
+import { mergeCrmAndDraft, zoho, mapFormToCrmPayload } from "../zohoService";
 
 describe("ZohoService Unit Tests", () => {
-  describe("mapCrmRecord", () => {
-    it("should map raw Zoho CRM Contact fields to NATURAL client model", () => {
-      const mockContact = {
-        Client_Type: "Natural Person",
-        Project_Interest: "Ocean Reef Phase 2",
-        First_Name: "María",
-        Last_Name: "González",
-        Email: "maria.gonzalez@example.com",
-        Mobile: "50769998888",
-        Identificacion: "PE-123456",
-      };
-
-      const mapped = mapCrmRecord(mockContact, "Contacts");
-
-      expect(mapped).toEqual({
-        type: "NATURAL",
-        nombreProyecto: "Ocean Reef Phase 2",
-        firstName: "María",
-        lastName: "González",
-        email: "maria.gonzalez@example.com",
-        celular: "50769998888",
-        idNumber: "PE-123456",
-        module: "Contacts",
-      });
-    });
-
-    it("should map raw Zoho CRM Lead fields to JURIDICA client model when company fields are detected", () => {
-      const mockLead = {
-        Tipo_Cliente: "Corporativo",
-        Proyecto: "Alta Plaza Business Tower",
-        Company: "Mock Corp S.A.",
-        RUC: "8-888-8888 DV 99",
-        First_Name: "Jorge",
-        Last_Name: "Ramírez",
-        Email: "jorge.ramirez@example.com",
-        Phone: "5073004000",
-        Representante_Legal: "Jorge Ramírez",
-        Cedula_Representante: "8-111-1111",
-      };
-
-      const mapped = mapCrmRecord(mockLead, "Leads");
-
-      expect(mapped).toEqual({
-        type: "JURIDICA",
-        nombreProyecto: "Alta Plaza Business Tower",
-        razonSocial: "Mock Corp S.A.",
-        numeroDocumento: "8-888-8888 DV 99",
-        contactoNombre: "Jorge",
-        contactoApellido: "Ramírez",
-        contactoEmail: "jorge.ramirez@example.com",
-        contactoTelefono: "5073004000",
-        contactoId: "",
-        rlNombre: "Jorge Ramírez",
-        rlNoIdentificacion: "8-111-1111",
-        rlTelefono: "",
-        rlNacionalidad: "",
-        rlFechaNacimiento: "",
-        rlDireccion: "",
-        rlPaisResidencia: "",
-        rlProfesionOcupacion: "",
-        rlActividadEconomica: "",
-        module: "Leads",
-      });
-    });
-  });
-
   describe("mergeCrmAndDraft", () => {
     it("should populate empty draft fields with CRM data", () => {
       const crmData = {
@@ -129,41 +63,117 @@ describe("ZohoService Unit Tests", () => {
   });
 
   describe("mapFormToCrmPayload", () => {
-    it("should map natural form to CRM payload correctly", () => {
+    it("should map natural form to the Debida_Diligencia fields of the guide", () => {
       const naturalForm = {
         nombreProyecto: "Proyecto Marina",
+        formaContacto: "Otros",
+        formaContactoDetalle: "Feria",
         firstName: "Lucas",
         lastName: "Silva",
         email: "lucas@gmail.com",
-        celular: "50761112222",
+        celularCodigo: "+507",
+        celular: "6111-2222",
         idNumber: "8-999-9999",
-        profession: "Ingeniero",
+        fechaNacimiento: "1990-04-05",
+        profession: "Otros",
+        profesionOtros: "Piloto",
+        esPropietario: "Accionista",
+        usaFondos: "Sí",
+        pctDedicacionPrincipal: "80",
+        ingresosMensuales: "1,500.50",
+        medioPago: "Efectivo, Cheque",
+        fuenteFondosInmueble: "Otros",
+        ifOtroNombre: "Herencia",
+        montoServiciosAnuales: "Sí",
+        cantidadServiciosAnuales: "3",
+        adquiereNombreTercero: "No",
+        nombreTercero: "dato viejo",
+        esPep: "No",
+        pepNombre: "dato viejo",
+        idFile: "id.pdf",
+        hasEstadoCuenta: [],
       };
 
       const payload = mapFormToCrmPayload("NATURAL", naturalForm);
-      
+
       expect(payload["Estado"]).toBe("Completado");
       expect(payload["Proyecto"]).toBe("Proyecto Marina");
-      expect(payload["Name"]).toBe("Lucas Silva");
-      expect(payload["Email"]).toBe("lucas@gmail.com");
-      expect(payload["Tel_fono"]).toBe("50761112222");
-      expect(payload["RUC_NIT"]).toBe("8-999-9999");
-      expect(payload["Actividad_Principal"]).toBe("Ingeniero");
+      expect(payload["Forma_de_contacto"]).toBe("Feria");
+      expect(payload["Nombre_natural"]).toBe("Lucas Silva");
+      expect(payload["Email_corporativo"]).toBe("lucas@gmail.com");
+      expect(payload["Celular"]).toBe("+507 6111-2222");
+      expect(payload["Numero_Identificacion"]).toBe("8-999-9999");
+      expect(payload["Fecha_de_nacimiento"]).toBe("1990-04-05");
+      expect(payload["Profesi_n"]).toBe("Piloto");
+      expect(payload["Patrimonio_en_la_empresa"]).toBe(true);
+      expect(payload["Fondos_provienen_de_la_Empresa"]).toBe(true);
+      expect(payload["Porcentaje_Actividad_principal"]).toBe(80);
+      expect(payload["Promedio_mensual"]).toBe(1500.5);
+      expect(payload["Medios_de_Pago"]).toEqual(["Efectivo", "Cheque"]);
+      expect(payload["Fuente_de_Fondos"]).toBe("Herencia");
+      expect(payload["Mas_unidades_inmobiliarias"]).toBe(true);
+      expect(payload["Cantidad_inmuebles"]).toBe(3);
+      expect(payload["A_nombre_de_otro"]).toBe(false);
+      expect(payload).not.toHaveProperty("Nombre_de_Otro");
+      expect(payload["Es_PEP"]).toBe(false);
+      expect(payload).not.toHaveProperty("PEP_nombre");
+      expect(payload["Identificaci_n_Personal"]).toBe(true);
+      expect(payload["Movimientos_Bancarios_6_Meses"]).toBe(false);
+      // Campos que no se envían desde el formulario
+      expect(payload).not.toHaveProperty("Name");
+      expect(payload).not.toHaveProperty("Tipo_de_Persona");
+      expect(payload).not.toHaveProperty("Email");
     });
 
-    it("should map juridical form to CRM payload correctly", () => {
+    it("should map juridical form to the Debida_Diligencia fields of the guide", () => {
       const juridicaForm = {
         nombreProyecto: "Proyecto Pacific",
         razonSocial: "Desarrollo Global S.A.",
         numeroDocumento: "123456-9-2026",
+        tipoCliente: "Persona Jurídica Nacional",
+        estadoSociedad: "Operativa",
+        ifContacto: "Sí",
+        contactoNombre: "Ana",
+        contactoApellido: "Pérez",
+        contactoCargo: "Gerente",
+        empresaTelefonoCodigo: "+507",
+        empresaTelefono: "300-1000",
+        gjcMembers: [
+          { id: "a", nombre: "Luis", apellidos: "Gómez", cargo: "Presidente", nacionalidad: "Panamá", fechaNacimiento: "1980-01-02", nroId: "8-1-1", direccion: "Calle 1" },
+          { id: "vacio", nombre: "", apellidos: "", cargo: "", nacionalidad: "", fechaNacimiento: "", nroId: "", direccion: "" },
+        ],
+        bfMembers: [{ id: "b", nombreCompleto: "Eva", porcentajeParticipacion: "50", fechaAdquisicion: "2021-03-04" }],
+        fuenteFondosInmueble: "Terceros",
+        terceroNombre: "Juan",
+        terceroVinculo: "Socio",
+        personDocuments: [{ personType: "RL", personId: "rl", documentType: "copiaIdFile", fileName: "rl.pdf" }],
+        pactoSocialFile: [""],
+        certBancariaFile: "banco.pdf",
       };
 
       const payload = mapFormToCrmPayload("JURIDICA", juridicaForm);
 
       expect(payload["Estado"]).toBe("Completado");
-      expect(payload["Name"]).toBe("Desarrollo Global S.A.");
       expect(payload["Raz_n_social"]).toBe("Desarrollo Global S.A.");
       expect(payload["RUC_NIT"]).toBe("123456-9-2026");
+      expect(payload["Tipo_de_Cliente"]).toBe("Persona Jurídica Nacional");
+      expect(payload["Estado_sociedad"]).toBe("Operativa");
+      expect(payload["Ocupa_cargo"]).toBe(true);
+      expect(payload["Nombre_contacto"]).toBe("Ana Pérez");
+      expect(payload["Cargo_de_contacto"]).toBe("Gerente");
+      expect(payload["Tel_fono"]).toBe("+507 300-1000");
+      expect(payload["Gobierno_Coporativo_Junta_Directiva"]).toEqual([
+        { Nombre_y_apellido: "Luis Gómez", Cargo: "Presidente", Nacionalidad: "Panamá", Fecha_de_nacimiento: "1980-01-02", No_Identificaci_n: "8-1-1", Direcci_n: "Calle 1" },
+      ]);
+      expect(payload["Beneficiario_Finales"][0]).toMatchObject({ Nombre_completo: "Eva", Participaci_n: 50, Fecha_de_BF: "2021-03-04" });
+      expect(payload["Tercero_Aportante_Nombre"]).toBe("Juan");
+      expect(payload["Tercero_Aportante_Relaci_n"]).toBe("Socio");
+      expect(payload["C_dula_de_Representante_Legal"]).toBe(true);
+      expect(payload["Carta_de_Junta_Directiva"]).toBe(false);
+      expect(payload["Pacto_Social"]).toBe(false);
+      expect(payload["Certificado_Bancario"]).toBe(true);
+      expect(payload).not.toHaveProperty("Name");
+      expect(payload).not.toHaveProperty("Email");
     });
   });
 

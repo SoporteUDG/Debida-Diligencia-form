@@ -230,6 +230,49 @@ describe("TokenService Unit Tests", () => {
       expect(result.type).toBe("ACCESS");
       expect(result.uuid).toBe(shortToken);
     });
+
+    // El formulario decide qué pantalla mostrar según el motivo del rechazo
+    describe("reason codes", () => {
+      const signedToken = () => `${mockUuid}.${signUuid(mockUuid)}`;
+      const dbToken = (overrides: Record<string, unknown>) => ({
+        token: mockUuid,
+        used: false,
+        expiresAt: new Date("2026-08-31T12:00:00.000Z"),
+        crmContactId: mockCrmContactId,
+        type: "ACCESS",
+        expirationNoted: true,
+        ...overrides,
+      });
+
+      it("USED for a consumed or revoked link (signed and short tokens)", async () => {
+        vi.spyOn(prisma.token, "findUnique").mockResolvedValue(dbToken({ used: true }) as any);
+        expect((await verifyToken(signedToken())).reason).toBe("USED");
+        expect((await verifyToken("a1b2c3d4e5f678")).reason).toBe("USED");
+      });
+
+      it("EXPIRED for a link past its expiration date", async () => {
+        vi.spyOn(prisma.token, "findUnique").mockResolvedValue(dbToken({ expiresAt: new Date("2026-07-31T12:00:00.000Z") }) as any);
+        expect((await verifyToken(signedToken())).reason).toBe("EXPIRED");
+      });
+
+      it("NOT_FOUND for a token missing from the database", async () => {
+        vi.spyOn(prisma.token, "findUnique").mockResolvedValue(null);
+        expect((await verifyToken(signedToken())).reason).toBe("NOT_FOUND");
+      });
+
+      it("INVALID for a malformed or tampered token", async () => {
+        expect((await verifyToken(null as any)).reason).toBe("INVALID");
+        expect((await verifyToken("uuid.signature.extra")).reason).toBe("INVALID");
+        expect((await verifyToken(`${mockUuid}.invalid_sig_here_1234`)).reason).toBe("INVALID");
+      });
+
+      it("no reason on success", async () => {
+        vi.spyOn(prisma.token, "findUnique").mockResolvedValue(dbToken({}) as any);
+        const result = await verifyToken(signedToken());
+        expect(result.success).toBe(true);
+        expect(result.reason).toBeUndefined();
+      });
+    });
   });
 
   describe("reactivateToken", () => {
