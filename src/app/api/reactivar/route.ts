@@ -64,6 +64,10 @@ export async function POST(request: NextRequest) {
           orderBy: { createdAt: "desc" },
           take: 1,
         },
+        forms: {
+          orderBy: { createdAt: "desc" },
+          take: 1,
+        }
       },
     });
 
@@ -90,6 +94,24 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
+    
+    // 3. Cambiar CrmSync a pendiente para que la actualizacion se dispare
+    const form = contact.forms[0];
+    if (!form) {
+      return NextResponse.json(
+        { success: false, error: "El contacto no tiene ningún formulario asociado para sincronizar" },
+        { status: 404 }
+      );
+    }
+    await prisma.crmSync.update({
+      where: { formId: form.id },
+      data: {
+        status: "IN_PROGRESS",
+        attempts: { increment: 1 },
+        lastAttempt: new Date(),
+      },
+    });
+
 
     console.log(`[API Reactivar] Token ${latestToken.token} reactivado con éxito hasta: ${extension.newExpiresAt}`);
 
