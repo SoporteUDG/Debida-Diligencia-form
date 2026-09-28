@@ -363,7 +363,7 @@ export const zoho = {
                 idNumber,
                 razonSocial: record.Raz_n_social || record.Razon_Social || "",
                 numeroDocumento: idNumber,
-                contactoNombre: firstName && lastName ? `${firstName} ${lastName}`.trim() : (firstName || "Expediente"),
+                contactoNombre: firstName && lastName ? `${firstName} ${lastName}`.trim() : (firstName || ""),
                 contactoApellido: lastName || "",
                 contactoEmail: email,
                 contactoTelefono: phone,
@@ -1088,6 +1088,47 @@ export const zoho = {
 
         console.log(`[Zoho Service] DD_relacionado de ${ddId} asignado a ${relatedDDId}.`);
         return { success: true };
+      });
+    },
+
+    /**
+     * Registro crudo de Debida_Diligencia tal como lo devuelve Zoho CRM, o null
+     * si no existe o si Zoho está en modo simulado.
+     *
+     * @param ddId ID del registro de Debida_Diligencia (CrmContact.crmId)
+     */
+    getDDRecord: async (ddId: string): Promise<Record<string, any> | null> => {
+      const clientId = process.env.ZOHO_CLIENT_ID;
+      const clientSecret = process.env.ZOHO_CLIENT_SECRET;
+      const refreshToken = process.env.ZOHO_REFRESH_TOKEN;
+
+      const isPlaceholder =
+        !clientId ||
+        clientId === "placeholder_client_id" ||
+        !clientSecret ||
+        clientSecret === "placeholder_client_secret" ||
+        !refreshToken ||
+        refreshToken === "placeholder_refresh_token";
+
+      if (isPlaceholder || ddId.startsWith("mock-") || ddId === "simulated-crm-contact-id") {
+        console.log(`[Zoho Service] Simulación: no se lee el registro ${ddId} de Zoho CRM.`);
+        return null;
+      }
+
+      return executeWithRetry(async (accessToken) => {
+        const crmBaseUrl = process.env.ZOHO_CRM_BASE_URL || "https://www.zohoapis.com/crm/v2";
+
+        const response = await fetch(`${crmBaseUrl}/Debida_Diligencia/${ddId}`, {
+          method: "GET",
+          headers: { Authorization: `Zoho-oauthtoken ${accessToken}` },
+        });
+        if (response.status === 204) return null;
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Zoho CRM Debida_Diligencia/${ddId} respondió HTTP ${response.status}: ${errorText}`);
+        }
+
+        return (await response.json()).data?.[0] ?? null;
       });
     },
 

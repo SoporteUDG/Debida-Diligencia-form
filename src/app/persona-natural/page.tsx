@@ -805,8 +805,8 @@ export default function PersonaNaturalPage() {
       {conflictoBorrador && (
         <div className="sticky top-20 md:top-24 z-40 bg-amber-500/15 border-y border-amber-400/40 backdrop-blur-md animate-fadeIn">
           <div className="max-w-5xl mx-auto px-6 py-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div className="text-xs leading-relaxed text-amber-100">
-              <p className="font-bold text-amber-200 uppercase tracking-wider text-[11px] mb-1">
+            <div className="text-xs leading-relaxed text-gray-700">
+              <p className="font-bold text-gray-800 uppercase tracking-wider text-[11px] mb-1">
                 {tp("ConflictTitle")}
               </p>
               <p>
@@ -821,7 +821,7 @@ export default function PersonaNaturalPage() {
               <button
                 type="button"
                 onClick={usarVersionDelServidor}
-                className="rounded-lg border border-amber-300/50 px-3 py-2 text-[11px] font-semibold text-amber-100 transition hover:bg-amber-400/10 cursor-pointer"
+                className="rounded-lg border border-amber-300/50 px-3 py-2 text-[11px] font-semibold text-gray-700 transition hover:bg-amber-400/10 cursor-pointer"
               >
                 {tp("ConflictUseServer")}
               </button>

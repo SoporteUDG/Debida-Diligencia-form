@@ -111,7 +111,7 @@ async function prepararExpedienteRelacionado(params: {
         crmId: relatedCrmId,
         firstName: "Representante Legal",
         lastName: clientName,
-        email: `cliente_${relatedCrmId}@udg.com`,
+        email: `cliente@udg.com`,
       },
     });
   }
@@ -217,7 +217,7 @@ export async function POST(request: NextRequest) {
     const clientName = (firstName && lastName) ? `${firstName} ${lastName}`.trim() : (crmData.razonSocial || firstName || "Cliente UDG");
     const projectName = crmData.nombreProyecto || crmData.projectName;
     const rawEmail = crmData.email || crmData.contactoEmail || "";
-    const email = rawEmail.trim() ? rawEmail.trim() : `cliente_${recordId}@udg.com`;
+    const email = rawEmail.trim() ? rawEmail.trim() : `cliente@udg.com`;
 
     if (!contact) {
       contact = await prisma.crmContact.create({
@@ -261,7 +261,7 @@ export async function POST(request: NextRequest) {
         nombreProyecto: projectName,
         ...(isNatural
           ? { firstName: crmData.firstName || "", lastName: crmData.lastName || "", email }
-          : { razonSocial: clientName, contactoEmail: email }),
+          : { razonSocial: clientName }),
       },
     });
 

@@ -146,14 +146,14 @@ export default function AdminLoginPage() {
             )}
           </button>
         </form>
-
-        {/* Developer credentials reminder in card footer */}
+        
+        {/* Developer credentials reminder in card footer 
         <div className="text-center">
           <p className="text-[9px] text-zinc-500 tracking-wider">
             Para pruebas locales use: <strong className="text-zinc-400">admin@udg.com</strong> / <strong className="text-zinc-400">admin123</strong>
           </p>
         </div>
-
+        */} 
       </div>
     </div>
   );

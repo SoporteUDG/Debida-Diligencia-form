@@ -9,9 +9,10 @@ import {
   deleteFileFromWorkDrive,
 } from "@/lib/workdriveService";
 import path from "path";
+import crypto from "crypto";
 import { logAuditEvent } from "@/lib/auditService";
 import { getAccessToken, executeWithRetry } from "@/lib/zohoAuthService";
-import { buildDocumentFileName, isMultiFileField, normalizeMultiFileValue } from "@/lib/documentFields";
+import { buildDocumentFileName, isMultiFileField, nextDocumentFileIndex, normalizeMultiFileValue } from "@/lib/documentFields";
 
 type UploadStage =
   | "INPUT_VALIDATION"
@@ -188,9 +189,39 @@ export const documentsRouter = router({
               resolvePersonName(draft?.data, input.personType, input.personId)
             : undefined;
 
+          // Titular del documento: la persona (RL, GJC, BF) o el cliente
+          const datosBorrador = (draft?.data as any) || {};
+          const clientName =
+            formType === "JURIDICA"
+              ? String(datosBorrador.razonSocial || "").trim()
+              : `${datosBorrador.firstName || ""} ${datosBorrador.lastName || ""}`.trim();
+          const ownerName =
+            personName ||
+            clientName ||
+            `${contact.firstName} ${contact.lastName}`.trim();
+
+          // Número del archivo dentro de la ranura (misma persona, si aplica)
+          const existentes = validDraftId
+            ? await ctx.prisma.document.findMany({
+                where: {
+                  draftId: validDraftId,
+                  documentType: input.documentType,
+                  personType: input.personType ?? null,
+                  personId: input.personId ?? null,
+                },
+                select: { name: true },
+              })
+            : [];
+
           // Rename convention:
-          //   {NombreLegible}_{TIMESTAMP}.{EXT}  |  RL/GJC/BF: {NombreLegible}_{NombrePersona}_{TIMESTAMP}.{EXT}
-          const finalFileName = buildDocumentFileName(input.documentType, Date.now(), ext, personName);
+          //   {NombreLegible}_{Titular}_file_{N}_{sufijo}.{EXT}
+          const finalFileName = buildDocumentFileName({
+            documentType: input.documentType,
+            ext,
+            ownerName,
+            index: nextDocumentFileIndex(existentes.map((d) => d.name)),
+            suffix: crypto.randomBytes(2).toString("hex"),
+          });
 
           // Stage 5-7: Zoho WorkDrive Integration sequence wrapped with retry and fallback logic
           let zohoFileId = "PENDING_SYNC";

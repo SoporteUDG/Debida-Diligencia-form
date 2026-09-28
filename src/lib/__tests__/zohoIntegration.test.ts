@@ -529,7 +529,7 @@ describe("Zoho CRM & WorkDrive Integration Mocks", () => {
       expect(result.nombreProyecto).toBe("Ocean Reef Phase 2");
       expect(result.razonSocial).toBe("");
       // Name ("Socio-unidad-proyecto") no se usa para precargar nombres
-      expect(result.contactoNombre).toBe("Expediente");
+      expect(result.contactoNombre).toBe("");
       expect(result.firstName).toBe("Cliente");
       expect(result.module).toBe("Debida_Diligencia");
       expect(spyFetch).toHaveBeenCalled();

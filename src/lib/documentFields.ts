@@ -65,19 +65,39 @@ function toFileNamePart(value: string): string {
 }
 
 /**
- * Nombre del archivo de un documento subido:
- *   - General:            NombreLegible_{timestamp}.{ext}
- *   - Por persona (RL, GJC, BF): NombreLegible_NombrePersona_{timestamp}.{ext}
+ * Siguiente número de archivo de una ranura: el mayor "file_N" entre los
+ * nombres existentes + 1. Un hueco por archivos eliminados no se reutiliza.
  */
-export function buildDocumentFileName(
-  documentType: string,
-  timestamp: number,
-  ext: string,
-  personName?: string
-): string {
-  const partes = [toFileNamePart(getDocumentLabel(documentType))];
-  const persona = personName ? toFileNamePart(personName) : "";
-  if (persona) partes.push(persona);
-  partes.push(String(timestamp));
-  return `${partes.join("_")}.${ext}`;
+export function nextDocumentFileIndex(existingNames: string[]): number {
+  let max = 0;
+  for (const name of existingNames) {
+    const match = /_file_(\d+)_[0-9a-f]+\.[^.]+$/i.exec(name);
+    if (match) max = Math.max(max, Number(match[1]));
+  }
+  return max + 1;
+}
+
+/**
+ * Nombre del archivo de un documento subido:
+ *   NombreLegible_{Titular}_file_{N}_{sufijo}.{ext}
+ *
+ * - Titular: el cliente (razón social o nombre completo) o, en documentos por
+ *   persona (RL, GJC, BF), el nombre de esa persona.
+ * - N: número del archivo dentro de la ranura (legible, no garantiza unicidad).
+ * - sufijo: hexadecimal aleatorio. Es lo que hace único el nombre: WorkDrive
+ *   sobrescribe archivos con el mismo nombre en la misma carpeta, y el borrador,
+ *   el borrado y la lista de archivos identifican los multi-archivo por nombre.
+ */
+export function buildDocumentFileName(params: {
+  documentType: string;
+  ext: string;
+  ownerName?: string;
+  index: number;
+  suffix: string;
+}): string {
+  const partes = [toFileNamePart(getDocumentLabel(params.documentType))];
+  const titular = params.ownerName ? toFileNamePart(params.ownerName) : "";
+  if (titular) partes.push(titular);
+  partes.push(`file_${params.index}`, params.suffix);
+  return `${partes.join("_")}.${params.ext}`;
 }

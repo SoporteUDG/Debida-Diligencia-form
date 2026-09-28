@@ -197,7 +197,7 @@ export async function generateServerPDF(
         y = drawFieldRow(doc, y, "Fecha Constitución", data.fechaConstitucion || "-", "País de Inscripción", data.paisInscripcion || "-");
         y = drawFieldRow(doc, y, "País donde Opera", data.paisOpera || "-", "Tipo de Sociedad", data.tipoSociedad || "-");
         y = drawFieldRow(doc, y, "Estado de la Sociedad", data.estadoSociedad || "-", "Tipo de Cliente", data.tipoCliente || "-");
-        y = drawFieldRow(doc, y, "Actividad Principal", `${data.actividadPrincipal || "-"} (${data.porcentajeActividad || "100"}%)`, "País Tributación", data.paisTributacion || "-");
+        y = drawFieldRow(doc, y, "Actividad Principal", `${data.actividadPrincipal || "-"}`, "País Tributación", data.paisTributacion || "-");
         y = drawFieldRow(doc, y, "NIF / ID Tributaria", data.numeroIdTributaria || "-", "Correo Empresa", data.empresaEmail || "-");
         y = drawFieldRow(doc, y, "Teléfono Oficina", telefono(data.empresaTelefonoCodigo, data.empresaTelefono), "Celular Contacto", telefono(data.empresaCelularCodigo, data.empresaCelular));
         y = drawField(doc, y, "Dirección Oficina", direccion(data.empresaDireccion, data.empresaCiudad, data.empresaProvincia, data.empresaPais));

@@ -400,3 +400,14 @@ model AuditLog {
   @@index([userId])
   @@index([entityName, entityId])
 }
+
+// Última copia conocida de los campos mapeados de un expediente en Zoho CRM.
+// El webhook de cambios compara contra ella para saber qué campos se
+// modificaron realmente en Zoho (el workflow solo avisa que hubo un cambio).
+model ZohoRecordSnapshot {
+  id        String   @id @default(uuid())
+  crmId     String   @unique
+  data      Json // { Campo_API: valor normalizado }
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
