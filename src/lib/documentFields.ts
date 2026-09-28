@@ -79,25 +79,36 @@ export function nextDocumentFileIndex(existingNames: string[]): number {
 
 /**
  * Nombre del archivo de un documento subido:
- *   NombreLegible_{Titular}_file_{N}_{sufijo}.{ext}
+ *   - Un archivo:    NombreLegible_{Titular}.{ext}
+ *   - Multi-archivo: NombreLegible_{Titular}_file_{N}_{sufijo}.{ext}
+ *   - Por persona:   NombreLegible_{Persona}_{Tipo}-{N}.{ext}   (p. ej. BF-2)
  *
  * - Titular: el cliente (razón social o nombre completo) o, en documentos por
  *   persona (RL, GJC, BF), el nombre de esa persona.
- * - N: número del archivo dentro de la ranura (legible, no garantiza unicidad).
- * - sufijo: hexadecimal aleatorio. Es lo que hace único el nombre: WorkDrive
- *   sobrescribe archivos con el mismo nombre en la misma carpeta, y el borrador,
- *   el borrado y la lista de archivos identifican los multi-archivo por nombre.
+ * - Tipo-N (solo por persona): tipo de persona y su posición en la lista del
+ *   formulario. Todos los documentos por persona comparten carpeta; el número
+ *   distingue a personas con el mismo nombre y es estable para cada persona,
+ *   así que volver a subir su documento reemplaza el anterior.
+ * - N (solo multi-archivo): número del archivo dentro de la ranura (legible,
+ *   no garantiza unicidad).
+ * - sufijo (solo multi-archivo): hexadecimal aleatorio. Es lo que hace único
+ *   el nombre: WorkDrive sobrescribe archivos con el mismo nombre en la misma
+ *   carpeta, y el borrador, el borrado y la lista de archivos identifican los
+ *   multi-archivo por nombre.
  */
 export function buildDocumentFileName(params: {
   documentType: string;
   ext: string;
   ownerName?: string;
-  index: number;
-  suffix: string;
+  person?: { type: string; index: number };
+  index?: number;
+  suffix?: string;
 }): string {
   const partes = [toFileNamePart(getDocumentLabel(params.documentType))];
   const titular = params.ownerName ? toFileNamePart(params.ownerName) : "";
   if (titular) partes.push(titular);
-  partes.push(`file_${params.index}`, params.suffix);
+  if (params.person) partes.push(`${params.person.type}-${params.person.index}`);
+  if (params.index) partes.push(`file_${params.index}`);
+  if (params.suffix) partes.push(params.suffix);
   return `${partes.join("_")}.${params.ext}`;
 }

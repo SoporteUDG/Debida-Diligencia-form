@@ -90,6 +90,24 @@ function resolvePersonName(
     : String(miembro.nombreCompleto || "").trim();
 }
 
+/**
+ * Posición (desde 1) de la persona en su lista del formulario: el RL es único
+ * (1); GJC y BF según el orden de gjcMembers / bfMembers. Si la persona aún no
+ * está en el borrador (se agregó y el autoguardado no ha corrido) se toma la
+ * siguiente posición, que es donde queda una fila recién agregada.
+ */
+function resolvePersonIndex(
+  draftData: any,
+  personType: "GJC" | "BF" | "RL",
+  personId?: string
+): number {
+  if (personType === "RL") return 1;
+  const lista = personType === "GJC" ? draftData?.gjcMembers : draftData?.bfMembers;
+  if (!Array.isArray(lista)) return 1;
+  const posicion = lista.findIndex((m: any) => m?.id === personId);
+  return posicion >= 0 ? posicion + 1 : lista.length + 1;
+}
+
 export const documentsRouter = router({
   uploadDocument: tokenProcedure
     .input(
@@ -200,8 +218,12 @@ export const documentsRouter = router({
             clientName ||
             `${contact.firstName} ${contact.lastName}`.trim();
 
+          // Solo los campos multi-archivo llevan número y sufijo: varios archivos
+          // comparten ranura y deben tener nombres distintos.
+          const esMultiple = isMultiFileField(input.documentType);
+
           // Número del archivo dentro de la ranura (misma persona, si aplica)
-          const existentes = validDraftId
+          const existentes = esMultiple && validDraftId
             ? await ctx.prisma.document.findMany({
                 where: {
                   draftId: validDraftId,
@@ -214,13 +236,18 @@ export const documentsRouter = router({
             : [];
 
           // Rename convention:
-          //   {NombreLegible}_{Titular}_file_{N}_{sufijo}.{EXT}
+          //   Un archivo:    {NombreLegible}_{Titular}.{EXT}
+          //   Multi-archivo: {NombreLegible}_{Titular}_file_{N}_{sufijo}.{EXT}
+          //   Por persona:   {NombreLegible}_{Persona}_{RL|GJC|BF}-{N}.{EXT}
           const finalFileName = buildDocumentFileName({
             documentType: input.documentType,
             ext,
             ownerName,
-            index: nextDocumentFileIndex(existentes.map((d) => d.name)),
-            suffix: crypto.randomBytes(2).toString("hex"),
+            person: input.personType
+              ? { type: input.personType, index: resolvePersonIndex(draft?.data, input.personType, input.personId) }
+              : undefined,
+            index: esMultiple ? nextDocumentFileIndex(existentes.map((d) => d.name)) : undefined,
+            suffix: esMultiple ? crypto.randomBytes(2).toString("hex") : undefined,
           });
 
           // Stage 5-7: Zoho WorkDrive Integration sequence wrapped with retry and fallback logic
@@ -489,6 +516,92 @@ export const documentsRouter = router({
       }
     }),
     
+  /**
+   * Elimina todos los documentos de una persona (GJC, BF) al quitarla del
+   * formulario: archivos en WorkDrive, registros Document y sus entradas en
+   * personDocuments del borrador.
+   */
+  deletePersonDocuments: tokenProcedure
+    .input(
+      z.object({
+        personType: z.enum(["GJC", "BF"]),
+        personId: z.string().min(1, "personId requerido"),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      try {
+        const draft = await ctx.prisma.draft.findUnique({
+          where: { token: ctx.client!.tokenUuid as string },
+        });
+        if (!draft) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Borrador no encontrado" });
+        }
+
+        const documents = await ctx.prisma.document.findMany({
+          where: {
+            draftId: draft.id,
+            personType: input.personType,
+            personId: input.personId,
+            deletedAt: null,
+          },
+        });
+
+        if (documents.length > 0) {
+          const accessToken = await getAccessToken();
+          for (const doc of documents) {
+            if (doc.zohoFileId && doc.zohoFileId !== "PENDING_SYNC") {
+              try {
+                await deleteFileFromWorkDrive(doc.zohoFileId, accessToken);
+              } catch (err) {
+                console.error(`[tRPC DeletePerson] Falló al eliminar archivo ${doc.zohoFileId} en WorkDrive:`, err);
+              }
+            }
+            await ctx.prisma.document.delete({ where: { id: doc.id } });
+            await logAuditEvent({
+              action: "DOCUMENT_DELETE",
+              entityName: "Document",
+              entityId: doc.id,
+              ipAddress: ctx.ip,
+              userAgent: ctx.userAgent,
+              details: {
+                fileName: doc.name,
+                fieldName: doc.documentType,
+                personType: input.personType,
+                personId: input.personId,
+                reason: "Persona eliminada del formulario",
+              },
+            });
+          }
+        }
+
+        // Quita las entradas de la persona en personDocuments del borrador
+        const draftData = { ...((draft.data as any) || {}) };
+        let draftUpdatedAt: string | null = null;
+        if (Array.isArray(draftData.personDocuments)) {
+          const restantes = draftData.personDocuments.filter(
+            (d: any) => !(d?.personType === input.personType && d?.personId === input.personId)
+          );
+          if (restantes.length !== draftData.personDocuments.length) {
+            const updated = await ctx.prisma.draft.update({
+              where: { id: draft.id },
+              data: { data: { ...draftData, personDocuments: restantes } },
+            });
+            draftUpdatedAt = updated.updatedAt.toISOString();
+          }
+        }
+
+        return { success: true, deleted: documents.length, draftUpdatedAt };
+      } catch (error: any) {
+        if (error instanceof TRPCError) throw error;
+        console.error("[tRPC DeletePerson] Falló al eliminar documentos de la persona:", error);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: `Error al eliminar documentos de la persona: ${error.message || error}`,
+          cause: error,
+        });
+      }
+    }),
+
   getDraftDocuments: tokenProcedure
     .input(
       z.object({

@@ -39,6 +39,7 @@ import {
 
 import { useAutosave } from "@/hooks/useAutosave";
 import { MULTI_FILE_FIELDS_JURIDICA, normalizeMultiFileValue } from "@/lib/documentFields";
+import { PHONE_INPUT_FIELDS, sanitizePhoneInput } from "@/lib/phoneInput";
 
 const getStepForField = (field: string): number => {
   const step1Fields = [
@@ -256,7 +257,9 @@ export default function PersonaJuridicaPage() {
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const { name, value, type } = e.target;
+    const { name, type } = e.target;
+    // Los teléfonos no admiten letras (tampoco al pegar)
+    const value = PHONE_INPUT_FIELDS.has(name) ? sanitizePhoneInput(e.target.value) : e.target.value;
     const checked = type === "checkbox" ? (e.target as HTMLInputElement).checked : undefined;
     
     setFormData(prev => {
@@ -320,7 +323,57 @@ export default function PersonaJuridicaPage() {
     triggerSaveIndicator();
   };
 
-  const handleRemoveGjcMember = (id: string) => {
+  /**
+   * Borra en el servidor los documentos de una persona (GJC/BF) antes de
+   * quitarla del formulario. Si tiene documentos pide confirmación. Devuelve
+   * false si el usuario cancela o si el borrado falla: la persona se conserva
+   * para no dejar archivos huérfanos.
+   */
+  const eliminarDocumentosDePersona = async (personType: "GJC" | "BF", personId: string): Promise<boolean> => {
+    const tieneDocumentos = (formData.personDocuments || []).some(
+      d => d.personType === personType && d.personId === personId
+    );
+    if (!tieneDocumentos) return true;
+    if (!confirm(tp("ConfirmRemovePersonWithDocuments"))) return false;
+
+    try {
+      const response = await fetch("/api/trpc/documents.deletePersonDocuments", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${draftToken}`,
+          [FORM_TYPE_HEADER]: "JURIDICA",
+        },
+        body: JSON.stringify({ personType, personId }),
+      });
+      const resJson = await response.json();
+      if (!response.ok) {
+        throw new Error(resJson.error?.message || tp("RemovePersonDocumentsFailed"));
+      }
+
+      // El borrado modifica el borrador en el servidor: se sincroniza la marca
+      // de tiempo para que el siguiente autoguardado no dé conflicto.
+      const deleteData = resJson.result?.data;
+      if (deleteData?.draftUpdatedAt && lastSavedAtRef) {
+        lastSavedAtRef.current = deleteData.draftUpdatedAt;
+      }
+
+      setFormData(prev => ({
+        ...prev,
+        personDocuments: (prev.personDocuments || []).filter(
+          d => !(d.personType === personType && d.personId === personId)
+        ),
+      }));
+      return true;
+    } catch (error: any) {
+      console.error("[Juridica Page] Error deleting person documents:", error);
+      alert(error.message || tp("RemovePersonDocumentsFailed"));
+      return false;
+    }
+  };
+
+  const handleRemoveGjcMember = async (id: string) => {
+    if (!(await eliminarDocumentosDePersona("GJC", id))) return;
     setFormData(prev => ({
       ...prev,
       gjcMembers: (prev.gjcMembers || []).filter(m => m.id !== id)
@@ -373,7 +426,8 @@ export default function PersonaJuridicaPage() {
     triggerSaveIndicator();
   };
 
-  const handleRemoveBfMember = (id: string) => {
+  const handleRemoveBfMember = async (id: string) => {
+    if (!(await eliminarDocumentosDePersona("BF", id))) return;
     setFormData(prev => ({
       ...prev,
       bfMembers: (prev.bfMembers || []).filter(m => m.id !== id)

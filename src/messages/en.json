@@ -755,6 +755,8 @@
       "ConfirmDeleteDocument": "Are you sure you want to delete this uploaded document?",
       "DeleteError": "Error deleting the file.",
       "DeleteFailed": "Failed to delete the file.",
+      "ConfirmRemovePersonWithDocuments": "This person has uploaded documents. Removing them will also delete their documents. Do you want to continue?",
+      "RemovePersonDocumentsFailed": "Could not delete this person's documents. Please try again.",
       "ConfirmClearDraft": "Are you sure you want to clear all fields in the draft?",
       "OptionalFields": {
         "formaContacto": "Method of Contact",

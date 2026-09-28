@@ -34,6 +34,7 @@ import {
 } from "@/lib/validation";
 
 import { useAutosave } from "@/hooks/useAutosave";
+import { PHONE_INPUT_FIELDS, sanitizePhoneInput } from "@/lib/phoneInput";
 
 const getStepForField = (field: string): number => {
   const step1Fields = [
@@ -245,7 +246,9 @@ export default function PersonaNaturalPage() {
   }, [draftToken, isMounted]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const { name, value, type } = e.target;
+    const { name, type } = e.target;
+    // Los teléfonos no admiten letras (tampoco al pegar)
+    const value = PHONE_INPUT_FIELDS.has(name) ? sanitizePhoneInput(e.target.value) : e.target.value;
     const checked = type === "checkbox" ? (e.target as HTMLInputElement).checked : undefined;
 
     setFormData(prev => {
@@ -909,7 +912,6 @@ export default function PersonaNaturalPage() {
                   uploadProgress={uploadProgress}
                   onFileUpload={handleFileUpload}
                   onRemoveFile={handleRemoveFile}
-                  onInputChange={handleInputChange}
                   errors={shownErrors}
                 />
               )}

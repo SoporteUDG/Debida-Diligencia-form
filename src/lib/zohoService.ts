@@ -405,6 +405,10 @@ export const zoho = {
       }
 
       const payload = mapFormToCrmPayload(clientType, formData);
+      const apiPayload = {
+          ...payload,           // mapped payload
+          Is_API_Update: true   // to avoid triggering the workflows
+      };
 
       return executeWithRetry(async (accessToken) => {
         const crmBaseUrl = process.env.ZOHO_CRM_BASE_URL || "https://www.zohoapis.com/crm/v2";
@@ -419,7 +423,7 @@ export const zoho = {
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              data: [payload],
+              data: [apiPayload],
             }),
           });
 

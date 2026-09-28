@@ -58,9 +58,26 @@ describe("documentFields", () => {
           suffix: "a3f9",
         })
       ).toBe("Origen_de_Fondos_Inversiones_ABC_S_A_file_2_a3f9.pdf");
+    });
+
+    it("documentos por persona llevan Tipo-N en lugar de file_N", () => {
       expect(
-        buildDocumentFileName({ documentType: "idFile", ext: "jpg", ownerName: "José Pérez", index: 1, suffix: "7c01" })
-      ).toBe("Copia_del_Documento_de_Identidad_Jose_Perez_file_1_7c01.jpg");
+        buildDocumentFileName({
+          documentType: "copiaIdFile",
+          ext: "pdf",
+          ownerName: "Ana Ruiz",
+          person: { type: "BF", index: 2 },
+        })
+      ).toBe("Copia_del_Documento_de_Identidad_Ana_Ruiz_BF-2.pdf");
+      expect(
+        buildDocumentFileName({ documentType: "copiaIdFile", ext: "jpg", ownerName: "Carlos Gómez", person: { type: "RL", index: 1 } })
+      ).toBe("Copia_del_Documento_de_Identidad_Carlos_Gomez_RL-1.jpg");
+    });
+
+    it("sin número ni sufijo (campos de un solo archivo) queda Etiqueta_Titular", () => {
+      expect(buildDocumentFileName({ documentType: "idFile", ext: "jpg", ownerName: "José Pérez" })).toBe(
+        "Copia_del_Documento_de_Identidad_Jose_Perez.jpg"
+      );
     });
 
     it("omite el titular si está vacío", () => {

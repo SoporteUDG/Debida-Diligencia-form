@@ -13,7 +13,6 @@ interface Step3Props {
   onFileUpload: (fieldName: keyof FormState, file: File) => void;
   // fileName is passed for multi-file fields to remove one specific entry
   onRemoveFile: (fieldName: keyof FormState, fileName?: string) => void;
-  onInputChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
   errors: Record<string, string>;
 }
 
@@ -23,7 +22,6 @@ export default function Step3Documentos({
   uploadProgress,
   onFileUpload,
   onRemoveFile,
-  onInputChange,
   errors = {},
 }: Step3Props) {
   const t = useTranslations("NaturalForm.DocumentsStep.Titles");
@@ -179,7 +177,7 @@ export default function Step3Documentos({
             "hasCertificacionBancaria",
             t("BankCertLabel"),
             "",
-            false
+            true
           )}
 
         </div>
@@ -190,7 +188,7 @@ export default function Step3Documentos({
             "hasEstadoCuenta",
             t("BankStatementLabel"),
             "",
-            false,
+            true,
             true
           )}
 
@@ -198,7 +196,7 @@ export default function Step3Documentos({
             "origenFondosFile",
             t("IncomeProofLabel"),
             t("IncomeProofDescription"),
-            false,
+            true,
             true
           )}
         </div>

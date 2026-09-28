@@ -30,14 +30,14 @@ export const staticDocumentFields = [
       field: "avisoOperacionesFile" as keyof FormState,
       checkboxField: "checkedAvisoOperaciones" as keyof FormState,
       title: "Certificado de Aviso de Operaciones o Equivalente",
-      required: false,
+      required: true,
     },
     {
       field: "origenFondosFile" as keyof FormState,
       checkboxField: "checkedOrigenFondos" as keyof FormState,
       title: "Origen de Fondos (declaración de renta, estados financieros, etc.)",
       Subtitle: "(Multiples archivos)",
-      required: false,
+      required: true,
       multiple: true
     },
     {
@@ -45,7 +45,7 @@ export const staticDocumentFields = [
       checkboxField: "checkedPactoSocial" as keyof FormState,
       title: "Pacto Social y sus Adendas",
       Subtitle: "(Multiples archivos)",
-      required: false,
+      required: true,
       multiple: true
     },
     {
@@ -53,14 +53,14 @@ export const staticDocumentFields = [
       checkboxField: "checkedCertBancaria" as keyof FormState,
       title: "Certificación bancaria que incluya las cifras promedio de la cuenta",
       Subtitle: "(Un solo archivo)",
-      required: false,
+      required: true,
     },
     {
       field: "certRegistroFile" as keyof FormState,
       checkboxField: "checkedCertRegistro" as keyof FormState,
       title: "Certificado de Registro Público",
       Subtitle: "(Un solo archivo)",
-      required: false,
+      required: true,
     },
     
     {
@@ -68,7 +68,7 @@ export const staticDocumentFields = [
       checkboxField: "checkedCertRegistro" as keyof FormState,
       title: "Compras de beneficiarios con fondos corporativos",
       Subtitle: "Se requiere presentar una carta original firmada por el Presidente y el Tesorero de la sociedad, en la cual se autorice a la persona a realizar la transacción con los fondos de la empresa.",
-      required: false,
+      required: true,
     },
   ];
 export function buildIdDocumentTargets(formData: FormState): {

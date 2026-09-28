@@ -756,6 +756,8 @@
       "ConfirmDeleteDocument": "¿Estás seguro de que deseas eliminar este documento cargado?",
       "DeleteError": "Error al eliminar el archivo.",
       "DeleteFailed": "Fallo al eliminar el archivo.",
+      "ConfirmRemovePersonWithDocuments": "Esta persona tiene documentos cargados. Al eliminarla también se eliminarán sus documentos. ¿Deseas continuar?",
+      "RemovePersonDocumentsFailed": "No se pudieron eliminar los documentos de la persona. Inténtalo de nuevo.",
       "ConfirmClearDraft": "¿Estás seguro de que deseas vaciar todos los campos del borrador?",
       "OptionalFields": {
         "formaContacto": "Forma de Contacto",
