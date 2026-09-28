@@ -12,6 +12,9 @@ import { optionLabeler } from "@/i18n/optionLabel";
 
 type Tree = { [key: string]: string | Tree };
 
+/** Opciones del formulario que viven fuera de los componentes. */
+const FORM_FILES = ["src/lib/naturalOptions.ts"];
+
 const FORM_DIRS = [
   "src/components/persona-natural",
   "src/components/persona-juridica",
@@ -27,7 +30,9 @@ function readSources(): string {
       .readdirSync(path.join(root, dir))
       .filter((f) => f.endsWith(".tsx") || f.endsWith(".ts"))
       .map((f) => fs.readFileSync(path.join(root, dir, f), "utf8"))
-  ).join("\n");
+  )
+    .concat(FORM_FILES.map((f) => fs.readFileSync(path.join(root, f), "utf8")))
+    .join("\n");
 }
 
 /** Hojas del árbol de mensajes como [ruta, valor]. */

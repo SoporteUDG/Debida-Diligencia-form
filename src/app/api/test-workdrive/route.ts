@@ -6,24 +6,31 @@ export const dynamic = "force-dynamic";
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const year = searchParams.get("year") || "2026";
-    const month = searchParams.get("month") || "07";
-    const nameId = searchParams.get("apellidoNombreId") || "Perez_Juan_12345678";
+    const ddId = searchParams.get("ddId");
     const type = searchParams.get("type") || "natural";
 
-    // Define subfolders based on document types
+    if (!ddId) {
+      return NextResponse.json(
+        { success: false, error: "Indique el ID del expediente de Debida Diligencia en Zoho CRM (?ddId=...)." },
+        { status: 400 }
+      );
+    }
+
+    const formType = type === "juridica" ? "JURIDICA" : "NATURAL";
+
+    // Subcarpetas según las ranuras documentales de cada formulario
     const documentTypes =
       type === "juridica"
         ? [
-            "Copia ID Dignatarios",
-            "Aviso de Operaciones",
-            "Origen de Fondos",
-            "Factura Servicios Públicos",
-            "Pacto Social",
-            "Certificación Bancaria",
-            "Certificado Registro Público",
+            "copiaIdFile",
+            "avisoOperacionesFile",
+            "origenFondosFile",
+            "pactoSocialFile",
+            "certBancariaFile",
+            "certRegistroFile",
+            "certComprasFile",
           ]
-        : ["Copia ID", "Prueba de Domicilio", "Origen de Fondos", "Otros Adjuntos"];
+        : ["idFile", "hasCertificacionBancaria", "hasEstadoCuenta", "origenFondosFile"];
 
     // Basic credentials validation check to return user-friendly tip
     const isConfigured =
@@ -32,21 +39,18 @@ export async function GET(request: NextRequest) {
       process.env.ZOHO_CLIENT_SECRET &&
       process.env.ZOHO_CLIENT_SECRET !== "placeholder_client_secret" &&
       process.env.ZOHO_REFRESH_TOKEN &&
-      process.env.ZOHO_REFRESH_TOKEN !== "placeholder_refresh_token" &&
-      process.env.ZOHO_WORKDRIVE_ROOT_FOLDER_ID &&
-      process.env.ZOHO_WORKDRIVE_ROOT_FOLDER_ID !== "placeholder_root_folder_id";
+      process.env.ZOHO_REFRESH_TOKEN !== "placeholder_refresh_token";
 
     if (!isConfigured) {
       return NextResponse.json(
         {
           success: false,
           error: "Las credenciales de Zoho WorkDrive no están completamente configuradas.",
-          info: "Por favor reemplace los valores marcados como 'placeholder' en su archivo .env con credenciales reales de la consola de desarrolladores de Zoho y el ID de carpeta de WorkDrive.",
+          info: "Por favor reemplace los valores marcados como 'placeholder' en su archivo .env con credenciales reales de la consola de desarrolladores de Zoho.",
           currentConfig: {
             ZOHO_CLIENT_ID: process.env.ZOHO_CLIENT_ID,
             ZOHO_CLIENT_SECRET: process.env.ZOHO_CLIENT_SECRET ? "[DEFINIDO]" : "[VACIO]",
             ZOHO_REFRESH_TOKEN: process.env.ZOHO_REFRESH_TOKEN ? "[DEFINIDO]" : "[VACIO]",
-            ZOHO_WORKDRIVE_ROOT_FOLDER_ID: process.env.ZOHO_WORKDRIVE_ROOT_FOLDER_ID,
           },
         },
         { status: 400 }
@@ -54,18 +58,16 @@ export async function GET(request: NextRequest) {
     }
 
     console.log(
-      `[Test API] Ejecutando sincronización de prueba para tipo "${type}" en /DD/${year}/${month}/${nameId}...`
+      `[Test API] Ejecutando sincronización de prueba para tipo "${type}" del expediente ${ddId}...`
     );
 
-    const result = await getOrCreateFolderStructure(year, month, nameId, documentTypes);
+    const result = await getOrCreateFolderStructure(ddId, formType, documentTypes);
 
     return NextResponse.json({
       success: true,
       message: "Estructura de carpetas procesada correctamente.",
       params: {
-        year,
-        month,
-        apellidoNombreId: nameId,
+        ddId,
         type,
         documentTypes,
       },

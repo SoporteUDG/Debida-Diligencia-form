@@ -10,6 +10,7 @@ import { logAuditEvent, computeDiff, sanitizeDetails } from "@/lib/auditService"
 import { zoho, mergeCrmAndDraft } from "@/lib/zohoService";
 import { obtenerAutorizacionVigente, sellarNuevaVersion, sellarVersionInicial } from "@/lib/formVersionService";
 import { sanitizeInput } from "@/lib/sanitizer";
+import { autocompletarExpedienteRelacionado } from "@/lib/relatedDraftService";
 
 /**
  * Passive scanning function to identify expired tokens, mark them as noted in the DB,
@@ -1261,6 +1262,7 @@ export const appRouter = router({
 
           syncFormToCrm(existente.id).catch((e) => console.error("[Amend Sync CRM]", e));
           syncFormToWorkDrive(existente.id).catch((e) => console.error("[Amend Sync WorkDrive]", e));
+          autocompletarExpedienteRelacionado(existente.id).catch((e) => console.error("[Amend Relacionado]", e));
 
           return {
             success: true,
@@ -1414,6 +1416,11 @@ export const appRouter = router({
 
       syncFormToWorkDrive(dbForm.id).catch((wdErr) => {
         console.error(`[Submit Form Sync Warning] Error in WorkDrive sync background promise for form ${dbForm.id}:`, wdErr);
+      });
+
+      // Completa los campos comunes del expediente relacionado (dd_relacionado) si sigue en borrador
+      autocompletarExpedienteRelacionado(dbForm.id).catch((relErr) => {
+        console.error(`[Submit Form Warning] Error al autocompletar el expediente relacionado de ${dbForm.id}:`, relErr);
       });
 
       return {

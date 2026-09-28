@@ -11,7 +11,7 @@ import {
 import path from "path";
 import { logAuditEvent } from "@/lib/auditService";
 import { getAccessToken, executeWithRetry } from "@/lib/zohoAuthService";
-import { isMultiFileField, normalizeMultiFileValue } from "@/lib/documentFields";
+import { buildDocumentFileName, isMultiFileField, normalizeMultiFileValue } from "@/lib/documentFields";
 
 type UploadStage =
   | "INPUT_VALIDATION"
@@ -69,6 +69,26 @@ function detectMimeType(buffer: Buffer): { mime: string; ext: string } | null {
   return null;
 }
 
+/**
+ * Nombre de la persona a la que pertenece un documento (RL, GJC o BF), tomado
+ * de los datos del borrador.
+ */
+function resolvePersonName(
+  draftData: any,
+  personType?: "GJC" | "BF" | "RL",
+  personId?: string
+): string {
+  if (!personType || !draftData) return "";
+  if (personType === "RL") return String(draftData.rlNombre || "").trim();
+
+  const lista = personType === "GJC" ? draftData.gjcMembers : draftData.bfMembers;
+  const miembro = Array.isArray(lista) ? lista.find((m: any) => m?.id === personId) : null;
+  if (!miembro) return "";
+  return personType === "GJC"
+    ? `${miembro.nombre || ""} ${miembro.apellidos || ""}`.trim()
+    : String(miembro.nombreCompleto || "").trim();
+}
+
 export const documentsRouter = router({
   uploadDocument: tokenProcedure
     .input(
@@ -81,6 +101,9 @@ export const documentsRouter = router({
         formId: z.string().optional(),
         personType: z.enum(["GJC", "BF", "RL"]).optional(),
         personId: z.string().optional(),
+        // Nombre de la persona (RL, GJC, BF) tal como está en pantalla; si no
+        // llega se toma del borrador.
+        personName: z.string().optional(),
       })
     )
     .mutation(async ({ input, ctx }) => {
@@ -145,23 +168,29 @@ export const documentsRouter = router({
           // Inside this safe callback, the temp file is written on disk.
           // In case of any error here, withTempFile's finally block will delete it.
           
-          const now = new Date();
-          const yearStr = now.getFullYear().toString();
-          const monthStr = String(now.getMonth() + 1).padStart(2, "0");
+          // Safely resolve foreign keys to avoid Foreign Key Constraint Violations
+          let draft = null;
+          if (input.draftId) {
+            draft =
+              (await ctx.prisma.draft.findUnique({ where: { id: input.draftId } })) ||
+              (await ctx.prisma.draft.findUnique({ where: { token: input.draftId } }));
+          }
+          if (!draft && ctx.client?.tokenUuid) {
+            draft = await ctx.prisma.draft.findUnique({
+              where: { token: ctx.client.tokenUuid },
+            });
+          }
+          const validDraftId: string | null = draft?.id ?? null;
 
-          // Sanitize client details and doc type for folder and file names
-          const sanitizeStr = (str: string) => str.trim().replace(/[^a-zA-Z0-9_\-]/g, "_");
-          const apellidoNombreId = sanitizeStr(
-            `${contact.lastName}_${contact.firstName}_${contact.crmId}`
-          );
-          const documentTypeNormalized = sanitizeStr(input.documentType);
-          const personSuffix = input.personType && input.personId
-            ? `_${input.personType}_${sanitizeStr(input.personId)}`
-            : "";
+          const formType = draft?.type ?? ctx.client?.formType ?? "NATURAL";
+          const personName = input.personType
+            ? (input.personName || "").trim() ||
+              resolvePersonName(draft?.data, input.personType, input.personId)
+            : undefined;
 
-          // Rename convention: {APELLIDO_NOMBRE_ID}_{TIPO_DOCUMENTO}[_{PERSON_TYPE}_{PERSON_ID}]_{TIMESTAMP}.{EXTENSION}
-          const timestamp = Date.now();
-          const finalFileName = `${apellidoNombreId}_${documentTypeNormalized}${personSuffix}_${timestamp}.${ext}`;
+          // Rename convention:
+          //   {NombreLegible}_{TIMESTAMP}.{EXT}  |  RL/GJC/BF: {NombreLegible}_{NombrePersona}_{TIMESTAMP}.{EXT}
+          const finalFileName = buildDocumentFileName(input.documentType, Date.now(), ext, personName);
 
           // Stage 5-7: Zoho WorkDrive Integration sequence wrapped with retry and fallback logic
           let zohoFileId = "PENDING_SYNC";
@@ -171,13 +200,12 @@ export const documentsRouter = router({
             const res = await executeWithRetry(async (accessToken) => {
               currentStage = "FOLDER_CREATION";
               console.log(
-                `[tRPC Upload] Resolviendo estructura de carpetas en Zoho WorkDrive para: ${apellidoNombreId}`
+                `[tRPC Upload] Resolviendo estructura de carpetas en Zoho WorkDrive para el expediente: ${contact.crmId}`
               );
 
               const folderStructure = await getOrCreateFolderStructure(
-                yearStr,
-                monthStr,
-                apellidoNombreId,
+                contact.crmId,
+                formType,
                 [input.documentType],
                 accessToken
               );
@@ -220,32 +248,6 @@ export const documentsRouter = router({
           currentStage = "DATABASE_PERSISTENCE";
           console.log(`[tRPC Upload] Persistiendo registro en base de datos. URL: ${shareLinkUrl}`);
 
-          // Safely resolve foreign keys to avoid Foreign Key Constraint Violations
-          let validDraftId: string | null = null;
-          if (input.draftId) {
-            const draftById = await ctx.prisma.draft.findUnique({
-              where: { id: input.draftId },
-            });
-            if (draftById) {
-              validDraftId = draftById.id;
-            } else {
-              const draftByToken = await ctx.prisma.draft.findUnique({
-                where: { token: input.draftId },
-              });
-              if (draftByToken) {
-                validDraftId = draftByToken.id;
-              }
-            }
-          }
-          if (!validDraftId && ctx.client?.tokenUuid) {
-            const draftByCtx = await ctx.prisma.draft.findUnique({
-              where: { token: ctx.client.tokenUuid },
-            });
-            if (draftByCtx) {
-              validDraftId = draftByCtx.id;
-            }
-          }
-
           let validFormId: string | null = null;
           if (input.formId) {
             const formById = await ctx.prisma.form.findUnique({
@@ -276,9 +278,10 @@ export const documentsRouter = router({
           // puede perderse ante un conflicto de concurrencia o una recarga.
           let draftUpdatedAt: string | null = null;
           if (validDraftId && !input.personType) {
-            const draft = await ctx.prisma.draft.findUnique({ where: { id: validDraftId } });
-            if (draft) {
-              const draftData = { ...((draft.data as any) || {}) };
+            // Se relee: el autoguardado pudo cambiar el borrador durante la subida.
+            const draftActual = await ctx.prisma.draft.findUnique({ where: { id: validDraftId } });
+            if (draftActual) {
+              const draftData = { ...((draftActual.data as any) || {}) };
               const field = input.documentType;
 
               if (isMultiFileField(field)) {

@@ -89,8 +89,6 @@ export interface FormState {
   signerName: string;
   signatureDate: string;
   firmaImage: string;
-  /** Guardar los datos personales en este navegador para reutilizarlos como Representante Legal en Persona Jurídica */
-  compartirDatosRL: boolean;
 
   // Solo para uso de la empresa
   conclusionesVerificacion: string;
@@ -177,7 +175,6 @@ export const INITIAL_FORM_STATE: FormState = {
   signerName: "",
   signatureDate: "",
   firmaImage: "",
-  compartirDatosRL: false,
 
   conclusionesVerificacion: "",
 };

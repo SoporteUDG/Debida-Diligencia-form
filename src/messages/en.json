@@ -40,8 +40,7 @@
       "IdTitle": "ID Number",
       "DueDateTitle": "ID Expiration Date",
       "MigrationTitle": "Immigration Status",
-      "BirthTitle": "Date of Birth",
-      "SaveDataTitle": "Save my information for the Legal Entity form"
+      "BirthTitle": "Date of Birth"
     },
 
     "NaturalFormStep1PlaceHolders":{
@@ -62,8 +61,7 @@
       "IdPlaceholder": "E.g.: PE-123-456",
       "DueDatePlaceholder": "",
       "MigrationPlaceholder": "Select option",
-      "BirthPlaceholder": "",
-      "SaveDataPlaceholder": "If you later complete a Legal Entity form in this same browser, your personal information (name, date of birth, nationality, marital status, ID, profession, economic activity, address, country of residence, and phone number) will be pre-filled in the Legal Representative or Attorney-in-Fact section, so you won't have to enter it again. This information is stored only on this device, and you can uncheck this box at any time to remove it."
+      "BirthPlaceholder": ""
     },
 
     "NaturalFormStep1OptionFields":{
@@ -807,11 +805,6 @@
       "ConflictChooseVersion": "Choose which version to keep.",
       "ConflictUseServer": "Discard and load the server version",
       "ConflictKeepLocal": "Keep my changes",
-      "RlPrefillNotice": "The <b>Legal Representative or Attorney-in-Fact</b> information was pre-filled with the data you saved in your Natural Person form",
-      "RlPrefillSavedOn": "on {date}",
-      "RlPrefillVerify": "Verify that it is correct and modify it if necessary.",
-      "RlClearFields": "Clear fields",
-      "RlAcknowledge": "Understood",
       "LogoAlt": "UDG Logo",
       "ValidationSummaryTitle": "Pending Requirements",
       "ValidationSummaryIntro": "Please complete the following required information and documents before submitting your file:",

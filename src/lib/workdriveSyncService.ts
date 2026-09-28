@@ -11,7 +11,7 @@ import { zoho } from "@/lib/zohoService";
 
 /**
  * Synchronizes a submitted Form with Zoho WorkDrive:
- * 1. Resolves folder hierarchy (/DD/YYYY/MM/Apellido_Nombre_ID/)
+ * 1. Resolves folder hierarchy (/{Socio}/DD/{FORMTYPE}-{Nombre del expediente}/)
  * 2. Generates the detailed full dossier PDF (including attached docs/images merged)
  * 3. Uploads the consolidated PDF to the client's WorkDrive folder
  * 4. Generates a public shareable WorkDrive link
@@ -108,10 +108,12 @@ export async function syncFormToWorkDrive(formId: string) {
       );
     }
 
-    // Determine folder structure parameters
+    // La carpeta se ubica a partir del expediente de Debida Diligencia en Zoho CRM
     const submittedAt = versionSellada?.submittedAt || form.submittedAt || new Date();
-    const yearStr = submittedAt.getFullYear().toString();
-    const monthStr = String(submittedAt.getMonth() + 1).padStart(2, "0");
+    const ddId = form.crmContact?.crmId;
+    if (!ddId) {
+      throw new Error(`El formulario ${formId} no está vinculado a un expediente de Debida Diligencia en Zoho CRM.`);
+    }
 
     const sanitizeStr = (s: string) => (s || "").trim().replace(/[^a-zA-Z0-9_\-]/g, "_");
     const contact = form.crmContact;
@@ -124,10 +126,9 @@ export async function syncFormToWorkDrive(formId: string) {
       // 1. Get or create folder structure in WorkDrive
       console.log(`[WorkDrive Sync] Creando/obteniendo estructura de carpetas para ${clientIdentifier}...`);
       const folderStructure = await getOrCreateFolderStructure(
-        yearStr,
-        monthStr,
-        clientIdentifier,
-        ["Expediente_Consolidado"],
+        ddId,
+        form.type,
+        [],
         accessToken
       );
 

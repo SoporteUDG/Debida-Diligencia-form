@@ -41,8 +41,7 @@
       "IdTitle": "N° de Identificación",
       "DueDateTitle": "Fecha de Vencimiento de Identificación",
       "MigrationTitle": "Estado Migratorio",
-      "BirthTitle": "Fecha de Nacimiento",
-      "SaveDataTitle": "Guardar mis datos para el formulario de Persona Jurídica"
+      "BirthTitle": "Fecha de Nacimiento"
     },
 
     "NaturalFormStep1PlaceHolders":{
@@ -63,8 +62,7 @@
       "IdPlaceholder": "Ej: PE-123-456",
       "DueDatePlaceholder": "",
       "MigrationPlaceholder": "Seleccione opción",
-      "BirthPlaceholder": "",
-      "SaveDataPlaceholder": "Si más adelante completa un formulario de Persona Jurídica en este mismo navegador, sus datos personales (nombre, fecha de nacimiento, nacionalidad, estado civil, identificación, profesión, actividad económica, dirección, país de residencia y teléfono) se precargarán en la sección Representante Legal o Apoderado, para no tener que escribirlos de nuevo. La información se guarda únicamente en este dispositivo y puede desmarcar esta casilla en cualquier momento para eliminarla."
+      "BirthPlaceholder": ""
     },
 
     "NaturalFormStep1OptionFields":{
@@ -808,11 +806,6 @@
       "ConflictChooseVersion": "Elija cuál versión conservar.",
       "ConflictUseServer": "Descartar y cargar la del servidor",
       "ConflictKeepLocal": "Conservar mis cambios",
-      "RlPrefillNotice": "Se precargaron los datos del <b>Representante Legal o Apoderado</b> con la información que guardó en su formulario de Persona Natural",
-      "RlPrefillSavedOn": "el {date}",
-      "RlPrefillVerify": "Verifique que sea correcta y modifíquela si es necesario.",
-      "RlClearFields": "Limpiar campos",
-      "RlAcknowledge": "Entendido",
       "LogoAlt": "Logo UDG",
       "ValidationSummaryTitle": "Requisitos Pendientes",
       "ValidationSummaryIntro": "Por favor complete la siguiente información y documentos obligatorios antes de enviar su expediente:",
@@ -1068,7 +1061,7 @@
 
   "AccessRestricted": {
     "LogoAlt": "Logo UDG",
-    "Badge": "Acceso Privado & Confidencial",
+    "Badge": "Acceso Privado y Confidencial",
     "Title": "Enlace de Invitación Requerido",
     "DefaultMessage": "El formulario digital de Debida Diligencia de Urban Development Group (UDG) es de acceso exclusivo para clientes autorizados mediante un enlace seguro y personalizado emitido por nuestro departamento legal o su asesor comercial.",
     "HowToGetAccessTitle": "¿Cómo obtener su acceso?",
