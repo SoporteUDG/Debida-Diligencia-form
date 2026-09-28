@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     // 1. Setup: Ensure a test contact exists
     const testEmail = "test-token-lifecycle@udg.com";
     log.push(`Buscando o creando contacto de pruebas con email: ${testEmail}`);
-    let contact = await prisma.crmContact.findUnique({
+    let contact = await prisma.crmContact.findFirst({
       where: { email: testEmail },
     });
 

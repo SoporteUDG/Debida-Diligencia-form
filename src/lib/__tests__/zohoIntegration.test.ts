@@ -6,7 +6,8 @@ import {
   createShareLink,
   findFolderInParent,
   createFolderInParent,
-  deleteFileFromWorkDrive
+  deleteFileFromWorkDrive,
+  extractFolderIdFromLink
 } from "../workdriveService";
 import { clearCache } from "../zohoAuthService";
 
@@ -123,9 +124,50 @@ describe("Zoho CRM & WorkDrive Integration Mocks", () => {
 
       expect(result.success).toBe(true);
       expect(result.crmId).toBe("crm-debida-id-1");
-      const put = spyFetch.mock.calls.find(([u]) => String(u).includes("/Debida_Diligencia/crm-debida-id-1"))!;
-      expect((put[1] as any).method).toBe("PUT");
-      expect(JSON.parse((put[1] as any).body).data[0].Raz_n_social).toBe("Mock Corp S.A.");
+      const put = spyFetch.mock.calls.find(
+        ([u, init]) => String(u).includes("/Debida_Diligencia/crm-debida-id-1") && (init as any)?.method === "PUT"
+      )!;
+      expect(put).toBeDefined();
+      const body = JSON.parse((put[1] as any).body).data[0];
+      expect(body.Raz_n_social).toBe("Mock Corp S.A.");
+      expect(body.Name).toBe("Mock Corp S.A.");
+    });
+
+    it("updateContact - should build Name as 'Socio-unidad-proyecto', taking the unidad from the Socio when empty", async () => {
+      const spyFetch = vi.spyOn(global, "fetch").mockImplementation(async (url, init) => {
+        const urlStr = String(url);
+        if (urlStr.includes("/oauth/v2/token")) return tokenResponse;
+        if (urlStr.includes("/Debida_Diligencia/dd-socio") && (init as any)?.method === "GET") {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({
+              data: [{ id: "dd-socio", Proyecto: "Altos del Parque", Unidad: null, Socio_de_Negocios: { id: "acc-1", name: "Socio" } }],
+            }),
+          } as any;
+        }
+        if (urlStr.includes("/Accounts/acc-1")) {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({ data: [{ id: "acc-1", Account_Name: "Inversiones ABC", Unidad: "T1-502" }] }),
+          } as any;
+        }
+        if (urlStr.includes("/Debida_Diligencia/dd-socio")) {
+          return {
+            ok: true,
+            json: async () => ({ data: [{ status: "success", code: "SUCCESS", message: "record updated" }] }),
+          } as any;
+        }
+        return { ok: false, status: 404 } as any;
+      });
+
+      await zoho.service.updateContact("dd-socio", "NATURAL", { firstName: "Ana", lastName: "Ruiz", nombreProyecto: "Otro" });
+
+      const put = spyFetch.mock.calls.find(
+        ([u, init]) => String(u).includes("/Debida_Diligencia/dd-socio") && (init as any)?.method === "PUT"
+      )!;
+      expect(JSON.parse((put[1] as any).body).data[0].Name).toBe("Inversiones ABC-T1-502-Altos del Parque");
     });
 
     it("updateContact - should throw when the record does not exist in Debida_Diligencia", async () => {
@@ -188,62 +230,101 @@ describe("Zoho CRM & WorkDrive Integration Mocks", () => {
       expect(fetchCount).toBe(2);
     });
 
-    it("getOrCreateFolderStructure - should idempotently return hierarchy", async () => {
-      // Mock successive folder resolutions (all existing)
+    it("extractFolderIdFromLink - should read the folder ID from WorkDrive links", () => {
+      const id = "socio0folder0id0abcdefghij12345";
+      expect(extractFolderIdFromLink(`https://workdrive.zoho.com/folder/${id}`)).toBe(id);
+      expect(
+        extractFolderIdFromLink(`https://workdrive.zoho.com/home/team123/teams/team123/ws/ws456/folders/${id}`)
+      ).toBe(id);
+      expect(extractFolderIdFromLink(id)).toBe(id);
+      expect(extractFolderIdFromLink("https://workdrive.zohoexternal.com/external/abcdefghijklmnopqrstuvwxyz")).toBeNull();
+      expect(extractFolderIdFromLink("")).toBeNull();
+    });
+
+    it("getOrCreateFolderStructure - should resolve the Socio folder and idempotently return hierarchy", async () => {
+      const socioFolderId = "socio0folder0id0abcdefghij12345";
+      // Mock successive resolutions (all folders already exist)
       vi.spyOn(global, "fetch").mockImplementation(async (url) => {
         const urlStr = String(url);
-        if (urlStr.includes("/files/root_folder_12345/files")) {
-          // Looking for 'DD' folder
+        if (urlStr.includes("/oauth/v2/token")) {
+          return { ok: true, json: async () => ({ access_token: "token_abc", expires_in: 3600 }) } as any;
+        }
+        if (urlStr.includes("/Debida_Diligencia/dd_123")) {
           return {
             ok: true,
-            json: async () => ({ data: [{ id: "dd_id", attributes: { name: "DD" } }] }),
+            status: 200,
+            json: async () => ({
+              data: [{ id: "dd_123", Name: "Carlos Mendoza", Socio_de_Negocios: { id: "acc_456", name: "Socio" } }],
+            }),
           } as any;
+        }
+        if (urlStr.includes("/Accounts/acc_456")) {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({
+              data: [{ id: "acc_456", Link_documentos: `https://workdrive.zoho.com/folder/${socioFolderId}` }],
+            }),
+          } as any;
+        }
+        if (urlStr.includes(`/files/${socioFolderId}/files`)) {
+          return { ok: true, json: async () => ({ data: [{ id: "dd_id", attributes: { name: "DD" } }] }) } as any;
         }
         if (urlStr.includes("/files/dd_id/files")) {
-          // Looking for year folder
           return {
             ok: true,
-            json: async () => ({ data: [{ id: "year_id", attributes: { name: "2026" } }] }),
-          } as any;
-        }
-        if (urlStr.includes("/files/year_id/files")) {
-          // Looking for month folder
-          return {
-            ok: true,
-            json: async () => ({ data: [{ id: "month_id", attributes: { name: "08" } }] }),
-          } as any;
-        }
-        if (urlStr.includes("/files/month_id/files")) {
-          // Looking for client folder
-          return {
-            ok: true,
-            json: async () => ({ data: [{ id: "client_id", attributes: { name: "Mendoza_Carlos_101" } }] }),
+            json: async () => ({ data: [{ id: "client_id", attributes: { name: "NATURAL-Carlos Mendoza" } }] }),
           } as any;
         }
         if (urlStr.includes("/files/client_id/files")) {
-          // Looking for subfolder 'Cedula'
           return {
             ok: true,
-            json: async () => ({ data: [{ id: "sub_cedula_id", attributes: { name: "Cedula" } }] }),
+            json: async () => ({
+              data: [{ id: "sub_cedula_id", attributes: { name: "Copia del Documento de Identidad" } }],
+            }),
           } as any;
         }
-        return { ok: false, status: 404 } as any;
+        return { ok: false, status: 404, text: async () => "" } as any;
       });
 
-      const structure = await getOrCreateFolderStructure(
-        "2026",
-        "08",
-        "Mendoza_Carlos_101",
-        ["Cedula"],
-        "token_123"
-      );
+      const structure = await getOrCreateFolderStructure("dd_123", "NATURAL", ["idFile"], "token_123");
 
-      expect(structure.rootFolderId).toBe("root_folder_12345");
+      expect(structure.socioFolderId).toBe(socioFolderId);
       expect(structure.ddFolderId).toBe("dd_id");
-      expect(structure.yearFolderId).toBe("year_id");
-      expect(structure.monthFolderId).toBe("month_id");
       expect(structure.clientFolderId).toBe("client_id");
-      expect(structure.subfolders["Cedula"]).toBe("sub_cedula_id");
+      expect(structure.subfolders["idFile"]).toBe("sub_cedula_id");
+    });
+
+    it("getOrCreateFolderStructure - should fall back to ZOHO_WORKDRIVE_ROOT_FOLDER_ID when the DD has no Socio", async () => {
+      vi.spyOn(global, "fetch").mockImplementation(async (url) => {
+        const urlStr = String(url);
+        if (urlStr.includes("/oauth/v2/token")) {
+          return { ok: true, json: async () => ({ access_token: "token_abc", expires_in: 3600 }) } as any;
+        }
+        if (urlStr.includes("/Debida_Diligencia/dd_sin_socio")) {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({ data: [{ id: "dd_sin_socio", Name: "Ana Ruiz", Socio_de_Negocios: null }] }),
+          } as any;
+        }
+        if (urlStr.includes("/files/root_folder_12345/files")) {
+          return { ok: true, json: async () => ({ data: [{ id: "dd_id", attributes: { name: "DD" } }] }) } as any;
+        }
+        if (urlStr.includes("/files/dd_id/files")) {
+          return {
+            ok: true,
+            json: async () => ({ data: [{ id: "client_id", attributes: { name: "JURIDICA-Ana Ruiz" } }] }),
+          } as any;
+        }
+        return { ok: false, status: 404, text: async () => "" } as any;
+      });
+
+      const structure = await getOrCreateFolderStructure("dd_sin_socio", "JURIDICA", [], "token_123");
+
+      expect(structure.socioFolderId).toBe("root_folder_12345");
+      expect(structure.ddFolderId).toBe("dd_id");
+      expect(structure.clientFolderId).toBe("client_id");
     });
 
     it("uploadFileToWorkDrive - should upload a file buffer via the multipart upload API", async () => {
@@ -447,7 +528,9 @@ describe("Zoho CRM & WorkDrive Integration Mocks", () => {
       expect(result.type).toBe("JURIDICA");
       expect(result.nombreProyecto).toBe("Ocean Reef Phase 2");
       expect(result.razonSocial).toBe("");
-      expect(result.contactoNombre).toBe("Expediente Test");
+      // Name ("Socio-unidad-proyecto") no se usa para precargar nombres
+      expect(result.contactoNombre).toBe("Expediente");
+      expect(result.firstName).toBe("Cliente");
       expect(result.module).toBe("Debida_Diligencia");
       expect(spyFetch).toHaveBeenCalled();
     });
@@ -633,8 +716,8 @@ describe("Zoho CRM & WorkDrive Integration Mocks", () => {
       const [_, init] = debidaPostCall!;
       expect(init?.method).toBe("POST");
       const body = JSON.parse(init?.body as string);
-      // Name ya no se envía al crear el registro (zoho_fields_guide.md: no aplica)
-      expect(body.data[0]).not.toHaveProperty("Name");
+      // Sin Socio de Negocio: Name con los datos del formulario ("nombre-proyecto")
+      expect(body.data[0].Name).toBe("Juan Perez-Costa del Este");
       expect(body.data[0].Tipo_de_Persona).toBe("Persona Natural");
       expect(body.data[0].Estado_del_enlace).toBe("Activo");
       expect(body.data[0].Estado).toBe("En Proceso");

@@ -1,4 +1,6 @@
-import { getAccessToken, executeWithRetry } from "./zohoAuthService";
+import { getAccessToken } from "./zohoAuthService";
+import { zoho } from "./zohoService";
+import { getDocumentLabel } from "./documentFields";
 
 /**
  * Zoho rechaza a nivel de servidor (Tomcat) cualquier URL que lleve corchetes
@@ -87,6 +89,78 @@ export async function findFolderInParent(
 }
 
 /**
+ * Extrae el ID de carpeta de WorkDrive de un enlace de la app web, p. ej.:
+ *   https://workdrive.zoho.com/folder/{id}
+ *   https://workdrive.zoho.com/home/{team}/teams/{team}/ws/{ws}/folders/{id}
+ * También acepta el ID solo. Los enlaces públicos (zohoexternal.com) no
+ * contienen el ID de la carpeta y no sirven para crear subcarpetas por API.
+ */
+export function extractFolderIdFromLink(link: string): string | null {
+  const valor = (link || "").trim();
+  if (!valor) return null;
+
+  const esId = (v: string) => /^[a-z0-9]{20,}$/i.test(v);
+  if (esId(valor)) return valor;
+
+  let segmentos: string[];
+  try {
+    const url = new URL(valor);
+    if (url.hostname.includes("zohoexternal")) return null;
+    segmentos = url.pathname.split("/").filter(Boolean);
+  } catch {
+    return null;
+  }
+
+  // Preferir el segmento que sigue a "folder"/"folders"; si no, el último con forma de ID.
+  for (let i = segmentos.length - 2; i >= 0; i--) {
+    if (/^folders?$/i.test(segmentos[i]) && esId(segmentos[i + 1])) return segmentos[i + 1];
+  }
+  return [...segmentos].reverse().find(esId) || null;
+}
+
+/**
+ * Resuelve la carpeta de documentos del Socio de Negocio al que pertenece el
+ * expediente (Debida_Diligencia.Socio_de_Negocios -> Accounts.Link_documentos).
+ * Si el expediente no tiene socio, o el socio no tiene un enlace con ID de
+ * carpeta, se usa la carpeta raíz configurada en ZOHO_WORKDRIVE_ROOT_FOLDER_ID.
+ *
+ * @param ddId ID del registro de Debida_Diligencia en Zoho CRM
+ * @returns El ID de la carpeta del socio y el nombre del expediente
+ */
+export async function findFolderSocio(
+  ddId: string
+): Promise<{ socioFolderId: string; ddName: string }> {
+  const { ddName, socioId, linkDocumentos } = await zoho.service.getSocioDocumentsLink(ddId);
+
+  const socioFolderId = extractFolderIdFromLink(linkDocumentos);
+  if (socioFolderId) return { socioFolderId, ddName };
+
+  const motivo = !socioId
+    ? `el expediente ${ddId} no tiene Socio de Negocio asignado (Socio_de_Negocios)`
+    : !linkDocumentos
+      ? `el Socio de Negocio ${socioId} no tiene enlace Link_documentos`
+      : `el enlace Link_documentos del Socio de Negocio ${socioId} ("${linkDocumentos}") no contiene un ID de carpeta de WorkDrive (¿enlace público?)`;
+
+  // La carpeta raíz se configura explícitamente y no se adivina: escribir los
+  // expedientes en una carpeta distinta a la configurada es peor que fallar.
+  const rootFolderId = process.env.ZOHO_WORKDRIVE_ROOT_FOLDER_ID;
+  if (!rootFolderId || rootFolderId === "placeholder_root_folder_id") {
+    throw new Error(
+      `No se pudo ubicar la carpeta del socio (${motivo}) y falta la variable de entorno ZOHO_WORKDRIVE_ROOT_FOLDER_ID como carpeta alternativa.`
+    );
+  }
+
+  console.warn(`[WorkDrive Service] Se usa la carpeta raíz ZOHO_WORKDRIVE_ROOT_FOLDER_ID: ${motivo}.`);
+  return { socioFolderId: rootFolderId, ddName };
+}
+
+/** WorkDrive no admite estos caracteres en nombres de carpeta. */
+function sanitizeFolderName(name: string): string {
+  return name.replace(/[\\/:*?"<>|]+/g, " ").replace(/\s+/g, " ").trim();
+}
+
+
+/**
  * Creates a folder with the specified name under the given parent folder.
  * 
  * @param parentId The ID of the parent folder in WorkDrive
@@ -99,6 +173,8 @@ export async function createFolderInParent(
   folderName: string,
   accessToken: string
 ): Promise<string> {
+
+
   const workdriveBaseUrl =
     process.env.ZOHO_WORKDRIVE_BASE_URL || "https://www.zohoapis.com/workdrive/api/v1";
   const url = `${workdriveBaseUrl}/files`;
@@ -143,105 +219,68 @@ export async function createFolderInParent(
 }
 
 /**
- * Creates or reuses the Zoho WorkDrive folder structure:
- * /DD/{AÑO}/{MES}/{APELLIDO_NOMBRE_ID}/
- * And creates the specified subfolders (e.g. document types) inside it.
- * 
+ * Creates or reuses the Zoho WorkDrive folder structure inside the Socio de
+ * Negocio's documents folder (Accounts.Link_documentos):
+ *   /{Socio}/DD/{FORMTYPE}-{Nombre del expediente}/{Nombre legible del documento}/
+ *
  * The operation is completely idempotent and will not create duplicate folders if run repeatedly.
- * 
- * @param year The year string (e.g. "2026")
- * @param month The month string (e.g. "07")
- * @param apellidoNombreId The identifier folder name for the client (e.g. "Perez_Juan_12345678")
- * @param documentTypes Array of document types representing the subfolders to be created
- * @returns An object containing IDs for each layer of the folder hierarchy
+ *
+ * @param ddId ID del registro de Debida_Diligencia en Zoho CRM (CrmContact.crmId)
+ * @param formType Tipo de formulario ("NATURAL" | "JURIDICA")
+ * @param documentTypes Ranuras documentales (p. ej. "copiaIdFile"); cada una se
+ *   crea como subcarpeta con su nombre legible
+ * @returns IDs of the hierarchy; `subfolders` is keyed by the documentTypes received
  */
 export async function getOrCreateFolderStructure(
-  year: string,
-  month: string,
-  apellidoNombreId: string,
+  ddId: string,
+  formType: string,
   documentTypes: string[],
   passedToken?: string
 ): Promise<{
-  rootFolderId: string;
+  socioFolderId: string;
   ddFolderId: string;
-  yearFolderId: string;
-  monthFolderId: string;
   clientFolderId: string;
   subfolders: Record<string, string>;
 }> {
   const accessToken = passedToken || await getAccessToken();
-  const rootFolderId = process.env.ZOHO_WORKDRIVE_ROOT_FOLDER_ID;
 
-  // La carpeta raíz se configura explícitamente y no se adivina: escribir los
-  // expedientes en una carpeta distinta a la configurada es peor que fallar.
-  if (!rootFolderId || rootFolderId === "placeholder_root_folder_id") {
-    throw new Error(
-      "Falta la variable de entorno ZOHO_WORKDRIVE_ROOT_FOLDER_ID. Configure el ID de la carpeta de WorkDrive donde debe crearse la estructura /DD."
-    );
-  }
+  const { socioFolderId, ddName } = await findFolderSocio(ddId);
+  const clientFolderName = sanitizeFolderName(`${formType}-${ddName}`);
 
-  console.log(`[WorkDrive Service] Iniciando sincronización de estructura de carpetas: /DD/${year}/${month}/${apellidoNombreId}`);
+  console.log(`[WorkDrive Service] Iniciando sincronización de estructura de carpetas: /${socioFolderId}/DD/${clientFolderName}`);
 
-  // 1. Get or create '/DD' folder in Root
-  let ddFolderId = await findFolderInParent(rootFolderId, "DD", accessToken);
+  const getOrCreate = async (parentId: string, name: string, descripcion: string) => {
+    let folderId = await findFolderInParent(parentId, name, accessToken);
+    if (!folderId) {
+      console.log(`[WorkDrive Service] ${descripcion} '${name}' no encontrada. Creándola...`);
+      folderId = await createFolderInParent(parentId, name, accessToken);
+    } else {
+      console.log(`[WorkDrive Service] ${descripcion} '${name}' ya existe (ID: ${folderId}).`);
+    }
+    return folderId;
+  };
 
-  if (!ddFolderId) {
-    console.log("[WorkDrive Service] Carpeta 'DD' no encontrada. Creándola...");
-    ddFolderId = await createFolderInParent(rootFolderId, "DD", accessToken);
-  } else {
-    console.log(`[WorkDrive Service] Carpeta 'DD' ya existe (ID: ${ddFolderId}).`);
-  }
+  // 1. '/DD' dentro de la carpeta del socio
+  const ddFolderId = await getOrCreate(socioFolderId, "DD", "Carpeta");
 
-  // 2. Get or create '{AÑO}' folder under 'DD'
-  let yearFolderId = await findFolderInParent(ddFolderId, year, accessToken);
-  if (!yearFolderId) {
-    console.log(`[WorkDrive Service] Carpeta del año '${year}' no encontrada. Creándola...`);
-    yearFolderId = await createFolderInParent(ddFolderId, year, accessToken);
-  } else {
-    console.log(`[WorkDrive Service] Carpeta del año '${year}' ya existe (ID: ${yearFolderId}).`);
-  }
+  // 2. '{FORMTYPE}-{Nombre del expediente}' dentro de '/DD'
+  const clientFolderId = await getOrCreate(ddFolderId, clientFolderName, "Carpeta del expediente");
 
-  // 3. Get or create '{MES}' folder under '{AÑO}'
-  let monthFolderId = await findFolderInParent(yearFolderId, month, accessToken);
-  if (!monthFolderId) {
-    console.log(`[WorkDrive Service] Carpeta del mes '${month}' no encontrada. Creándola...`);
-    monthFolderId = await createFolderInParent(yearFolderId, month, accessToken);
-  } else {
-    console.log(`[WorkDrive Service] Carpeta del mes '${month}' ya existe (ID: ${monthFolderId}).`);
-  }
-
-  // 4. Get or create '{APELLIDO_NOMBRE_ID}' folder under '{MES}'
-  let clientFolderId = await findFolderInParent(monthFolderId, apellidoNombreId, accessToken);
-  if (!clientFolderId) {
-    console.log(`[WorkDrive Service] Carpeta del cliente '${apellidoNombreId}' no encontrada. Creándola...`);
-    clientFolderId = await createFolderInParent(monthFolderId, apellidoNombreId, accessToken);
-  } else {
-    console.log(`[WorkDrive Service] Carpeta del cliente '${apellidoNombreId}' ya existe (ID: ${clientFolderId}).`);
-  }
-
-  // 5. Get or create each document type subfolder under '{APELLIDO_NOMBRE_ID}'
+  // 3. Una subcarpeta con nombre legible por cada tipo de documento
   const subfolders: Record<string, string> = {};
   for (const docType of documentTypes) {
     const trimmedDocType = docType.trim();
     if (!trimmedDocType) continue;
 
-    let subfolderId = await findFolderInParent(clientFolderId, trimmedDocType, accessToken);
-    if (!subfolderId) {
-      console.log(`[WorkDrive Service] Subcarpeta de documento '${trimmedDocType}' no encontrada. Creándola...`);
-      subfolderId = await createFolderInParent(clientFolderId, trimmedDocType, accessToken);
-    } else {
-      console.log(`[WorkDrive Service] Subcarpeta de documento '${trimmedDocType}' ya existe (ID: ${subfolderId}).`);
-    }
-    subfolders[trimmedDocType] = subfolderId;
+    const folderName = sanitizeFolderName(getDocumentLabel(trimmedDocType));
+    subfolders[trimmedDocType] = await getOrCreate(clientFolderId, folderName, "Subcarpeta de documento");
   }
 
   console.log("[WorkDrive Service] Estructura de carpetas sincronizada exitosamente.");
 
   return {
-    rootFolderId,
+    socioFolderId,
     ddFolderId,
-    yearFolderId,
-    monthFolderId,
     clientFolderId,
     subfolders,
   };

@@ -34,7 +34,6 @@ import {
 } from "@/lib/validation";
 
 import { useAutosave } from "@/hooks/useAutosave";
-import { borrarDatosRL, guardarDatosRL, mapearNaturalARL } from "@/lib/datosRepresentanteLegal";
 
 const getStepForField = (field: string): number => {
   const step1Fields = [
@@ -244,20 +243,6 @@ export default function PersonaNaturalPage() {
 
     loadDraftFromDb();
   }, [draftToken, isMounted]);
-
-  // Guarda (o borra) en este navegador los datos reutilizables como
-  // Representante Legal en el formulario de Persona Jurídica.
-  const datosRLSerializados = JSON.stringify(mapearNaturalARL(formData));
-  useEffect(() => {
-    // Tras el envío el formulario se reinicia; no debe borrar lo ya guardado.
-    if (!isMounted || isSubmitted) return;
-    if (formData.compartirDatosRL) {
-      guardarDatosRL(formData);
-    } else {
-      borrarDatosRL();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isMounted, isSubmitted, formData.compartirDatosRL, datosRLSerializados]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
@@ -697,12 +682,6 @@ export default function PersonaNaturalPage() {
       const existing = JSON.parse(localStorage.getItem("udg_submissions") || "[]");
       existing.push(submission);
       localStorage.setItem("udg_submissions", JSON.stringify(existing));
-
-      // Persistir los datos reutilizables como Representante Legal antes de
-      // reiniciar el formulario.
-      if (formData.compartirDatosRL) {
-        guardarDatosRL(formData);
-      }
 
       setSubmittedData(formData);
       setSubmissionId(submissionId);

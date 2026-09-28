@@ -485,23 +485,6 @@ export default function Step1DatosPersonales({
             )}
 
           </div>
-          {/* Checkbox 3: Reutilizar datos como Representante Legal en Persona Jurídica (opcional) */}
-            <div className="flex flex-col md:col-span-3 gap-2">
-              <div className="flex items-start gap-3">
-                <input
-                  type="checkbox"
-                  id="compartirDatosRL"
-                  name="compartirDatosRL"
-                  checked={formData.compartirDatosRL}
-                  onChange={onInputChange}
-                  className="mt-1 h-4 w-4 rounded border-zinc-300 bg-[#f4f6f8] text-[#c8a788] accent-[#c8a788] focus:ring-0 focus:ring-offset-0 cursor-pointer"
-                />
-                <label htmlFor="compartirDatosRL" className="text-xs text-zinc-600 leading-normal select-none cursor-pointer">
-                  <span className="font-semibold text-[#052B48]">{t("SaveDataTitle")}.</span>{" "}
-                  {p("SaveDataPlaceholder")}
-                </label>
-              </div>
-            </div>
         </div>
       </div>
     </div>

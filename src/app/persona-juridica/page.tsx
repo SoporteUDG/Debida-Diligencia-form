@@ -38,7 +38,6 @@ import {
 } from "@/lib/validation";
 
 import { useAutosave } from "@/hooks/useAutosave";
-import { CAMPOS_RL, DatosRepresentanteLegal, leerDatosRL } from "@/lib/datosRepresentanteLegal";
 import { MULTI_FILE_FIELDS_JURIDICA, normalizeMultiFileValue } from "@/lib/documentFields";
 
 const getStepForField = (field: string): number => {
@@ -107,11 +106,6 @@ export default function PersonaJuridicaPage() {
   const [draftToken, setDraftToken] = useState<string | null>(null);
   // Acceso del enlace: se confirma con getDraft antes de mostrar el formulario
   const [accessStatus, setAccessStatus] = useState<"checking" | "granted" | TokenFailureReason>("checking");
-
-  // Precarga del Representante Legal con los datos guardados en Persona Natural
-  const [draftCargado, setDraftCargado] = useState(false);
-  const [rlPrecargaEvaluada, setRlPrecargaEvaluada] = useState(false);
-  const [avisoPrecargaRL, setAvisoPrecargaRL] = useState<DatosRepresentanteLegal | null>(null);
 
   // Simulated upload status for each document
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
@@ -203,7 +197,6 @@ export default function PersonaJuridicaPage() {
   useEffect(() => {
     if (!isMounted) return;
     if (!draftToken) {
-      setDraftCargado(true);
       return;
     }
 
@@ -252,39 +245,11 @@ export default function PersonaJuridicaPage() {
         console.error("[Juridica Page] Error fetching draft:", error);
         setAccessStatus("granted");
       } finally {
-        setDraftCargado(true);
       }
     };
 
     loadDraftFromDb();
   }, [draftToken, isMounted]);
-
-  // Precarga los campos del Representante Legal con los datos que el usuario
-  // decidió guardar al completar el formulario de Persona Natural. Solo se
-  // rellenan los campos vacíos, y nunca antes de rehidratar el borrador.
-  useEffect(() => {
-    if (!isMounted || !draftCargado || rlPrecargaEvaluada) return;
-
-    setRlPrecargaEvaluada(true);
-
-    const datos = leerDatosRL();
-    if (!datos) return;
-
-    const cambios: Partial<FormState> = {};
-    for (const campo of CAMPOS_RL) {
-      const actual = (formData[campo] || "").trim();
-      if (!actual && datos[campo]) {
-        cambios[campo] = datos[campo];
-      }
-    }
-
-    if (Object.keys(cambios).length === 0) return;
-
-    console.log("[Juridica Page] Datos del Representante Legal precargados desde Persona Natural:", cambios);
-    setFormData(prev => ({ ...prev, ...cambios }));
-    setAvisoPrecargaRL(datos);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isMounted, draftCargado, rlPrecargaEvaluada]);
 
   const triggerSaveIndicator = () => {
     // No-op: useAutosave handles saving via debounce
@@ -442,6 +407,17 @@ export default function PersonaJuridicaPage() {
     triggerSaveIndicator();
   };
 
+  // Nombre de la persona dueña del documento; forma parte del nombre del archivo.
+  const getPersonName = (target: DocumentTarget): string => {
+    if (target.kind !== "person") return "";
+    if (target.personType === "RL") return formData.rlNombre || "";
+    if (target.personType === "GJC") {
+      const m = formData.gjcMembers.find(g => g.id === target.personId);
+      return m ? `${m.nombre || ""} ${m.apellidos || ""}`.trim() : "";
+    }
+    return formData.bfMembers.find(b => b.id === target.personId)?.nombreCompleto || "";
+  };
+
   const handleFileUpload = (target: DocumentTarget, file: File) => {
     const key = docKey(target);
     setUploadStatus(prev => ({ ...prev, [key]: "uploading" }));
@@ -483,7 +459,7 @@ export default function PersonaJuridicaPage() {
             documentType,
             draftId: draftToken,
             ...(target.kind === "person"
-              ? { personType: target.personType, personId: target.personId }
+              ? { personType: target.personType, personId: target.personId, personName: getPersonName(target) }
               : {}),
           }),
         });
@@ -1083,39 +1059,6 @@ export default function PersonaJuridicaPage() {
                     <h2 className="text-[#c8a788] text-sm font-bold uppercase tracking-wider border-b border-zinc-850 pb-2">
                       {t("BigTitleStep2")}
                     </h2>
-
-                    {avisoPrecargaRL && (
-                      <div className="flex flex-col gap-2 rounded-2xl border border-[#c8a788]/40 bg-[#c8a788]/10 px-4 py-3 animate-fadeIn md:flex-row md:items-center md:justify-between">
-                        <p className="text-xs leading-relaxed text-[#e8d7c5]">
-                          {tp.rich("RlPrefillNotice", { b: (chunks) => <span className="font-semibold">{chunks}</span> })}
-                          {avisoPrecargaRL.guardadoEn && (
-                            <> {tp("RlPrefillSavedOn", { date: new Date(avisoPrecargaRL.guardadoEn).toLocaleDateString("es-PA") })}</>
-                          )}
-                          . {tp("RlPrefillVerify")}
-                        </p>
-                        <div className="flex shrink-0 gap-2">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const limpios: Partial<FormState> = {};
-                              CAMPOS_RL.forEach(campo => { limpios[campo] = ""; });
-                              setFormData(prev => ({ ...prev, ...limpios }));
-                              setAvisoPrecargaRL(null);
-                            }}
-                            className="rounded-lg border border-zinc-600 px-3 py-1.5 text-[11px] font-semibold text-zinc-300 transition hover:bg-white/5 cursor-pointer"
-                          >
-                            {tp("RlClearFields")}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setAvisoPrecargaRL(null)}
-                            className="rounded-lg bg-[#c8a788] px-3 py-1.5 text-[11px] font-semibold text-[#052B48] transition hover:bg-[#d8bb9f] cursor-pointer"
-                          >
-                            {tp("RlAcknowledge")}
-                          </button>
-                        </div>
-                      </div>
-                    )}
 
                     <Step2GobiernoRL
                       formData={formData}

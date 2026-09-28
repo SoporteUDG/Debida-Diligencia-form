@@ -7,6 +7,7 @@ import { PHONE_CODES } from "@/types/persona-juridica";
 import { useTranslations } from "next-intl";
 import es from "@/messages/es.json";
 import { optionLabeler } from "@/i18n/optionLabel";
+import { PROFESSIONS as professions } from "@/lib/naturalOptions";
 
 interface Step2Props {
   formData: FormState;
@@ -14,44 +15,6 @@ interface Step2Props {
   onSearchableSelectChange: (fieldName: keyof FormState, value: string) => void;
   errors: Record<string, string>;
 }
-
-const professions = [
-  "Abogado",
-  "Administrador",
-  "Agrónomo",
-  "Analista de Datos",
-  "Arquitecto",
-  "Asistente Administrativo",
-  "Auditor",
-  "Biólogo",
-  "Chef / Cocinero",
-  "Consultor",
-  "Contador Público",
-  "Diseñador Gráfico",
-  "Economista",
-  "Educador / Profesor",
-  "Empresario / Dueño de Negocio",
-  "Enfermero(a)",
-  "Estudiante",
-  "Farmacéutico",
-  "Financiero",
-  "Fisioterapeuta",
-  "Ingeniero Civil",
-  "Ingeniero de Sistemas / Software",
-  "Ingeniero Eléctrico",
-  "Ingeniero Industrial",
-  "Ingeniero Mecánico",
-  "Jubilado / Pensionado",
-  "Médico / Doctor",
-  "Mercadólogo",
-  "Odontólogo",
-  "Periodista",
-  "Psicólogo",
-  "Recursos Humanos",
-  "Soporte Técnico",
-  "Veterinario",
-  "Otros",
-];
 
 const economicActivities = [
   "VAPOR Y AIRE ACONDICIONADO",

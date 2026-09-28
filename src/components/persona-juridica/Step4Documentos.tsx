@@ -206,14 +206,14 @@ export default function Step4Documentos({
   const handlePersonFileRemoval = (target: DocumentTarget) => onRemoveFile(target);
 
   return (
-    <div className="bg-[#081827] border border-zinc-800/60 rounded-2xl p-6 md:p-10 shadow-xl space-y-8 text-white font-sans">
+    <div className="bg-white border border-zinc-200 rounded-2xl p-6 md:p-10 shadow-xl space-y-8 text-[#1a1c1a] font-sans">
       
       {/* Top Section Checklist: DOCUMENTOS ENTREGADOS */}
-      <h3 className="text-sm font-bold tracking-widest text-[#c8a788] uppercase pb-2 mb-4">
+      <h3 className="text-sm font-bold tracking-widest text-[#052B48] uppercase pb-2 mb-4">
         {t("SectionTitle")}
       </h3>
-      <div className="border border-zinc-800/65 text-xs leading-relaxed text-zinc-300  bg-[#040e16]/30 p-6 rounded-xl space-y-4">
-        <p className="font-bold text-zinc-200">
+      <div className="border border-zinc-200 text-xs leading-relaxed text-zinc-700 bg-[#f4f6f8] p-6 rounded-xl space-y-4">
+        <p className="font-bold text-[#052B48]">
           {t("PrivacyNoticeTitle")}
         </p>
         <p>
@@ -223,8 +223,8 @@ export default function Step4Documentos({
 
       {/* File Uploaders Grid */}
       <div className="space-y-6">
-        <div className="border-b border-zinc-800/60 pb-2">
-          <h4 className="text-xs text font-bold uppercase tracking-wider text-zinc-400">{t("IdDocumentsTitle")}</h4>
+        <div className="border-b border-zinc-200 pb-2">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-[#052B48]">{t("IdDocumentsTitle")}</h4>
         </div>
         <div className="grid grid-rows gap-6">
           {idDocumentTargets.map(({ target, title, roleLabel, personLabel, required }) => {
@@ -238,16 +238,16 @@ export default function Step4Documentos({
             return (
               <div 
               key={key}
-                className={`bg-[#040e16]/30 border p-5 rounded-xl flex flex-row items-center justify-between gap-4 hover:border-[#c8a788]/20 transition ${
-              hasError ? "border-red-500 bg-red-500/5" : "border-zinc-800"
+                className={`border p-5 rounded-xl flex flex-row items-center justify-between gap-4 transition ${
+              hasError ? "bg-red-50/10 border-red-500 hover:border-red-600" : "bg-[#f4f6f8] border-zinc-300 hover:border-[#052B48]/20"
               }`}>
-                <h4 className="text-xs md:text-sm  font-semibold text-zinc-200 basis-2/3">
+                <h4 className="text-xs md:text-sm font-semibold text-zinc-700 basis-2/3 min-w-0 break-words">
                   {`${title} - ${roleLabel} - ${personLabel}`}
                 </h4>
                 {hasFile && (status === "success" || (status === "idle" && hasFile)) && (
-                  <div className="inline-flex items-center gap-1.5 text-xs text-emerald-400 font-medium pt-1.5">
-                    <FileCheck2 className="h-4 w-4" />
-                    <span>{fileName}</span>
+                  <div className="flex items-start gap-1.5 min-w-0 text-xs text-zinc-700 font-medium pt-1.5">
+                    <FileCheck2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                    <span className="min-w-0 break-all">{fileName}</span>
                   </div>
                 )}
                 {hasError && status !== "uploading" &&(
@@ -257,7 +257,7 @@ export default function Step4Documentos({
                 )}
                 <div className="w-full flex items-center basis-1/3 mt-2">
                   {status === "idle" && !hasFile && (
-                    <label className="inline-flex items-center gap-2 bg-[#040e16] border border-[#c8a788]/30 text-[#c8a788] px-4 py-2.5 rounded-lg text-xs font-semibold hover:bg-[#c8a788]/10 hover:border-[#c8a788]/60 transition cursor-pointer active:scale-95">
+                    <label className="inline-flex items-center gap-2 bg-[#052B48] text-white px-4 py-2.5 rounded-lg text-xs font-bold hover:bg-[#081827] transition cursor-pointer active:scale-95">
                       <UploadCloud className="h-4 w-4" />
                         {t("ChooseFileButton")}
                         <input
@@ -275,11 +275,11 @@ export default function Step4Documentos({
 
                   {status === "uploading" && (
                     <div className="w-full space-y-1.5">
-                      <div className="flex justify-between text-[10px] font-semibold text-zinc-400">
+                      <div className="flex justify-between text-[10px] font-semibold text-zinc-500">
                         <span>{t("UploadingStatus")}</span>
                         <span>{progress}%</span>
                       </div>
-                      <div className="w-full bg-zinc-950/60 rounded-full h-1.5 overflow-hidden">
+                      <div className="w-full bg-zinc-200 rounded-full h-1.5 overflow-hidden">
                         <div 
                           className="bg-gradient-to-r from-[#c8a788] to-yellow-500 h-full rounded-full transition-all duration-300"
                           style={{ width: `${progress}%` }}
@@ -290,14 +290,14 @@ export default function Step4Documentos({
 
                   {(status === "success" || (status === "idle" && hasFile)) && (
                     <div className="flex items-center gap-3">
-                      <div className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-3 py-1.5 rounded-lg text-xs font-medium inline-flex items-center gap-1.5">
+                      <div className="bg-emerald-500/10 text-emerald-600 border border-emerald-500/25 px-3 py-1.5 rounded-lg text-xs font-bold inline-flex items-center gap-1.5">
                         <Check className="h-3.5 w-3.5" />
                         {t("UploadedStatus")}
                       </div>
                       <button
                         type="button"
                         onClick={() => handlePersonFileRemoval(target)}
-                        className="p-2 text-zinc-500 hover:text-red-500 hover:bg-red-500/10 rounded transition cursor-pointer"
+                        className="p-2 text-zinc-500 hover:text-red-500 hover:bg-red-50 rounded transition cursor-pointer"
                         title={t("RemoveFileButton")}
                       >
                         <X className="h-4 w-4" />
@@ -310,8 +310,8 @@ export default function Step4Documentos({
             );
           })}
         </div>
-        <div className="border-b border-zinc-800/60 pb-2">
-          <h4 className="text-xs font-bold uppercase tracking-wider text-zinc-400">{t("RequiredDocumentsTitle")}</h4>
+        <div className="border-b border-zinc-200 pb-2">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-[#052B48]">{t("RequiredDocumentsTitle")}</h4>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -327,30 +327,30 @@ export default function Step4Documentos({
             return (
               <div 
                 key={doc.field}
-                className={`bg-[#040e16]/30 border p-5 rounded-xl flex flex-col justify-between gap-4 hover:border-[#c8a788]/20 transition ${
-                  hasError ? "border-red-500 bg-red-500/5" : "border-zinc-800"
+                className={`border p-5 rounded-xl flex flex-col justify-between gap-4 transition ${
+                  hasError ? "bg-red-50/10 border-red-500 hover:border-red-600" : "bg-[#f4f6f8] border-zinc-300 hover:border-[#052B48]/20"
                 }`}
               >
                 <div className="space-y-1">
-                  <h4 className="text-xs md:text-sm font-semibold text-zinc-200">
+                  <h4 className="text-xs md:text-sm font-semibold text-zinc-700">
                     {slotTitle(doc)}
                   </h4>
                   {doc.Subtitle && (
-                    <p className="text-[11px] text-zinc-500">{slotSubtitle(doc)}</p>
+                    <p className="text-[11px] text-zinc-500 leading-normal">{slotSubtitle(doc)}</p>
                   )}
 
                   {doc.multiple && fileList.length > 0 && (
                   <ul className="space-y-1 pt-1">
                     {fileList.map((fname) => (
-                      <li key={fname} className="flex items-center justify-between gap-2 text-xs text-emerald-400 font-medium">
+                      <li key={fname} className="flex items-center justify-between gap-2 text-xs text-zinc-700 font-medium">
                         <span className="inline-flex items-center gap-1.5 truncate">
-                          <FileCheck2 className="h-4 w-4 shrink-0" />
+                          <FileCheck2 className="h-4 w-4 text-emerald-600 shrink-0" />
                           <span className="truncate">{fname}</span>
                         </span>
                         <button
                           type="button"
                           onClick={() => handleFileRemoval(doc.field, fname)}
-                          className="p-1 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 rounded transition cursor-pointer shrink-0"
+                          className="p-1 text-zinc-500 hover:text-red-500 hover:bg-red-50 rounded transition cursor-pointer shrink-0"
                           title={t("RemoveFileButton")}
                         >
                           <X className="h-3.5 w-3.5" />
@@ -362,9 +362,9 @@ export default function Step4Documentos({
  
                 {/* Single-file: unchanged existing behavior */}
                 {!doc.multiple && hasFile && status !== "uploading" && (
-                  <div className="inline-flex items-center gap-1.5 text-xs text-emerald-400 font-medium pt-1.5">
-                    <FileCheck2 className="h-4 w-4" />
-                    <span>{singleFileName}</span>
+                  <div className="flex items-start gap-1.5 min-w-0 text-xs text-zinc-700 font-medium pt-1.5">
+                    <FileCheck2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                    <span className="min-w-0 break-all">{singleFileName}</span>
                   </div>
                 )}
 
@@ -377,7 +377,7 @@ export default function Step4Documentos({
 
                 <div className="w-full flex items-center justify-start mt-2">
                   {status === "idle" && (doc.multiple || !hasFile) && (
-                    <label className="inline-flex items-center gap-2 bg-[#040e16] border border-[#c8a788]/30 text-[#c8a788] px-4 py-2.5 rounded-lg text-xs font-semibold hover:bg-[#c8a788]/10 hover:border-[#c8a788]/60 transition cursor-pointer active:scale-95">
+                    <label className="inline-flex items-center gap-2 bg-[#052B48] text-white px-4 py-2.5 rounded-lg text-xs font-bold hover:bg-[#081827] transition cursor-pointer active:scale-95">
                       <UploadCloud className="h-4 w-4" />
                       {t("ChooseFileButton")}
                       <input 
@@ -396,11 +396,11 @@ export default function Step4Documentos({
 
                   {status === "uploading" && (
                     <div className="w-full space-y-1.5">
-                      <div className="flex justify-between text-[10px] font-semibold text-zinc-400">
+                      <div className="flex justify-between text-[10px] font-semibold text-zinc-500">
                         <span>{t("UploadingStatus")}</span>
                         <span>{progress}%</span>
                       </div>
-                      <div className="w-full bg-zinc-950/60 rounded-full h-1.5 overflow-hidden">
+                      <div className="w-full bg-zinc-200 rounded-full h-1.5 overflow-hidden">
                         <div 
                           className="bg-gradient-to-r from-[#c8a788] to-yellow-500 h-full rounded-full transition-all duration-300"
                           style={{ width: `${progress}%` }}
@@ -411,14 +411,14 @@ export default function Step4Documentos({
 
                   {!doc.multiple && hasFile && status !== "uploading" && (
                   <div className="flex items-center gap-3">
-                    <div className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-3 py-1.5 rounded-lg text-xs font-medium inline-flex items-center gap-1.5">
+                    <div className="bg-emerald-500/10 text-emerald-600 border border-emerald-500/25 px-3 py-1.5 rounded-lg text-xs font-bold inline-flex items-center gap-1.5">
                       <Check className="h-3.5 w-3.5" />
                       {t("UploadedStatus")}
                     </div>
                     <button
                       type="button"
                       onClick={() => handleFileRemoval(doc.field)}
-                      className="p-2 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 rounded transition cursor-pointer"
+                      className="p-2 text-zinc-500 hover:text-red-500 hover:bg-red-50 rounded transition cursor-pointer"
                       title={t("RemoveFileButton")}
                     >
                       <X className="h-4 w-4" />
