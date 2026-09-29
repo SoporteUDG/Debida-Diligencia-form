@@ -1093,7 +1093,16 @@
       "NombreCompletoDeLaPersona": "Full Name of the Person",
       "PropositoUsoYDestinoDelInmueble": "Purpose, Use and Intended Use of the Property",
       "NombreCompletoDelPep": "PEP's Full Name",
-      "CargoQueOcupaDentroDeLaSociedad": "Position held within the company"
+      "CargoQueOcupaDentroDeLaSociedad": "Position held within the company",
+      "OtraNacionalidad": "Other nationality",
+      "PaisDeActividadLaboral": "Country of Employment",
+      "ActividadLaboralEmpresarialOComercial": "Employment, Business or Commercial Activity",
+      "DireccionLaboral": "Work Address",
+      "CargoDesempenado": "Position Held",
+      "EsPropietarioOAccionista": "Are you an owner or shareholder of the company?",
+      "JurisdiccionDeLaActividadPrincipal": "Jurisdiction of Main Activity",
+      "ActividadEconomicaSecundaria": "Secondary Economic Activity",
+      "JurisdiccionDeLaActividadSecundaria": "Jurisdiction of Secondary Activity"
     }
   },
 

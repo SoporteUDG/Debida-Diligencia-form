@@ -57,7 +57,9 @@ const requiredFileList = (fieldName: string) =>
 // Optional multi-file list (any number of files, blanks ignored)
 const optionalFileList = z.array(z.string()).optional();
 
-// Optional string validator
+// Texto no exigido por el schema. Solo para campos condicionales (se exigen
+// desde superRefine cuando se muestran) o que el cliente no llena. Todo campo
+// visible siempre debe usar requiredString.
 const optionalString = z.string().trim().max(MAX_TEXT, maxLengthMessage(MAX_TEXT)).optional();
 
 // Referencias opcionales a archivos: sin límite de longitud
@@ -297,7 +299,7 @@ const naturalStep1Shape = {
   idTributaria: idNumberValidator("No. ID Tributaria"),
   nationality: requiredString("Nacionalidad"),
   tipoIdentificacion: requiredString("Tipo de Identificación"),
-  otraNacionalidad: optionalString,
+  otraNacionalidad: requiredString("Otra nacionalidad"),
   idNumber: idNumberValidator("N° de Identificación"),
   fechaVencimientoId: idExpirationDateValidator("Fecha de Vencimiento de Identificación"),
   estatusMigratorio: requiredString("Estatus Migratorio"),
@@ -310,25 +312,25 @@ const naturalStep1Shape = {
   paisResidencial: requiredString("País residencial"),
   email: emailValidator("E-mail"),
   telefonoCodigo: z.string().default("+507"),
-  telefono: optionalPhoneValidator,
+  telefono: phoneValidator("Telefono"),
   celularCodigo: z.string().default("+507"),
   celular: phoneValidator("Celular"),
 
   profession: requiredString("Profesión u Oficio"),
   profesionOtros: optionalString,
-  paisActividadLaboral: optionalString,
+  paisActividadLaboral: requiredString("País de Actividad Laboral"),
   employer: requiredString("Nombre de Empresa Donde Labora"),
-  actividadLaboral: optionalString,
+  actividadLaboral: requiredString("Actividad Laboral, Empresarial o Comercial"),
   actividadLaboralOtros: optionalString,
-  direccionLaboral: optionalString,
-  cargoDesempena: optionalString,
-  esPropietario: optionalString,
+  direccionLaboral: requiredString("Dirección Laboral"),
+  cargoDesempena: requiredString("Cargo Desempeñado"),
+  esPropietario: requiredString("¿Es propietario o accionista de la empresa?"),
   usaFondos: optionalString,
 
   actEconPrincipal: requiredString("Actividad Económica Principal"),
   otroActEcon: optionalString,
   pctDedicacionPrincipal: percentageValidator("Porcentaje de Dedicación Principal", false),
-  jurisdiccionPrincipal: optionalString,
+  jurisdiccionPrincipal: requiredString("Jurisdicción de la Actividad Principal"),
   actEconSecundaria: optionalString,
   pctDedicacionSecundaria: percentageValidator("Porcentaje de Dedicación Secundaria"),
   jurisdiccionSecundaria: optionalString,
@@ -383,6 +385,12 @@ function refineNaturalStep1(data: NaturalStep1Data, ctx: z.RefinementCtx) {
   // Conditional: actEconPrincipal === "Otros"
   if (data.actEconPrincipal === "Otros") {
     requireIfEmpty(ctx, data.otroActEcon, "Otra Actividad Económica", "otroActEcon");
+  }
+  // Conditional: actividad secundaria declarada (actividad o porcentaje) → actividad y jurisdicción
+  const pctSecundaria = parseFloat(data.pctDedicacionSecundaria ?? "0");
+  if (data.actEconSecundaria?.trim() || pctSecundaria > 0) {
+    requireIfEmpty(ctx, data.actEconSecundaria, "Actividad Económica Secundaria", "actEconSecundaria");
+    requireIfEmpty(ctx, data.jurisdiccionSecundaria, "Jurisdicción de la Actividad Secundaria", "jurisdiccionSecundaria");
   }
   // Sum of percentages <= 100%
   const p1 = parseFloat(data.pctDedicacionPrincipal || "0");

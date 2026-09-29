@@ -59,19 +59,24 @@ export function formatDDName(parts: { socio?: string; unidad?: string; proyecto?
 }
 
 /**
- * Resuelve el Name de un expediente de Debida_Diligencia:
+ * Resuelve el Name de un expediente de Debida_Diligencia a partir de su Socio
+ * de Negocio (Accounts), nunca de lo que el cliente capture en el formulario:
  * - Socio: Account_Name del Socio de Negocio vinculado.
- * - Unidad: del expediente; si está vacía, del Socio de Negocio.
- * - Proyecto: del expediente; si está vacío, del Socio de Negocio.
- * Sin Socio de Negocio vinculado (o si no se puede leer) se usan los datos del
- * formulario (`fallback`). Devuelve undefined si no hay nada con qué armarlo.
+ * - Unidad: del Socio de Negocio; si no la tiene, del expediente.
+ * - Proyecto: del Socio de Negocio.
+ *
+ * Al actualizar (`fallback` ausente) un cambio de proyecto en el formulario no
+ * debe renombrar el expediente: si no se puede leer el Socio de Negocio o no
+ * tiene proyecto, se devuelve undefined y el Name actual se conserva.
+ * Al crear (`fallback` presente) sin Socio de Negocio se usan los datos con los
+ * que se genera el expediente.
  */
 async function resolveDDName(
   accessToken: string,
   input: {
     ddRecord?: any;
     socioId?: string;
-    fallback: { nombre?: string; unidad?: string; proyecto?: string };
+    fallback?: { nombre?: string; unidad?: string; proyecto?: string };
   }
 ): Promise<string | undefined> {
   const crmBaseUrl = process.env.ZOHO_CRM_BASE_URL || "https://www.zohoapis.com/crm/v2";
@@ -95,19 +100,36 @@ async function resolveDDName(
     }
   }
 
-  const name = socioRecord
-    ? formatDDName({
-        socio: firstValue(socioRecord, SOCIO_KEYS) || cleanValue(socioLookup?.name),
-        unidad: firstValue(ddRecord, UNIDAD_KEYS) || firstValue(socioRecord, UNIDAD_KEYS),
-        proyecto: firstValue(ddRecord, PROYECTO_KEYS) || firstValue(socioRecord, PROYECTO_KEYS) || fallback.proyecto,
-      })
-    : formatDDName({
-        socio: fallback.nombre,
-        unidad: firstValue(ddRecord, UNIDAD_KEYS) || fallback.unidad,
-        proyecto: fallback.proyecto || firstValue(ddRecord, PROYECTO_KEYS),
-      });
+  if (socioRecord) {
+    const socio = firstValue(socioRecord, SOCIO_KEYS) || cleanValue(socioLookup?.name);
+    const proyecto = firstValue(socioRecord, PROYECTO_KEYS) || fallback?.proyecto;
+    if (!socio || !proyecto) {
+      if (!fallback) {
+        console.warn(`[Zoho Service] El Socio de Negocio ${socioId} no tiene nombre o proyecto: se conserva el Name actual.`);
+        return undefined;
+      }
+    }
+    return (
+      formatDDName({
+        socio: socio || fallback?.nombre,
+        unidad: firstValue(socioRecord, UNIDAD_KEYS) || firstValue(ddRecord, UNIDAD_KEYS),
+        proyecto,
+      }) || undefined
+    );
+  }
 
-  return name || undefined;
+  if (!fallback) {
+    console.warn(`[Zoho Service] Sin Socio de Negocio legible${socioId ? ` (${socioId})` : ""}: se conserva el Name actual.`);
+    return undefined;
+  }
+
+  return (
+    formatDDName({
+      socio: fallback.nombre,
+      unidad: firstValue(ddRecord, UNIDAD_KEYS) || fallback.unidad,
+      proyecto: fallback.proyecto,
+    }) || undefined
+  );
 }
 
 /** Módulos de Zoho CRM con los que trabaja el portal. */
@@ -405,7 +427,7 @@ export const zoho = {
       }
 
       const payload = mapFormToCrmPayload(clientType, formData);
-      const apiPayload = {
+      const apiPayload: Record<string, unknown> = {
           ...payload,           // mapped payload
           Is_API_Update: true,// to avoid triggering the workflows
           Is_API_Update_2: true   
@@ -455,7 +477,9 @@ export const zoho = {
           return { success: true, notFound: false };
         };
 
-        // Name: "Socio Negocio-unidad-proyecto" a partir del expediente actual
+        // Name: "Socio Negocio-unidad-proyecto" solo desde el Socio de Negocio.
+        // Sin fallback: lo que el cliente cambie en el formulario (p. ej. el
+        // proyecto) no renombra el expediente; si no se resuelve, se conserva.
         try {
           const ddResponse = await fetch(`${crmBaseUrl}/Debida_Diligencia/${crmId}`, {
             method: "GET",
@@ -463,17 +487,8 @@ export const zoho = {
           });
           const ddRecord =
             ddResponse.ok && ddResponse.status !== 204 ? (await ddResponse.json()).data?.[0] : undefined;
-          const d = formData || {};
-          const ddName = await resolveDDName(accessToken, {
-            ddRecord,
-            fallback: {
-              nombre: clientType === "NATURAL"
-                ? `${d.firstName ?? ""} ${d.lastName ?? ""}`.trim()
-                : String(d.razonSocial ?? "").trim(),
-              proyecto: String(d.nombreProyecto || d.projectName || "").trim(),
-            },
-          });
-          if (ddName) payload.Name = ddName;
+          const ddName = await resolveDDName(accessToken, { ddRecord });
+          if (ddName) apiPayload.Name = ddName;
         } catch (nameErr) {
           console.warn(`[Zoho Service] No se pudo calcular el Name del expediente ${crmId}:`, nameErr);
         }
@@ -581,7 +596,7 @@ export const zoho = {
             const data = await res.json();
             if (data.data) {
               for (const record of data.data) {
-                const isJur = record.Tipo_de_Persona === "Persona Jurídica" || record.Tipo_de_Persona === "JURIDICA";
+                const isJur = record.Tipo_de_Persona === "Jurídica" || record.Tipo_de_Persona === "JURIDICA";
                 const type = isJur ? "JURIDICA" as const : "NATURAL" as const;
                 const projectName = record.Proyecto?.name || record.Proyecto || "";
                 results.push({
@@ -658,7 +673,7 @@ export const zoho = {
         }
 
         const recordPayload: any = {
-          Tipo_de_Persona: params.clientType === "NATURAL" ? "Persona Natural" : "Persona Jurídica",
+          Tipo_de_Persona: params.clientType === "NATURAL" ? "Natural" : "Jurídica",
           Estado_del_enlace: "Activo",
           Estado: "En Proceso",
         };
@@ -718,7 +733,8 @@ export const zoho = {
           recordPayload.DD_relacionado = { id: params.relatedDDId };
         }
 
-        // Name: "Socio Negocio-unidad-proyecto" (sin socio, datos del formulario)
+        // Name: "Socio Negocio-unidad-proyecto" desde el Socio de Negocio; sin socio,
+        // con los datos con que se genera el expediente (no los del formulario)
         const ddName = await resolveDDName(accessToken, {
           socioId: params.accountCrmId,
           fallback: { nombre: params.name, proyecto: params.projectName },

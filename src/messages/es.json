@@ -1094,7 +1094,16 @@
       "NombreCompletoDeLaPersona": "Nombre Completo de la Persona",
       "PropositoUsoYDestinoDelInmueble": "Propósito, Uso y Destino del Inmueble",
       "NombreCompletoDelPep": "Nombre Completo del PEP",
-      "CargoQueOcupaDentroDeLaSociedad": "Cargo que ocupa dentro de la sociedad"
+      "CargoQueOcupaDentroDeLaSociedad": "Cargo que ocupa dentro de la sociedad",
+      "OtraNacionalidad": "Otra nacionalidad",
+      "PaisDeActividadLaboral": "País de Actividad Laboral",
+      "ActividadLaboralEmpresarialOComercial": "Actividad Laboral, Empresarial o Comercial",
+      "DireccionLaboral": "Dirección Laboral",
+      "CargoDesempenado": "Cargo Desempeñado",
+      "EsPropietarioOAccionista": "¿Es propietario o accionista de la empresa?",
+      "JurisdiccionDeLaActividadPrincipal": "Jurisdicción de la Actividad Principal",
+      "ActividadEconomicaSecundaria": "Actividad Económica Secundaria",
+      "JurisdiccionDeLaActividadSecundaria": "Jurisdicción de la Actividad Secundaria"
     }
   },
 

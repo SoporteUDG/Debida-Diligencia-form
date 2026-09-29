@@ -48,7 +48,7 @@ describe("Zoho CRM & WorkDrive Integration Mocks", () => {
             json: async () => ({
               data: [{
                 Name: "María González",
-                Tipo_de_Persona: "Persona Natural",
+                Tipo_de_Persona: "Natural",
                 Proyecto: "Ocean Reef Phase 2",
                 Email: "maria.gonzalez@example.com",
                 Celular: "50769998888",
@@ -133,8 +133,9 @@ describe("Zoho CRM & WorkDrive Integration Mocks", () => {
       expect(body.Name).toBe("Mock Corp S.A.");
     });
 
-    it("updateContact - should build Name as 'Socio-unidad-proyecto', taking the unidad from the Socio when empty", async () => {
-      const spyFetch = vi.spyOn(global, "fetch").mockImplementation(async (url, init) => {
+    /** Expediente dd-socio con proyecto "Proyecto Viejo" y Socio acc-1 (`socio` = registro de Accounts). */
+    const mockNameFetch = (socio: Record<string, unknown>) =>
+      vi.spyOn(global, "fetch").mockImplementation(async (url, init) => {
         const urlStr = String(url);
         if (urlStr.includes("/oauth/v2/token")) return tokenResponse;
         if (urlStr.includes("/Debida_Diligencia/dd-socio") && (init as any)?.method === "GET") {
@@ -142,16 +143,12 @@ describe("Zoho CRM & WorkDrive Integration Mocks", () => {
             ok: true,
             status: 200,
             json: async () => ({
-              data: [{ id: "dd-socio", Proyecto: "Altos del Parque", Unidad: null, Socio_de_Negocios: { id: "acc-1", name: "Socio" } }],
+              data: [{ id: "dd-socio", Proyecto: "Proyecto Viejo", Unidad: null, Socio_de_Negocios: { id: "acc-1", name: "Socio" } }],
             }),
           } as any;
         }
         if (urlStr.includes("/Accounts/acc-1")) {
-          return {
-            ok: true,
-            status: 200,
-            json: async () => ({ data: [{ id: "acc-1", Account_Name: "Inversiones ABC", Unidad: "T1-502" }] }),
-          } as any;
+          return { ok: true, status: 200, json: async () => ({ data: [{ id: "acc-1", ...socio }] }) } as any;
         }
         if (urlStr.includes("/Debida_Diligencia/dd-socio")) {
           return {
@@ -162,12 +159,27 @@ describe("Zoho CRM & WorkDrive Integration Mocks", () => {
         return { ok: false, status: 404 } as any;
       });
 
-      await zoho.service.updateContact("dd-socio", "NATURAL", { firstName: "Ana", lastName: "Ruiz", nombreProyecto: "Otro" });
-
+    const sentPayload = (spyFetch: ReturnType<typeof mockNameFetch>) => {
       const put = spyFetch.mock.calls.find(
         ([u, init]) => String(u).includes("/Debida_Diligencia/dd-socio") && (init as any)?.method === "PUT"
       )!;
-      expect(JSON.parse((put[1] as any).body).data[0].Name).toBe("Inversiones ABC-T1-502-Altos del Parque");
+      return JSON.parse((put[1] as any).body).data[0];
+    };
+
+    it("updateContact - Name sale del Socio de Negocio aunque el cliente cambie el proyecto", async () => {
+      const spyFetch = mockNameFetch({ Account_Name: "Inversiones ABC", Unidad: "T1-502", Proyecto: "Altos del Parque" });
+
+      await zoho.service.updateContact("dd-socio", "NATURAL", { firstName: "Ana", lastName: "Ruiz", nombreProyecto: "Otro" });
+
+      expect(sentPayload(spyFetch).Name).toBe("Inversiones ABC-T1-502-Altos del Parque");
+    });
+
+    it("updateContact - sin proyecto en el Socio de Negocio no cambia el Name", async () => {
+      const spyFetch = mockNameFetch({ Account_Name: "Inversiones ABC", Unidad: "T1-502" });
+
+      await zoho.service.updateContact("dd-socio", "NATURAL", { firstName: "Ana", lastName: "Ruiz", nombreProyecto: "Otro" });
+
+      expect(sentPayload(spyFetch)).not.toHaveProperty("Name");
     });
 
     it("updateContact - should throw when the record does not exist in Debida_Diligencia", async () => {
@@ -511,7 +523,7 @@ describe("Zoho CRM & WorkDrive Integration Mocks", () => {
             json: async () => ({
               data: [{
                 Name: "Expediente Test",
-                Tipo_de_Persona: "Persona Jurídica",
+                Tipo_de_Persona: "Jurídica",
                 RUC_NIT: "8-999-9999",
                 Proyecto: { name: "Ocean Reef Phase 2" },
                 Email: "juridica@test.com",
@@ -619,7 +631,7 @@ describe("Zoho CRM & WorkDrive Integration Mocks", () => {
               data: [{
                 id: "debida-search-1",
                 Name: "Expediente Test",
-                Tipo_de_Persona: "Persona Natural",
+                Tipo_de_Persona: "Natural",
                 Email: "test@debida.com",
                 Tel_fono: "50761110000",
                 Proyecto: "Altos del Parque",
@@ -634,7 +646,7 @@ describe("Zoho CRM & WorkDrive Integration Mocks", () => {
               data: [{
                 id: "account-search-1",
                 Account_Name: "Inversiones Test S.A.",
-                Tipo_de_Persona: "Persona Jurídica",
+                Tipo_de_Persona: "Jurídica",
                 Correo_electr_nico: "info@testcorp.com",
                 Phone: "5073009999",
                 Proyecto: "Ocean Reef",
@@ -718,7 +730,7 @@ describe("Zoho CRM & WorkDrive Integration Mocks", () => {
       const body = JSON.parse(init?.body as string);
       // Sin Socio de Negocio: Name con los datos del formulario ("nombre-proyecto")
       expect(body.data[0].Name).toBe("Juan Perez-Costa del Este");
-      expect(body.data[0].Tipo_de_Persona).toBe("Persona Natural");
+      expect(body.data[0].Tipo_de_Persona).toBe("Natural");
       expect(body.data[0].Estado_del_enlace).toBe("Activo");
       expect(body.data[0].Estado).toBe("En Proceso");
       expect(body.data[0].Email).toBe("juan@example.com");

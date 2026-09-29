@@ -408,7 +408,7 @@ export default function Step2PerfilFinanciero({
             </label>
             <SearchableSelect
               options={["No", "Propietario", "Accionista", "Miembro de la sociedad"]}
-              value={formData.esPropietario || "No"}
+              value={formData.esPropietario || ""}
               onChange={(value) => onSearchableSelectChange("esPropietario", value)}
               placeholder={propietaryLabel("No")}
               getLabel={propietaryLabel}
