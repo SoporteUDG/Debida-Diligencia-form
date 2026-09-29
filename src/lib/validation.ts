@@ -54,8 +54,6 @@ const requiredFileList = (fieldName: string) =>
       (files) => files.some((f) => f.trim() !== ""),
       `Debe adjuntar al menos un (1) archivo de ${fieldName}`
     );
-// Optional multi-file list (any number of files, blanks ignored)
-const optionalFileList = z.array(z.string()).optional();
 
 // Texto no exigido por el schema. Solo para campos condicionales (se exigen
 // desde superRefine cuando se muestran) o que el cliente no llena. Todo campo
@@ -433,9 +431,9 @@ export const naturalStep1Schema = z.object(naturalStep1Shape).superRefine(refine
 export const naturalStep2Schema = z.object({
   idFile: requiredValue("Copia de ID"),
   proofAddressFile: optionalValue,
-  origenFondosFile: optionalFileList,
-  hasEstadoCuenta: optionalFileList,
-  hasCertificacionBancaria: optionalValue,
+  origenFondosFile: requiredFileList("Origen de Fondos"),
+  hasEstadoCuenta: requiredFileList("Estado de Cuenta Bancario"),
+  hasCertificacionBancaria: requiredValue("Certificación Bancaria"),
 });
 
 // Paso 3: Declaración y Firma (Anterior Paso 5)
@@ -662,9 +660,9 @@ export const juridicaStep2Schema = z.object({
   origenFondosFile: requiredFileList("Aunque sea un Archivo de Origen de Fondos"),
   pactoSocialFile: requiredFileList("Aunque sea un Archivo de Pacto Social"),
   serviciosPublicosFile: optionalValue,
-  certBancariaFile: optionalValue,
-  certRegistroFile: optionalValue,
-  certComprasFile: optionalValue,
+  certBancariaFile: requiredValue("Certificación Bancaria"),
+  certRegistroFile: requiredValue("Certificado de Registro Público"),
+  certComprasFile: requiredValue("Carta de Compras con Fondos Corporativos"),
 
 
 });

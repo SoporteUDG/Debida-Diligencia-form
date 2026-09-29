@@ -9,7 +9,7 @@ import { useTranslations } from "next-intl";
 import { useErrorTranslator, useTranslatedErrors } from "@/i18n/translateError";
 import { BfMember, DocumentTarget, FormState, GjcMember, INITIAL_FORM_STATE } from "@/types/persona-juridica";
 
-import { docKey, isDocumentUploaded, staticDocumentFields } from "@/components/persona-juridica/Step4Documentos";
+import { buildIdDocumentTargets, docKey, isDocumentUploaded, staticDocumentFields } from "@/components/persona-juridica/Step4Documentos";
 
 
 import dynamic from "next/dynamic";
@@ -695,6 +695,18 @@ export default function PersonaJuridicaPage() {
     }
   };
 
+  // Per-person ID documents live in formData.personDocuments, outside the zod
+  // schemas, so they are checked here. Keyed by docKey() to match Step4Documentos.
+  const getPersonIdDocErrors = (): Record<string, string> => {
+    const docErrors: Record<string, string> = {};
+    buildIdDocumentTargets(formData).forEach(({ target, required }) => {
+      if (required && !isDocumentUploaded(formData, target)) {
+        docErrors[docKey(target)] = "Copia de ID es requerido(a)";
+      }
+    });
+    return docErrors;
+  };
+
   const isStepValid = (step: number) => {
     if (step === 0) return true;
     let schema;
@@ -703,6 +715,7 @@ export default function PersonaJuridicaPage() {
     else if (step === 3) schema = juridicaStep3Schema;
     else return false;
 
+    if (step === 2 && Object.keys(getPersonIdDocErrors()).length > 0) return false;
     return schema.safeParse(formData).success;
   };
 
@@ -715,9 +728,10 @@ export default function PersonaJuridicaPage() {
     else return true;
 
     const validation = schema.safeParse(formData);
-    if (!validation.success) {
-      const stepErrors: Record<string, string> = {};
-      validation.error.issues.forEach(err => {
+    const personDocErrors = step === 2 ? getPersonIdDocErrors() : {};
+    if (!validation.success || Object.keys(personDocErrors).length > 0) {
+      const stepErrors: Record<string, string> = { ...personDocErrors };
+      validation.error?.issues.forEach(err => {
         const path = err.path.join(".");
         stepErrors[path] = err.message;
       });
@@ -775,11 +789,15 @@ export default function PersonaJuridicaPage() {
     }
 
     const fullValidation = juridicaFormSchema.safeParse(formData);
-    if (!fullValidation.success) {
-      const allErrors: Record<string, string> = {};
-      const summaryItems: { step: number; message: string }[] = [];
+    const personDocErrors = getPersonIdDocErrors();
+    if (!fullValidation.success || Object.keys(personDocErrors).length > 0) {
+      const allErrors: Record<string, string> = { ...personDocErrors };
+      const summaryItems: { step: number; message: string }[] = Object.values(personDocErrors).map(message => ({
+        step: 2,
+        message,
+      }));
 
-      fullValidation.error.issues.forEach(err => {
+      fullValidation.error?.issues.forEach(err => {
         const path = err.path.join(".");
         allErrors[path] = err.message;
         
@@ -817,11 +835,6 @@ export default function PersonaJuridicaPage() {
       { key: "rlDireccion", label: tp("OptionalFields.rlDireccion"), step: 1 },
       { key: "rlPaisResidencia", label: tp("OptionalFields.rlPaisResidencia"), step: 1 },
       { key: "rlTelefono", label: tp("OptionalFields.rlTelefono"), step: 1 },
-      
-      { key: "origenFondosFile", label: tp("OptionalFields.origenFondosFile"), step: 2 },
-      { key: "pactoSocialFile", label: tp("OptionalFields.pactoSocialFile"), step: 2 },
-      { key: "certBancariaFile", label: tp("OptionalFields.certBancariaFile"), step: 2 },
-      { key: "certRegistroFile", label: tp("OptionalFields.certRegistroFile"), step: 2 }
     ];
 
     if (formData.esPep === "Sí") {

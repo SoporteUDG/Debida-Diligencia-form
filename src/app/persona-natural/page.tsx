@@ -590,7 +590,6 @@ export default function PersonaNaturalPage() {
       { key: "cargoDesempena", label: tp("OptionalCargoDesempena"), step: 1 },
       { key: "actEconPrincipal", label: tp("OptionalActEconPrincipal"), step: 1 },
       { key: "actEconSecundaria", label: tp("OptionalActEconSecundaria"), step: 1 },
-      { key: "origenFondosFile", label: tp("OptionalOrigenFondosFile"), step: 2 },
     ];
 
     if (formData.esPep === "Sí") {

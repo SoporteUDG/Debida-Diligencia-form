@@ -39,9 +39,12 @@ export default function Step3Documentos({
     const hasError = !!errors[fieldName];
 
     return (
-      <div className="flex flex-col gap-2">
+      <div className={`border p-5 rounded-xl flex flex-col transition ${
+        hasError ? "bg-red-50/10 border-red-500 hover:border-red-600" : "bg-[#f4f6f8] border-zinc-300 hover:border-[#052B48]/20"
+      }`}>
         <label className="text-xs font-semibold text-zinc-700 leading-normal">
           {label}
+          {isRequired && <span className="text-red-500 ml-0.5">*</span>}
         </label>
         <label className="text-[11px] text-zinc-500 leading-normal">{description}</label>
 
@@ -68,11 +71,7 @@ export default function Step3Documentos({
             ))}
           </ul>
         )}
-        <div className={`border rounded-xl p-4 flex items-center justify-between gap-4 min-h-[72px] transition-all duration-200 ${
-          hasError
-            ? "bg-red-50/10 border-red-500 hover:border-red-600"
-            : "bg-[#f4f6f8] border-zinc-300 hover:border-[#052B48]/20"
-        }`}>
+        <div className="px-1 flex items-center justify-between gap-4 min-h-[72px] transition-all duration-200">
           {status === "idle" && (multiple || !hasFile) && (
             <div className="flex items-center justify-between w-full">
               <span className="text-xs text-zinc-400 font-medium">
@@ -163,44 +162,33 @@ export default function Step3Documentos({
 
       
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        
-        {/* Left Column */}
-        <div className="space-y-6">
-          {renderUploadField(
-            "idFile",
-            t("IdFileLabel", { type: typeIdLabel(formData.tipoIdentificacion || "") }),
-            "",
-            true
-          )}
-          {renderUploadField(
-            "hasCertificacionBancaria",
-            t("BankCertLabel"),
-            "",
-            true
-          )}
-
-        </div>
-
-        {/* Right Column */}
-        <div className="space-y-6">
-          {renderUploadField(
-            "hasEstadoCuenta",
-            t("BankStatementLabel"),
-            "",
-            true,
-            true
-          )}
-
-          {renderUploadField(
-            "origenFondosFile",
-            t("IncomeProofLabel"),
-            t("IncomeProofDescription"),
-            true,
-            true
-          )}
-        </div>
-
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {renderUploadField(
+          "idFile",
+          t("IdFileLabel", { type: typeIdLabel(formData.tipoIdentificacion || "") }),
+          "",
+          true
+        )}
+        {renderUploadField(
+          "hasCertificacionBancaria",
+          t("BankCertLabel"),
+          "",
+          true
+        )}
+        {renderUploadField(
+          "hasEstadoCuenta",
+          t("BankStatementLabel"),
+          "",
+          true,
+          true
+        )}
+        {renderUploadField(
+          "origenFondosFile",
+          t("IncomeProofLabel"),
+          t("IncomeProofDescription"),
+          true,
+          true
+        )}
       </div>
     </div>
   );

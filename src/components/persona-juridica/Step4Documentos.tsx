@@ -190,8 +190,6 @@ export default function Step4Documentos({
     formData.personDocuments.find(
       (d) => d.personType === target.personType && d.personId === target.personId && d.documentType === target.documentType
     )?.fileName;
-    console.log(formData.personDocuments);
-    console.log(formData.gjcMembers);
 
   
 
@@ -243,6 +241,7 @@ export default function Step4Documentos({
               }`}>
                 <h4 className="text-xs md:text-sm font-semibold text-zinc-700 basis-2/3 min-w-0 break-words">
                   {`${title} - ${roleLabel} - ${personLabel}`}
+                  {required && <span className="text-red-500 ml-0.5">*</span>}
                 </h4>
                 {hasFile && (status === "success" || (status === "idle" && hasFile)) && (
                   <div className="flex items-start gap-1.5 min-w-0 text-xs text-zinc-700 font-medium pt-1.5">
@@ -334,6 +333,7 @@ export default function Step4Documentos({
                 <div className="space-y-1">
                   <h4 className="text-xs md:text-sm font-semibold text-zinc-700">
                     {slotTitle(doc)}
+                    {doc.required && <span className="text-red-500 ml-0.5">*</span>}
                   </h4>
                   {doc.Subtitle && (
                     <p className="text-[11px] text-zinc-500 leading-normal">{slotSubtitle(doc)}</p>

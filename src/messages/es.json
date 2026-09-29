@@ -457,7 +457,7 @@
       },
       "Placeholders": {
         "AddAnotherFile": "Agregar otro archivo (.pdf, .jpeg)",
-        "ChooseFile": "Choose File (.pdf, .jpeg)"
+        "ChooseFile": "Escoge Archivo (.pdf, .jpeg)"
       }
     },
 
@@ -899,7 +899,7 @@
         "PrivacyNoticeText": "Entendemos la importancia de su privacidad. Por ello, toda la información personal y los documentos que comparta con nosotros serán manejados bajo los más altos estándares de seguridad y confidencialidad. Sus datos se utilizarán exclusivamente para nuestro proceso de debida diligencia. Como Sujeto No Financiero y en estricto cumplimiento de la Ley 23 del 27 de abril de 2015, garantizamos la reserva y custodia legal de su expediente, el cual no será compartido con terceros salvo requerimiento expreso de las autoridades supervisoras.",
         "IdDocumentsTitle": "Documentos de Identificacion",
         "RequiredDocumentsTitle": "Documentos Requeridos",
-        "ChooseFileButton": "Choose File",
+        "ChooseFileButton": "Escoge Archivo",
         "UploadingStatus": "Subiendo...",
         "UploadedStatus": "Cargado",
         "RemoveFileButton": "Quitar archivo"
@@ -1079,6 +1079,11 @@
       "CopiaDeCertificadoDeAvisoDeOperaciones": "Copia de Certificado de Aviso de Operaciones",
       "AunqueSeaUnArchivoDeOrigenDeFondos": "Aunque sea un Archivo de Origen de Fondos",
       "AunqueSeaUnArchivoDePactoSocial": "Aunque sea un Archivo de Pacto Social",
+      "OrigenDeFondos": "Origen de Fondos",
+      "EstadoDeCuentaBancario": "Estado de Cuenta Bancario",
+      "CertificacionBancaria": "Certificación Bancaria",
+      "CertificadoDeRegistroPublico": "Certificado de Registro Público",
+      "CartaDeComprasConFondosCorporativos": "Carta de Compras con Fondos Corporativos",
       "NombreDelRepresentanteLegalOFirmante": "Nombre del Representante Legal o Firmante",
       "NombreDeQuienLoRefirio": "Nombre de quien lo refirió",
       "NombreDeEmpresaDondeLabora": "Nombre de Empresa Donde Labora",
