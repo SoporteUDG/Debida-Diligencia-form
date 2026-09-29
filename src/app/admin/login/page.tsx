@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { ShieldAlert, Lock, Mail, Loader2, ArrowRight } from "lucide-react";
+import BrandFooter from "@/components/BrandFooter";
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -47,7 +48,8 @@ export default function AdminLoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#001b2e] text-zinc-100 flex items-center justify-center p-4 relative overflow-hidden font-sans select-none">
+    <div className="min-h-screen bg-[#001b2e] text-zinc-100 flex flex-col relative overflow-hidden font-sans select-none">
+    <div className="flex-1 flex items-center justify-center p-4">
       {/* Background radial gradient decoration */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-sky-950/10 rounded-full blur-[120px] pointer-events-none" />
       <div className="absolute top-10 left-10 w-72 h-72 bg-[#c8a788]/5 rounded-full blur-[100px] pointer-events-none" />
@@ -155,6 +157,8 @@ export default function AdminLoginPage() {
         </div>
         */} 
       </div>
+    </div>
+    <BrandFooter />
     </div>
   );
 }

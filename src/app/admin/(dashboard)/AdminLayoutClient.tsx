@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
+import BrandFooter from "@/components/BrandFooter";
 import {
   Building2,
   User,
@@ -78,7 +79,8 @@ export default function AdminLayoutClient({
   // 1. Acceso Denegado UI
   if (denied) {
     return (
-      <div className="min-h-screen bg-[#001b2e] text-zinc-100 flex items-center justify-center p-4 relative overflow-hidden font-sans">
+      <div className="min-h-screen bg-[#001b2e] text-zinc-100 flex flex-col relative overflow-hidden font-sans">
+      <div className="flex-1 flex items-center justify-center p-4">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-red-950/10 rounded-full blur-[120px] pointer-events-none" />
         
         <div className="w-full max-w-md bg-[#002b49]/70 backdrop-blur-xl border border-red-900/30 rounded-3xl p-8 md:p-10 shadow-2xl text-center space-y-6 relative z-10 animate-fadeIn">
@@ -108,6 +110,8 @@ export default function AdminLayoutClient({
             </button>
           </div>
         </div>
+      </div>
+      <BrandFooter />
       </div>
     );
   }
@@ -312,6 +316,8 @@ export default function AdminLayoutClient({
         <div className="flex-1 flex flex-col">
           {children}
         </div>
+
+        <BrandFooter />
 
       </div>
     </div>

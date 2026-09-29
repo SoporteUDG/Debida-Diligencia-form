@@ -7,6 +7,7 @@ import FormReadOnlyView, { ViewData, ViewDocument, ViewSignature } from "@/compo
 import VersionTimelapse, { ViewVersion } from "@/components/view/VersionTimelapse";
 import { generatePDF } from "@/lib/pdfGenerator";
 import { resolveFormType } from "@/lib/formTypeResolution";
+import BrandFooter from "@/components/BrandFooter";
 
 /**
  * "consulta": /view, embebido en el Web Tab de Zoho; pide pegar el enlace.
@@ -91,16 +92,6 @@ function Header() {
   );
 }
 
-function Footer() {
-  return (
-    <footer className="border-t border-zinc-800/40 bg-black/30 py-6 text-center text-xs text-zinc-400">
-      <p className="font-sans text-[11px] tracking-wider text-zinc-400">
-        © {new Date().getFullYear()} UDG Group. Todos los derechos reservados de conformidad con la ley de protección de datos.
-      </p>
-    </footer>
-  );
-}
-
 export default function ExpedienteView({ mode }: { mode: ExpedienteViewMode }) {
   const [link, setLink] = useState("");
   const [loading, setLoading] = useState(false);
@@ -110,7 +101,6 @@ export default function ExpedienteView({ mode }: { mode: ExpedienteViewMode }) {
   const [refreshing, setRefreshing] = useState(false);
 
   const [selectedVersion, setSelectedVersion] = useState<number | null>(null);
-  const [playing, setPlaying] = useState(false);
 
   const lookup = async (value: string, opts: { refresh?: boolean } = {}) => {
     const trimmed = value.trim();
@@ -139,7 +129,6 @@ export default function ExpedienteView({ mode }: { mode: ExpedienteViewMode }) {
       setSelectedVersion((prev) =>
         opts.refresh && prev !== null && data.versions.some((v) => v.version === prev) ? prev : latest
       );
-      setPlaying(false);
     } catch (e) {
       // Al recargar se conserva lo ya mostrado: un fallo puntual de red no debe
       // devolver al usuario al formulario y obligarle a pegar el enlace otra vez.
@@ -209,7 +198,6 @@ export default function ExpedienteView({ mode }: { mode: ExpedienteViewMode }) {
     setError(null);
     setLink("");
     setSelectedVersion(null);
-    setPlaying(false);
     if (typeof window !== "undefined") {
       window.history.replaceState(null, "", "/view");
     }
@@ -393,16 +381,6 @@ export default function ExpedienteView({ mode }: { mode: ExpedienteViewMode }) {
               </div>
             </div>
 
-            {versions.length > 0 && selectedVersion !== null && (
-              <VersionTimelapse
-                versions={versions}
-                selected={selectedVersion}
-                onSelect={handleSelectVersion}
-                playing={playing}
-                onPlayingChange={setPlaying}
-              />
-            )}
-
             {isHistorical && (
               <div className="flex items-start gap-2 text-amber-200 bg-amber-500/10 border border-amber-500/30 rounded-lg px-4 py-3 text-xs">
                 <History className="w-4 h-4 shrink-0 mt-0.5" />
@@ -423,11 +401,15 @@ export default function ExpedienteView({ mode }: { mode: ExpedienteViewMode }) {
                 signature={isHistorical ? null : result.signature}
               />
             </div>
+
+            {versions.length > 0 && selectedVersion !== null && (
+              <VersionTimelapse versions={versions} selected={selectedVersion} onSelect={handleSelectVersion} />
+            )}
           </div>
         )}
       </main>
 
-      <Footer />
+      <BrandFooter />
     </div>
   );
 }

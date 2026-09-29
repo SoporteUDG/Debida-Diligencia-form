@@ -35,6 +35,7 @@ import {
 
 import { useAutosave } from "@/hooks/useAutosave";
 import { PHONE_INPUT_FIELDS, sanitizePhoneInput } from "@/lib/phoneInput";
+import BrandFooter from "@/components/BrandFooter";
 
 const getStepForField = (field: string): number => {
   const step1Fields = [
@@ -715,11 +716,14 @@ export default function PersonaNaturalPage() {
   };
 
   const loadingScreen = (
-      <div className="flex min-h-screen items-center justify-center bg-[#002b49] text-white">
-        <div className="text-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#c8a788] border-t-transparent mx-auto mb-4"></div>
-          <p className="text-zinc-400 font-serif tracking-widest text-xs uppercase">{tp("LoadingPortal")}</p>
+      <div className="flex min-h-screen flex-col bg-[#002b49] text-white">
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#c8a788] border-t-transparent mx-auto mb-4"></div>
+            <p className="text-zinc-400 font-serif tracking-widest text-xs uppercase">{tp("LoadingPortal")}</p>
+          </div>
         </div>
+        <BrandFooter />
       </div>
   );
 
@@ -799,11 +803,7 @@ export default function PersonaNaturalPage() {
             </div>
           </div>
         </main>
-        <footer className="border-t border-zinc-800/40 bg-black/30 py-6 text-center text-xs text-zinc-400">
-          <p className="font-sans text-[11px] font-normal tracking-wider text-zinc-400">
-            {tp("Copyright", { year: new Date().getFullYear() })}
-          </p>
-        </footer>
+        <BrandFooter />
       </div>
     );
   }
@@ -951,21 +951,7 @@ export default function PersonaNaturalPage() {
 
       </main>
 
-      {/* Luxury Brand Footer */}
-      <footer className="border-t border-zinc-900/60 bg-black/30 py-8 text-center text-xs text-zinc-500 font-sans text-white">
-        <div className="max-w-6xl mx-auto px-6 flex flex-row items-center justify-center text-center gap-2">
-          <Image src="/UDG_LOGO.png"
-            alt={tp("LogoAlt")}
-            width={60}
-            height={30}
-            className="object-contain h-8 md:h-8 w-auto opacity-50"
-            priority
-          />
-          <p className="text-[10px] text-zinc-500">
-            {tp("Copyright", { year: new Date().getFullYear() })}
-          </p>
-        </div>
-      </footer>
+      <BrandFooter />
       {/* Premium Validation Summary Modal */}
       {validationSummary && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fadeIn animate-duration-200">

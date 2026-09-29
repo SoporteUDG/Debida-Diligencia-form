@@ -59,15 +59,6 @@ describe("agruparDocumentos", () => {
     expect(grupos).toEqual([]);
   });
 
-  it("agrupa bajo 'Otros Adjuntos' los documentos sin ranura", () => {
-    const grupos = agruparDocumentos(
-      [{ name: "suelto.pdf", fileType: "application/pdf", documentType: null }],
-      {}
-    );
-    expect(grupos[0].titulo).toBe("Otros Adjuntos");
-    expect(grupos[0].archivos).toEqual(["suelto.pdf"]);
-  });
-
   it("ignora campos del snapshot que no son ranuras documentales", () => {
     const grupos = agruparDocumentos([], { razonSocial: "Empresa X", rlNombre: "Ana" });
     expect(grupos).toEqual([]);

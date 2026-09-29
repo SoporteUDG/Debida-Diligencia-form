@@ -1116,5 +1116,13 @@
     "WrongForm": "Este enlace no corresponde a este formulario. Ábralo tal como lo recibió o solicite a su asesor de UDG el enlace correcto.",
     "Expired": "El enlace de acceso a este formulario ha expirado. Solicite a su asesor de UDG un nuevo enlace.",
     "Copyright": "© {year} UDG Group. Todos los derechos reservados de conformidad con la ley de protección de datos."
+  },
+
+  "NotFound": {
+    "Badge": "Error 404",
+    "Title": "Página no encontrada",
+    "Message": "La página que busca no existe o ya no está disponible. Verifique que la dirección esté escrita correctamente.",
+    "HelpTitle": "¿Busca su formulario?",
+    "HelpBody": "El formulario de Debida Diligencia solo se abre con el enlace seguro y personalizado que le envió su asesor comercial o el equipo de Cumplimiento de UDG. Si no lo tiene o expiró, solicite que se lo reenvíen."
   }
 }

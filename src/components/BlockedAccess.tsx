@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import AccessRestricted from "@/components/AccessRestricted";
 import type { TokenFailureReason } from "@/lib/tokenAccess";
+import BrandFooter from "@/components/BrandFooter";
 
 interface BlockedAccessProps {
   reason: TokenFailureReason;
@@ -48,11 +49,7 @@ export default function BlockedAccess({ reason, header }: BlockedAccessProps) {
           </div>
         </div>
       </main>
-      <footer className="border-t border-zinc-800/40 bg-black/30 py-6 text-center text-xs text-zinc-400">
-        <p className="font-sans text-[11px] font-normal tracking-wider text-zinc-400">
-          {t("Copyright", { year: new Date().getFullYear() })}
-        </p>
-      </footer>
+      <BrandFooter />
     </div>
   );
 }

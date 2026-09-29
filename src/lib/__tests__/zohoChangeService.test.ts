@@ -3,7 +3,7 @@ import { describe, it, expect, vi } from "vitest";
 vi.mock("@/lib/prisma", () => ({ default: {} }));
 vi.mock("@/lib/workdriveSyncService", () => ({ syncFormToWorkDrive: vi.fn() }));
 
-import { calcularCambiosDesdeZoho, tomarCopia } from "../zohoChangeService";
+import { calcularCambiosDesdeZoho, tomarCopia, datosFormularioDesdeZoho, esCampoNoPrecargable } from "../zohoChangeService";
 
 describe("calcularCambiosDesdeZoho", () => {
   const natural = {
@@ -100,5 +100,43 @@ describe("calcularCambiosDesdeZoho", () => {
     expect(copia.Es_PEP).toBe("true");
     expect(copia.Proyecto).toBe("P1");
     expect(copia).not.toHaveProperty("Otro_Campo");
+  });
+});
+
+describe("datosFormularioDesdeZoho", () => {
+  it("precarga los campos con valor del registro de Zoho", () => {
+    const datos = datosFormularioDesdeZoho("NATURAL", {
+      Proyecto: "Altos del Parque",
+      Nombre_natural: "Juan Pérez",
+      Celular: "+507 6000-0000",
+      Es_PEP: true,
+      Ciudad: "",
+      Mas_unidades_inmobiliarias: false,
+      Otro_Campo: "x",
+    });
+    expect(datos).toEqual({
+      nombreProyecto: "Altos del Parque",
+      firstName: "Juan",
+      lastName: "Pérez",
+      celularCodigo: "+507",
+      celular: "6000-0000",
+      esPep: "Sí",
+    });
+  });
+
+  it("mapea los campos de persona jurídica", () => {
+    const datos = datosFormularioDesdeZoho("JURIDICA", { Raz_n_social: "ACME S.A.", Nombre_natural: "Ana Díaz" });
+    expect(datos).toEqual({ razonSocial: "ACME S.A.", rlNombre: "Ana Díaz" });
+  });
+
+  it("excluye documentos, sus casillas, términos y firma", () => {
+    for (const campo of [
+      "idFile", "origenFondosFile", "hasEstadoCuenta", "hasCertificacionBancaria", "checkedPactoSocial",
+      "personDocuments", "termsAccepted", "signatureConfirmed", "signerName", "signatureDate", "firmaImage",
+    ]) {
+      expect(esCampoNoPrecargable(campo)).toBe(true);
+    }
+    expect(esCampoNoPrecargable("razonSocial")).toBe(false);
+    expect(esCampoNoPrecargable("esPep")).toBe(false);
   });
 });

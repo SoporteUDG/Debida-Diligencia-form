@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import AccessRestricted from "@/components/AccessRestricted";
+import BrandFooter from "@/components/BrandFooter";
 
 export default function WelcomeHub() {
   const router = useRouter();
@@ -29,8 +30,11 @@ export default function WelcomeHub() {
 
   if (isChecking) {
     return (
-      <div className="min-h-screen bg-[#002b49] flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-[#c8a788] border-t-transparent rounded-full animate-spin"></div>
+      <div className="min-h-screen bg-[#002b49] flex flex-col">
+        <div className="flex-1 flex items-center justify-center">
+          <div className="w-8 h-8 border-2 border-[#c8a788] border-t-transparent rounded-full animate-spin"></div>
+        </div>
+        <BrandFooter />
       </div>
     );
   }

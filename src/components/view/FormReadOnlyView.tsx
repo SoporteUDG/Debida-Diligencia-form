@@ -270,7 +270,7 @@ function NaturalSections({ data }: { data: ViewData }) {
             { label: "Dirección Laboral", value: data.direccionLaboral },
             { label: "¿Es propietario de la entidad?", value: data.esPropietario },
             { label: "¿Usa fondos de la entidad?", value: data.usaFondos, field: "usaFondos" },
-            { label: "Actividad Económica Principal", value: data.actEconPrincipal === "Otro" ? data.otroActEcon : data.actEconPrincipal },
+            { label: "Actividad Económica Principal", value: data.actEconPrincipal === "Otros" ? data.otroActEcon : data.actEconPrincipal },
             { label: "% Dedicación Principal", value: data.pctDedicacionPrincipal },
             { label: "Jurisdicción Principal", value: data.jurisdiccionPrincipal },
             { label: "Actividad Económica Secundaria", value: data.actEconSecundaria },

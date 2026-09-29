@@ -46,8 +46,7 @@ export const DOCUMENT_LABELS: Record<string, string> = {
   avisoOperacionesFile: "Certificado de Aviso de Operaciones",
   serviciosPublicosFile: "Factura de Servicios Públicos",
   certRegistroFile: "Certificado de Registro Público",
-  certComprasFile: "Compras de Beneficiarios con Fondos Corporativos",
-  otrosAdjuntosFile: "Otros Adjuntos",
+  certComprasFile: "Compras de Beneficiarios con Fondos Corporativos"
 };
 
 /** Nombre legible de una ranura; si no está catalogada se usa la clave tal cual. */

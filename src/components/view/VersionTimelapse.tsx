@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
-import { History, Play, Pause, ChevronLeft, ChevronRight, UserCheck, MessageSquareText, ArrowRight } from "lucide-react";
+import { useMemo } from "react";
+import { History, ChevronLeft, ChevronRight, UserCheck, MessageSquareText, ArrowRight } from "lucide-react";
 import type { ViewData } from "./FormReadOnlyView";
 
 export interface ViewVersion {
@@ -18,11 +18,7 @@ interface Props {
   versions: ViewVersion[];
   selected: number;
   onSelect: (version: number) => void;
-  playing: boolean;
-  onPlayingChange: (playing: boolean) => void;
 }
-
-const INTERVALO_MS = 2500;
 
 // "nombreProyecto" -> "Nombre proyecto": las llaves del FormState son legibles
 // una vez separadas, y así no hace falta mantener un catálogo aparte.
@@ -48,31 +44,13 @@ const resumirValor = (v: unknown): string => {
 const fechaHora = (iso: string) =>
   new Date(iso).toLocaleString("es-PA", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
 
-export default function VersionTimelapse({ versions, selected, onSelect, playing, onPlayingChange }: Props) {
+export default function VersionTimelapse({ versions, selected, onSelect }: Props) {
   const indice = Math.max(0, versions.findIndex((v) => v.version === selected));
   const actual = versions[indice];
   const anterior = indice > 0 ? versions[indice - 1] : null;
   const ultima = versions.length - 1;
 
-  useEffect(() => {
-    if (!playing) return;
-    if (indice >= ultima) {
-      onPlayingChange(false);
-      return;
-    }
-    const t = setTimeout(() => onSelect(versions[indice + 1].version), INTERVALO_MS);
-    return () => clearTimeout(t);
-  }, [playing, indice, ultima, versions, onSelect, onPlayingChange]);
-
-  const togglePlay = () => {
-    if (playing) return onPlayingChange(false);
-    // Desde la última versión, reproducir vuelve a empezar por el envío original.
-    if (indice >= ultima) onSelect(versions[0].version);
-    onPlayingChange(true);
-  };
-
   const irA = (i: number) => {
-    onPlayingChange(false);
     onSelect(versions[Math.min(ultima, Math.max(0, i))].version);
   };
 
@@ -115,14 +93,6 @@ export default function VersionTimelapse({ versions, selected, onSelect, playing
               className="w-9 h-9 inline-flex items-center justify-center rounded-lg border border-zinc-700 hover:border-zinc-500 disabled:opacity-40 transition cursor-pointer"
             >
               <ChevronLeft className="w-4 h-4" />
-            </button>
-            <button
-              type="button"
-              onClick={togglePlay}
-              className="inline-flex items-center gap-2 bg-[#c8a788] hover:bg-[#b08e6f] text-[#002b49] text-xs font-bold px-4 py-2.5 rounded-lg transition tracking-wider uppercase shadow-md cursor-pointer"
-            >
-              {playing ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-              {playing ? "Pausar" : "Reproducir"}
             </button>
             <button
               type="button"

@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { generateToken } from "@/lib/tokenService";
 import { zoho } from "@/lib/zohoService";
 import { logAuditEvent } from "@/lib/auditService";
+import { datosFormularioDesdeZoho } from "@/lib/zohoChangeService";
 
 export const dynamic = "force-dynamic";
 
@@ -17,9 +18,13 @@ const corsHeaders = {
  * formulario y crea su borrador. El borrador queda vinculado al contacto
  * (Draft.crmContactId) para que el autocompletado del expediente relacionado
  * lo encuentre al enviarse el otro formulario.
+ *
+ * El borrador nace con los campos que ya existan en el registro de Zoho CRM
+ * (salvo documentos, sus casillas, términos y firma).
  */
 async function crearEnlaceConBorrador(params: {
   contactId: string;
+  crmId: string;
   isNatural: boolean;
   appUrl: string;
   draftData: Record<string, any>;
@@ -30,14 +35,23 @@ async function crearEnlaceConBorrador(params: {
 
   const formPath = params.isNatural ? "persona-natural" : "persona-juridica";
   const clientUrl = `${params.appUrl}/${formPath}?token=${tokenUuid}`;
+  const formType = params.isNatural ? "NATURAL" : "JURIDICA";
+
+  let desdeZoho: Record<string, any> = {};
+  try {
+    const registro = await zoho.service.getDDRecord(params.crmId);
+    if (registro) desdeZoho = datosFormularioDesdeZoho(formType, registro);
+  } catch (err) {
+    console.warn(`[API Generar Enlace ZDK] No se pudo precargar el borrador desde el registro ${params.crmId}:`, err);
+  }
 
   await prisma.draft.upsert({
     where: { token: tokenUuid },
     create: {
       token: tokenUuid,
-      type: params.isNatural ? "NATURAL" : "JURIDICA",
+      type: formType,
       crmContactId: params.contactId,
-      data: params.draftData,
+      data: { ...params.draftData, ...desdeZoho },
     },
     update: {
       crmContactId: params.contactId,
@@ -128,6 +142,7 @@ async function prepararExpedienteRelacionado(params: {
   // 5. Token, URL y borrador del relacionado
   const { clientUrl, expiresAt } = await crearEnlaceConBorrador({
     contactId: relatedContact.id,
+    crmId: relatedCrmId,
     isNatural: true,
     appUrl,
     draftData: {
@@ -254,6 +269,7 @@ export async function POST(request: NextRequest) {
     // 2-4. Token de 30 días, URL del formulario y borrador
     const { tokenUuid, clientUrl, expiresAt } = await crearEnlaceConBorrador({
       contactId: contact.id,
+      crmId: recordId,
       isNatural,
       appUrl,
       draftData: {

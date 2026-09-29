@@ -1106,5 +1106,13 @@
     "HowToGetAccessBody": "If you are a UDG client and have not received your link, or if it has expired, please contact your business advisor or request that your link be reissued directly from the Compliance team.",
     "ComplianceFooter": "Urban Development Group • Regulatory Compliance",
     "Copyright": "© {year} UDG Group. All rights reserved in accordance with data protection law."
+  },
+
+  "NotFound": {
+    "Badge": "Error 404",
+    "Title": "Page Not Found",
+    "Message": "The page you are looking for does not exist or is no longer available. Please check that the address is spelled correctly.",
+    "HelpTitle": "Looking for your form?",
+    "HelpBody": "The Due Diligence form can only be opened with the secure, personalized link sent to you by your business advisor or the UDG Compliance team. If you do not have it or it has expired, please ask for it to be resent."
   }
 }

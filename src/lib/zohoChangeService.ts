@@ -264,6 +264,42 @@ export function tomarCopia(tipo: FormType, registro: Datos): Record<string, stri
   return copia;
 }
 
+/**
+ * Campos que nunca se precargan desde Zoho: documentos, sus casillas, términos
+ * y firma. El cliente debe adjuntarlos, marcarlos y firmar él mismo.
+ */
+export function esCampoNoPrecargable(clave: string): boolean {
+  return (
+    /File$/.test(clave) ||
+    /^checked[A-Z]/.test(clave) ||
+    /^has[A-Z]/.test(clave) ||
+    clave === "personDocuments" ||
+    clave === "termsAccepted" ||
+    /^signature|^signer|^firma/i.test(clave)
+  );
+}
+
+/**
+ * Datos del formulario a partir de un registro de Zoho, para precargar un
+ * borrador nuevo. Un campo vacío o una casilla desmarcada no se precargan: en
+ * Zoho equivalen a "sin dato", no a una respuesta del cliente.
+ */
+export function datosFormularioDesdeZoho(tipo: FormType, registro: Datos): Datos {
+  const datos: Datos = {};
+  for (const { zoho: campo, aForm } of camposDe(tipo)) {
+    const valor = normalizar(registro[campo]);
+    if (valor === "" || valor === "false") continue;
+
+    const traducido = aForm(registro[campo], datos);
+    if (!traducido) continue;
+    for (const [clave, v] of Object.entries(traducido)) {
+      if (esCampoNoPrecargable(clave) || normalizar(v) === "") continue;
+      datos[clave] = v;
+    }
+  }
+  return datos;
+}
+
 // ---------------------------------------------------------------------------
 // Cálculo de cambios
 // ---------------------------------------------------------------------------

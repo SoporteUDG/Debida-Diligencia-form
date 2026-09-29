@@ -522,11 +522,6 @@ export function requisitosDocumentales(
     );
   }
 
-  // Cualquier otro adjunto (p. ej. otros adjuntos) no se pierde del índice.
-  for (const g of grupos) {
-    if (!usados.has(g.ranura)) requisitos.push({ titulo: g.titulo, archivos: g.archivos, opcional: true });
-  }
-
   return requisitos;
 }
 
