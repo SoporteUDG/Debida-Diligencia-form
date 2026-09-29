@@ -11,7 +11,6 @@ import { zoho, mergeCrmAndDraft } from "@/lib/zohoService";
 import { obtenerAutorizacionVigente, sellarNuevaVersion, sellarVersionInicial } from "@/lib/formVersionService";
 import { sanitizeInput } from "@/lib/sanitizer";
 import { autocompletarExpedienteRelacionado } from "@/lib/relatedDraftService";
-import { verificarAccesoZoho, reclamarTraspaso } from "@/lib/zohoViewAccess";
 
 /**
  * Passive scanning function to identify expired tokens, mark them as noted in the DB,
@@ -904,51 +903,13 @@ export const appRouter = router({
   // never to edit it (editing still goes through tokenProcedure + reactivar).
   getFormView: publicProcedure
     .input(
-      z
-        .object({
-          link: z.string().optional(),
-          // Acceso desde Zoho CRM: firma directa del botón o traspaso del Web Tab.
-          recordId: z.string().optional(),
-          ts: z.string().optional(),
-          sig: z.string().optional(),
-          zohoUser: z.string().optional(),
-        })
-        .refine((v) => !!v.link?.trim() || !!v.recordId || !!v.zohoUser, {
-          message: "Se requiere el enlace del formulario",
-        })
+      z.object({
+        link: z.string().min(1, "Se requiere el enlace del formulario"),
+      })
     )
     .mutation(async ({ input, ctx }) => {
-      // 0. Desde Zoho no hay enlace: se ubica el token más reciente del registro.
-      let zohoRecordId: string | null = null;
-      if (input.zohoUser) {
-        zohoRecordId = reclamarTraspaso(input.zohoUser);
-        if (!zohoRecordId) {
-          throw new TRPCError({
-            code: "PRECONDITION_FAILED",
-            message: "No hay un expediente pendiente de abrir desde Zoho. Use el botón del registro o pegue el enlace.",
-          });
-        }
-      } else if (input.recordId) {
-        const acceso = verificarAccesoZoho({ recordId: input.recordId, ts: input.ts || "", sig: input.sig || "" });
-        if (!acceso.ok) throw new TRPCError({ code: "UNAUTHORIZED", message: acceso.error });
-        zohoRecordId = input.recordId;
-      }
-
-      let zohoLink: string | null = null;
-      if (zohoRecordId) {
-        const latestToken = await ctx.prisma.token.findFirst({
-          where: { crmContact: { crmId: zohoRecordId } },
-          orderBy: { createdAt: "desc" },
-        });
-        if (!latestToken) {
-          throw new TRPCError({ code: "NOT_FOUND", message: "Este registro de Zoho no tiene ningún enlace de Debida Diligencia generado" });
-        }
-        // Se devuelve el enlace firmado para que "Recargar" funcione sin volver a Zoho.
-        zohoLink = `${latestToken.token}.${signUuid(latestToken.token)}`;
-      }
-
       // 1. Extract the raw token from a full URL or accept a bare token
-      let rawToken = (zohoLink || input.link || "").trim();
+      let rawToken = input.link.trim();
       if (rawToken.includes("token=") || rawToken.includes("t=")) {
         try {
           const url = new URL(rawToken.startsWith("http") ? rawToken : `https://x/${rawToken.replace(/^\/+/, "")}`);
@@ -1074,7 +1035,6 @@ export const appRouter = router({
         details: {
           tokenUuid,
           status: form ? "SUBMITTED" : "DRAFT",
-          ...(zohoRecordId ? { via: input.zohoUser ? "ZOHO_WEBTAB" : "ZOHO_BUTTON", zohoUser: input.zohoUser || null, crmId: zohoRecordId } : {}),
         },
       });
 
@@ -1086,7 +1046,6 @@ export const appRouter = router({
         formId: form?.id || null,
         currentVersion: form?.currentVersion ?? null,
         versions,
-        link: zohoLink,
         clientName,
         projectName: form?.projectName || data.nombreProyecto || "General UDG",
         submittedAt: form?.submittedAt ? form.submittedAt.toISOString() : null,
