@@ -218,6 +218,9 @@ export async function createFolderInParent(
   return result.data.id;
 }
 
+/** Resoluciones en curso de la carpeta del expediente, por ruta. */
+const carpetasExpedienteEnCurso = new Map<string, Promise<{ ddFolderId: string; clientFolderId: string }>>();
+
 /**
  * Creates or reuses the Zoho WorkDrive folder structure inside the Socio de
  * Negocio's documents folder (Accounts.Link_documentos):
@@ -260,11 +263,21 @@ export async function getOrCreateFolderStructure(
     return folderId;
   };
 
-  // 1. '/DD' dentro de la carpeta del socio
-  const ddFolderId = await getOrCreate(socioFolderId, "DD", "Carpeta");
-
-  // 2. '{FORMTYPE}-{Nombre del expediente}' dentro de '/DD'
-  const clientFolderId = await getOrCreate(ddFolderId, clientFolderName, "Carpeta del expediente");
+  // 1 y 2. '/DD' dentro de la carpeta del socio y '{FORMTYPE}-{Nombre del
+  // expediente}' dentro de '/DD'. Al enviar el formulario la sincronización con
+  // CRM y con WorkDrive corren en paralelo y ambas resuelven esta carpeta: se
+  // comparte la resolución en curso para no crear la carpeta dos veces.
+  const clave = `${socioFolderId}/${clientFolderName}`;
+  let enCurso = carpetasExpedienteEnCurso.get(clave);
+  if (!enCurso) {
+    enCurso = (async () => {
+      const ddFolderId = await getOrCreate(socioFolderId, "DD", "Carpeta");
+      const clientFolderId = await getOrCreate(ddFolderId, clientFolderName, "Carpeta del expediente");
+      return { ddFolderId, clientFolderId };
+    })().finally(() => carpetasExpedienteEnCurso.delete(clave));
+    carpetasExpedienteEnCurso.set(clave, enCurso);
+  }
+  const { ddFolderId, clientFolderId } = await enCurso;
 
   // 3. Una subcarpeta con nombre legible por cada tipo de documento
   const subfolders: Record<string, string> = {};
@@ -284,6 +297,46 @@ export async function getOrCreateFolderStructure(
     clientFolderId,
     subfolders,
   };
+}
+
+/**
+ * Enlace de la app web de WorkDrive a una carpeta (requiere sesión en Zoho, no
+ * es público). Se usa el `permalink` que devuelve la API, que respeta el
+ * dominio de la cuenta; si no viene, se arma el enlace estándar /folder/{id}.
+ */
+export async function getFolderPermalink(folderId: string, accessToken: string): Promise<string> {
+  const workdriveBaseUrl =
+    process.env.ZOHO_WORKDRIVE_BASE_URL || "https://www.zohoapis.com/workdrive/api/v1";
+  const fallback = `https://workdrive.zoho.com/folder/${folderId}`;
+
+  try {
+    const response = await fetch(`${workdriveBaseUrl}/files/${folderId}`, {
+      method: "GET",
+      headers: {
+        Authorization: `Zoho-oauthtoken ${accessToken}`,
+        Accept: "application/vnd.api+json",
+      },
+    });
+    if (!response.ok) return fallback;
+    const result = await response.json();
+    return result.data?.attributes?.permalink || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+/**
+ * Enlace directo a la carpeta del expediente
+ * (/{Socio}/DD/{FORMTYPE}-{Nombre del expediente}/), creándola si no existe.
+ * A diferencia de Link_documentos del Socio, sólo contiene este expediente.
+ */
+export async function getClientFolderLink(
+  ddId: string,
+  formType: string,
+  accessToken: string
+): Promise<string> {
+  const { clientFolderId } = await getOrCreateFolderStructure(ddId, formType, [], accessToken);
+  return getFolderPermalink(clientFolderId, accessToken);
 }
 
 /**

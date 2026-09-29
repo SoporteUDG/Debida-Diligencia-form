@@ -182,6 +182,63 @@ describe("Zoho CRM & WorkDrive Integration Mocks", () => {
       expect(sentPayload(spyFetch)).not.toHaveProperty("Name");
     });
 
+    it("updateContact - envía Carpeta_formulario con el enlace a la carpeta del expediente", async () => {
+      const socioFolderId = "socio0folder0id0abcdefghij12345";
+      const spyFetch = vi.spyOn(global, "fetch").mockImplementation(async (url, init) => {
+        const urlStr = String(url);
+        if (urlStr.includes("/oauth/v2/token")) return tokenResponse;
+        if (urlStr.includes("/Debida_Diligencia/dd-carpeta") && (init as any)?.method === "GET") {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({
+              data: [{ id: "dd-carpeta", Name: "Ana Ruiz", Socio_de_Negocios: { id: "acc-9", name: "Socio" } }],
+            }),
+          } as any;
+        }
+        if (urlStr.includes("/Accounts/acc-9")) {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({
+              data: [{ id: "acc-9", Link_documentos: `https://workdrive.zoho.com/folder/${socioFolderId}` }],
+            }),
+          } as any;
+        }
+        if (urlStr.includes(`/files/${socioFolderId}/files`)) {
+          return { ok: true, json: async () => ({ data: [{ id: "dd_id", attributes: { name: "DD" } }] }) } as any;
+        }
+        if (urlStr.includes("/files/dd_id/files")) {
+          return {
+            ok: true,
+            json: async () => ({ data: [{ id: "client_id", attributes: { name: "NATURAL-Ana Ruiz" } }] }),
+          } as any;
+        }
+        if (urlStr.endsWith("/files/client_id")) {
+          return {
+            ok: true,
+            json: async () => ({ data: { id: "client_id", attributes: { permalink: "https://workdrive.zoho.com/folder/client_id" } } }),
+          } as any;
+        }
+        if (urlStr.includes("/Debida_Diligencia/dd-carpeta")) {
+          return {
+            ok: true,
+            json: async () => ({ data: [{ status: "success", code: "SUCCESS", message: "record updated" }] }),
+          } as any;
+        }
+        return { ok: false, status: 404, text: async () => "" } as any;
+      });
+
+      await zoho.service.updateContact("dd-carpeta", "NATURAL", { firstName: "Ana", lastName: "Ruiz" });
+
+      const put = spyFetch.mock.calls.find(
+        ([u, init]) => String(u).includes("/Debida_Diligencia/dd-carpeta") && (init as any)?.method === "PUT"
+      )!;
+      expect(JSON.parse((put[1] as any).body).data[0].Carpeta_formulario).toBe(
+        "https://workdrive.zoho.com/folder/client_id"
+      );
+    });
+
     it("updateContact - should throw when the record does not exist in Debida_Diligencia", async () => {
       const spyFetch = vi.spyOn(global, "fetch").mockImplementation(async (url) => {
         const urlStr = String(url);

@@ -493,6 +493,16 @@ export const zoho = {
           console.warn(`[Zoho Service] No se pudo calcular el Name del expediente ${crmId}:`, nameErr);
         }
 
+        // Carpeta_formulario: enlace a la carpeta de WorkDrive de este
+        // expediente. Si no se resuelve, se actualiza el registro sin él.
+        try {
+          // Import dinámico: workdriveService importa este módulo.
+          const { getClientFolderLink } = await import("./workdriveService");
+          apiPayload.Carpeta_formulario = await getClientFolderLink(crmId, clientType, accessToken);
+        } catch (folderErr) {
+          console.warn(`[Zoho Service] No se pudo obtener el enlace de la carpeta del expediente ${crmId}:`, folderErr);
+        }
+
         const updateRes = await tryUpdateInModule("Debida_Diligencia");
         if (!updateRes.success) {
           throw new Error(`No se encontró el registro ${crmId} en el módulo Debida_Diligencia de Zoho CRM.`);
