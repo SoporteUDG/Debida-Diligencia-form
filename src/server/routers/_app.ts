@@ -483,7 +483,9 @@ export const appRouter = router({
       const resolvedModule = crmData.module || "Debida_Diligencia";
 
       // 4. Re-push the link to Zoho CRM to trigger CRM workflows/emails
-      const syncResult = await zoho.service.updateClientFormLink(crmContact.crmId, resolvedModule, clientUrl);
+      const syncResult = await zoho.service.updateClientFormLink(crmContact.crmId, resolvedModule, clientUrl, undefined, undefined, {
+        dispararWorkflows: true,
+      });
       if (!syncResult.success) {
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",

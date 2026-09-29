@@ -427,11 +427,7 @@ export const zoho = {
       }
 
       const payload = mapFormToCrmPayload(clientType, formData);
-      const apiPayload: Record<string, unknown> = {
-          ...payload,           // mapped payload
-          Is_API_Update: true,// to avoid triggering the workflows
-          Is_API_Update_2: true   
-      };
+      const apiPayload: Record<string, unknown> = { ...payload };
 
       return executeWithRetry(async (accessToken) => {
         const crmBaseUrl = process.env.ZOHO_CRM_BASE_URL || "https://www.zohoapis.com/crm/v2";
@@ -447,6 +443,7 @@ export const zoho = {
             },
             body: JSON.stringify({
               data: [apiPayload],
+              trigger: [], // actualización de la API: no dispara workflows
             }),
           });
 
@@ -786,13 +783,16 @@ export const zoho = {
 
     /**
      * Updates the custom client form link field in Zoho CRM.
+     * Por defecto no dispara workflows (actualización de la API); el
+     * recordatorio pasa `dispararWorkflows` porque su objetivo es dispararlos.
      */
     updateClientFormLink: async (
       crmId: string,
       module: CrmModule,
       formLink?: string,
       expiresAt?: Date,
-      linkStatus?: string
+      linkStatus?: string,
+      options?: { dispararWorkflows?: boolean }
     ): Promise<{ success: boolean; error?: string }> => {
       const clientId = process.env.ZOHO_CLIENT_ID;
       const clientSecret = process.env.ZOHO_CLIENT_SECRET;
@@ -841,7 +841,8 @@ export const zoho = {
         }
 
         const payload = {
-          data: [recordUpdate]
+          data: [recordUpdate],
+          ...(options?.dispararWorkflows ? {} : { trigger: [] }),
         };
 
         const response = await fetch(`${crmBaseUrl}/${module}/${crmId}`, {
@@ -983,17 +984,31 @@ export const zoho = {
 
         console.log(`[Zoho Service] Subiendo archivo adjunto "${fileName}" a ${resolvedModule} (ID: ${crmId})...`);
 
-        const formData = new FormData();
-        const blob = new Blob([new Uint8Array(fileBuffer)], { type: "application/pdf" });
-        formData.append("file", blob, fileName);
+        const subir = (conTrigger: boolean) => {
+          const formData = new FormData();
+          const blob = new Blob([new Uint8Array(fileBuffer)], { type: "application/pdf" });
+          formData.append("file", blob, fileName);
+          // Adjunto subido por la API: no dispara workflows
+          if (conTrigger) formData.append("trigger", "[]");
 
-        const response = await fetch(`${crmBaseUrl}/${resolvedModule}/${crmId}/Attachments`, {
-          method: "POST",
-          headers: {
-            Authorization: `Zoho-oauthtoken ${accessToken}`,
-          },
-          body: formData,
-        });
+          return fetch(`${crmBaseUrl}/${resolvedModule}/${crmId}/Attachments`, {
+            method: "POST",
+            headers: {
+              Authorization: `Zoho-oauthtoken ${accessToken}`,
+            },
+            body: formData,
+          });
+        };
+
+        let response = await subir(true);
+        // Si Zoho no acepta el campo trigger en el multipart, se sube sin él
+        // para no perder el adjunto.
+        if (response.status === 400) {
+          console.warn(
+            `[Zoho Service] Attachments rechazó el campo trigger (${await response.text()}); se reintenta sin él.`
+          );
+          response = await subir(false);
+        }
 
         if (!response.ok) {
           const errorText = await response.text();
@@ -1104,7 +1119,7 @@ export const zoho = {
             Authorization: `Zoho-oauthtoken ${accessToken}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ data: [{ id: ddId, DD_relacionado: { id: relatedDDId } }] }),
+          body: JSON.stringify({ data: [{ id: ddId, DD_relacionado: { id: relatedDDId } }], trigger: [] }),
         });
 
         if (!response.ok) {
