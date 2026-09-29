@@ -1,17 +1,25 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Image from "next/image";
-import { Eye, Link2, Search, AlertCircle, Download, ArrowLeft, Lock, RefreshCw } from "lucide-react";
+import { Eye, Link2, Search, AlertCircle, Download, ArrowLeft, Lock, RefreshCw, History } from "lucide-react";
 import FormReadOnlyView, { ViewData, ViewDocument, ViewSignature } from "@/components/view/FormReadOnlyView";
+import VersionTimelapse, { ViewVersion } from "@/components/view/VersionTimelapse";
 import { generatePDF } from "@/lib/pdfGenerator";
 import { resolveFormType } from "@/lib/formTypeResolution";
+
+// Lo que se envía a getFormView: el enlace pegado o el acceso firmado desde Zoho.
+type ViewQuery = { link: string } | { recordId: string; ts: string; sig: string } | { zohoUser: string };
 
 interface ViewResult {
   type: "natural" | "juridica";
   status: string;
   step: number | null;
   formId: string | null;
+  currentVersion: number | null;
+  versions: ViewVersion[];
+  // Enlace firmado que devuelve el servidor cuando se abrió desde Zoho (sin enlace).
+  link: string | null;
   clientName: string;
   projectName: string;
   submittedAt: string | null;
@@ -81,9 +89,11 @@ export default function ViewPage() {
   const [downloading, setDownloading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  const lookup = async (value: string, opts: { refresh?: boolean } = {}) => {
-    const trimmed = value.trim();
-    if (!trimmed) {
+  const [selectedVersion, setSelectedVersion] = useState<number | null>(null);
+  const [playing, setPlaying] = useState(false);
+
+  const lookup = async (query: ViewQuery, opts: { refresh?: boolean; quietIfNothingPending?: boolean } = {}) => {
+    if ("link" in query && !query.link.trim()) {
       setError("Pegue el enlace del formulario para continuar.");
       return;
     }
@@ -94,18 +104,31 @@ export default function ViewPage() {
       const res = await fetch("/api/trpc/getFormView", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ link: trimmed }),
+        body: JSON.stringify("link" in query ? { link: query.link.trim() } : query),
       });
       const json = await res.json();
       const trpcError = json.error || json[0]?.error;
       if (!res.ok || trpcError) {
-        throw new Error(trpcError?.message || "No se pudo consultar el expediente.");
+        throw Object.assign(new Error(trpcError?.message || "No se pudo consultar el expediente."), {
+          code: trpcError?.data?.code as string | undefined,
+        });
       }
-      setResult(json.result?.data as ViewResult);
+      const data = json.result?.data as ViewResult;
+      setResult(data);
+      if (data.link) setLink(data.link);
+      // Al recargar se conserva la versión que se estaba mirando si sigue existiendo.
+      const latest = data.versions.at(-1)?.version ?? null;
+      setSelectedVersion((prev) =>
+        opts.refresh && prev !== null && data.versions.some((v) => v.version === prev) ? prev : latest
+      );
+      setPlaying(false);
     } catch (e) {
       // Al recargar se conserva lo ya mostrado: un fallo puntual de red no debe
       // devolver al usuario al formulario y obligarle a pegar el enlace otra vez.
       if (!opts.refresh) setResult(null);
+      // Abrir el Web Tab desde el menú de Zoho (sin pulsar el botón) no es un error:
+      // simplemente no hay registro pendiente y se muestra el formulario de enlace.
+      if (opts.quietIfNothingPending && (e as { code?: string }).code === "PRECONDITION_FAILED") return;
       setError(e instanceof Error ? e.message : "No se pudo consultar el expediente.");
     } finally {
       if (opts.refresh) setRefreshing(false);
@@ -114,16 +137,29 @@ export default function ViewPage() {
   };
 
   // Allow deep-linking: /view?link=<url-or-token> or /view?token=<token>
+  // Desde Zoho: /view?record_id=&ts=&sig= (botón directo) o /view?zuser=<usuario> (Web Tab).
+  /* eslint-disable react-hooks/set-state-in-effect -- URL params are only available client-side after mount */
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
+    const recordId = params.get("record_id") || params.get("recordId");
+    const zohoUser = params.get("zuser");
     const initial = params.get("link") || params.get("token") || params.get("t");
-    if (initial) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- URL param is only available client-side after mount
+    if (recordId) {
+      // La firma caduca en minutos; se quita de la barra para no dejarla en el historial.
+      window.history.replaceState(null, "", "/view");
+      lookup({ recordId, ts: params.get("ts") || "", sig: params.get("sig") || "" });
+    } else if (zohoUser?.includes("${")) {
+      // Zoho no sustituyó el parámetro de usuario del Web Tab.
+      setError("El Web Tab no envió el correo del usuario: revise el parámetro zuser en la configuración de Zoho.");
+    } else if (zohoUser) {
+      lookup({ zohoUser }, { quietIfNothingPending: true });
+    } else if (initial) {
       setLink(initial);
-      lookup(initial);
+      lookup({ link: initial });
     }
   }, []);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // getFormView devuelve DRAFT mientras el expediente no se haya enviado; cualquier
   // otro estado (SUBMITTED/REVIEWED/APPROVED/REJECTED) corresponde a un Form cerrado.
@@ -133,15 +169,25 @@ export default function ViewPage() {
   // insignia y el PDF deben seguir el mismo criterio que la vista.
   const tipoExpediente = result ? resolveFormType(result.type, result.data).type : "natural";
 
+  // Timelapse: sólo un expediente enviado tiene versiones selladas.
+  const versions = isSubmitted ? result.versions : [];
+  const latestVersion = versions.at(-1)?.version ?? null;
+  const shownVersion = versions.find((v) => v.version === selectedVersion) ?? null;
+  const isHistorical = !!shownVersion && shownVersion.version !== latestVersion;
+  const shownData = isHistorical ? shownVersion.data : result?.data ?? {};
+  const handleSelectVersion = useCallback((v: number) => setSelectedVersion(v), []);
+
   const handleDownload = async () => {
     if (!result) return;
     setDownloading(true);
     try {
       await generatePDF(
         tipoExpediente,
-        result.data,
+        shownData,
         result.formId || "BORRADOR",
-        new Date(result.submittedAt || result.updatedAt).toLocaleDateString(),
+        new Date(
+          (isHistorical ? shownVersion.submittedAt : null) || result.submittedAt || result.updatedAt
+        ).toLocaleDateString(),
         result.documents
       );
     } finally {
@@ -151,13 +197,15 @@ export default function ViewPage() {
 
   const handleRefresh = () => {
     if (refreshing || loading) return;
-    lookup(link, { refresh: true });
+    lookup({ link }, { refresh: true });
   };
 
   const reset = () => {
     setResult(null);
     setError(null);
     setLink("");
+    setSelectedVersion(null);
+    setPlaying(false);
     if (typeof window !== "undefined") {
       window.history.replaceState(null, "", "/view");
     }
@@ -188,7 +236,7 @@ export default function ViewPage() {
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
-                  lookup(link);
+                  lookup({ link });
                 }}
                 className="space-y-4"
               >
@@ -316,18 +364,42 @@ export default function ViewPage() {
                     className="inline-flex items-center justify-center gap-2 bg-[#c8a788] hover:bg-[#b08e6f] disabled:opacity-60 text-[#002b49] text-xs font-bold px-4 py-2.5 rounded-lg transition tracking-wider uppercase shadow-md cursor-pointer"
                   >
                     <Download className="w-4 h-4" />
-                    {downloading ? "Generando..." : "Descargar PDF"}
+                    {downloading ? "Generando..." : isHistorical ? `Descargar PDF v${shownVersion.version}` : "Descargar PDF"}
                   </button>
                 )}
               </div>
             </div>
 
-            <FormReadOnlyView
-              type={result.type}
-              data={result.data}
-              documents={result.documents}
-              signature={result.signature}
-            />
+            {versions.length > 0 && selectedVersion !== null && (
+              <VersionTimelapse
+                versions={versions}
+                selected={selectedVersion}
+                onSelect={handleSelectVersion}
+                playing={playing}
+                onPlayingChange={setPlaying}
+              />
+            )}
+
+            {isHistorical && (
+              <div className="flex items-start gap-2 text-amber-200 bg-amber-500/10 border border-amber-500/30 rounded-lg px-4 py-3 text-xs">
+                <History className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>
+                  Está viendo la <strong>versión {shownVersion.version}</strong> (histórica). La vigente es la
+                  v{latestVersion}. Los documentos adjuntos no se versionan: se listan los actuales.
+                </span>
+              </div>
+            )}
+
+            {/* key: al cambiar de versión la vista se vuelve a montar y anima la transición */}
+            <div key={shownVersion?.version ?? "actual"} className="animate-fadeIn">
+              <FormReadOnlyView
+                type={result.type}
+                data={shownData}
+                documents={result.documents}
+                // La firma relacional es la vigente; una versión histórica usa la de su snapshot.
+                signature={isHistorical ? null : result.signature}
+              />
+            </div>
           </div>
         )}
       </main>

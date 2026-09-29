@@ -258,7 +258,7 @@ export default function Step5Declaracion({ formData, onInputChange, errors = {} 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-zinc-100">
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="signerName">
-              {t("SignerNameLabel")} <span className="text-red-500 font-bold">*</span>
+              {t("SignerNameLabel")}
             </label>
             <input
               type="text"
@@ -283,7 +283,7 @@ export default function Step5Declaracion({ formData, onInputChange, errors = {} 
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="signatureDate">
-              {t("SignatureDateLabel")} <span className="text-red-500 font-bold">*</span>
+              {t("SignatureDateLabel")}
             </label>
             <input
               type="date"
@@ -311,7 +311,7 @@ export default function Step5Declaracion({ formData, onInputChange, errors = {} 
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700">
-                {t("DigitalSignatureLabel")} <span className="text-red-500 font-bold">*</span>
+                {t("DigitalSignatureLabel")}
               </label>
             </div>
             
@@ -453,7 +453,7 @@ export default function Step5Declaracion({ formData, onInputChange, errors = {} 
                 required
               />
               <label htmlFor="termsAccepted" className="text-xs text-zinc-600 leading-normal select-none cursor-pointer">
-                {t("TermsAcceptedLabel")} <span className="text-red-500 font-bold">*</span>
+                {t("TermsAcceptedLabel")}
               </label>
             </div>
             {errors.termsAccepted && (
@@ -476,7 +476,7 @@ export default function Step5Declaracion({ formData, onInputChange, errors = {} 
                 required
               />
               <label htmlFor="signatureConfirmed" className="text-xs text-zinc-600 leading-normal select-none cursor-pointer">
-                {t("SignatureConfirmedLabel")} <span className="text-red-500 font-bold">*</span>
+                {t("SignatureConfirmedLabel")}
               </label>
             </div>
             {errors.signatureConfirmed && (

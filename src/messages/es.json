@@ -66,7 +66,22 @@
     },
 
     "NaturalFormStep1OptionFields":{
-
+      "FormaContactoOptions": {
+        "FormaContacto1": "Pagina Web",
+        "FormaContacto2": "Alta Gerencia",
+        "FormaContacto3": "BBDD interna",
+        "FormaContacto4": "BD Vendedor",
+        "FormaContacto5": "Broker",
+        "FormaContacto6": "Chat",
+        "FormaContacto7": "Landing casa desde 150",
+        "FormaContacto8": "Linkedln",
+        "FormaContacto9": "Referido",
+        "FormaContacto10": "Timelines",
+        "FormaContacto11": "WhatsApp",
+        "FormaContacto12": "Sala de Ventas",
+        "FormaContacto13": "Valla",
+        "FormaContacto14": "Otros"
+      },
       "civilOptions": {
         "civil1":"Casado",
         "civil2":"Soltero",
@@ -406,7 +421,8 @@
       "ClearDraft": "Vaciar Borrador",
       "Back": "Atrás",
       "Next": "Siguiente",
-      "Submit": "Enviar Expediente UDG"
+      "Submit": "Enviar Expediente UDG",
+      "SavingBeforeSubmit": "Guardando borrador..."
     },
 
     "Policies": {
@@ -590,7 +606,7 @@
         "AddMemberButton": "Agregar Miembro",
         "StructureErrorLabel": "Error de estructura:",
         "PendingInfoLabel": "Información requerida pendiente:",
-        "PendingInfoText": "Todos los miembros agregados deben tener completos los campos obligatorios (* cargo, nombre, apellidos, nacionalidad, fecha de nacimiento, ID y dirección) para poder avanzar.",
+        "PendingInfoText": "Todos los miembros agregados deben tener completos los campos obligatorios (cargo, nombre, apellidos, nacionalidad, fecha de nacimiento, ID y dirección) para poder avanzar.",
         "NoMembersText": "Se requiere al menos un (1) miembro de gobierno corporativo.",
         "CreateInitialRecordButton": "Crear Registro Inicial",
         "MemberNumber": "Miembro #{number}",
@@ -841,7 +857,8 @@
       "ClearDraft": "Vaciar Borrador",
       "Back": "Atrás",
       "Next": "Siguiente",
-      "Submit": "Enviar Expediente UDG"
+      "Submit": "Enviar Expediente UDG",
+      "SavingBeforeSubmit": "Guardando borrador..."
     },
 
     "Policies": {
@@ -966,7 +983,12 @@
       "ThirdPartyNationalityRequired": "La nacionalidad del tercero es requerida",
       "ThirdPartyRelationRequired": "El vínculo con la persona jurídica es requerido",
       "ThirdPartyFundsSourceRequired": "La fuente de los fondos del tercero es requerida",
-      "UnitsQuantityInvalid": "Debe ingresar una cantidad aproximada de unidades válida (mínimo 1)"
+      "UnitsQuantityInvalid": "Debe ingresar una cantidad aproximada de unidades válida (mínimo 1)",
+      "TooLong": "El texto no puede superar {max} caracteres",
+      "LettersOnly": "{field} solo puede contener letras",
+      "MinLength": "{field} debe tener al menos {min} caracteres",
+      "InvalidIdFormat": "{field} solo puede contener letras, números, espacios, guiones, puntos o barras",
+      "InvalidQuantity": "{field} debe ser un número entero mayor a 0"
     },
     "Fields": {
       "NombreDelProyecto": "Nombre del Proyecto",
@@ -1057,7 +1079,22 @@
       "CopiaDeCertificadoDeAvisoDeOperaciones": "Copia de Certificado de Aviso de Operaciones",
       "AunqueSeaUnArchivoDeOrigenDeFondos": "Aunque sea un Archivo de Origen de Fondos",
       "AunqueSeaUnArchivoDePactoSocial": "Aunque sea un Archivo de Pacto Social",
-      "NombreDelRepresentanteLegalOFirmante": "Nombre del Representante Legal o Firmante"
+      "NombreDelRepresentanteLegalOFirmante": "Nombre del Representante Legal o Firmante",
+      "NombreDeQuienLoRefirio": "Nombre de quien lo refirió",
+      "NombreDeEmpresaDondeLabora": "Nombre de Empresa Donde Labora",
+      "FondosProvienenDeLaSociedad": "¿Los fondos provendrán de dicha sociedad?",
+      "OtraActividadEconomica": "Otra Actividad Económica",
+      "OtraFuenteDeFondos": "Otra fuente de fondos",
+      "NombreCompletoDeTercero": "Nombre Completo de Tercero",
+      "FuenteDeIngresoDelTercero": "Fuente de Ingreso del Tercero",
+      "RelacionConElTercero": "Relación con el Tercero",
+      "NacionalidadDelTercero": "Nacionalidad del Tercero",
+      "CantidadAproximadaDeUnidades": "Cantidad aproximada de unidades",
+      "AdquiereANombreDeOtraPersona": "¿Adquiere el inmueble a nombre de otra persona?",
+      "NombreCompletoDeLaPersona": "Nombre Completo de la Persona",
+      "PropositoUsoYDestinoDelInmueble": "Propósito, Uso y Destino del Inmueble",
+      "NombreCompletoDelPep": "Nombre Completo del PEP",
+      "CargoQueOcupaDentroDeLaSociedad": "Cargo que ocupa dentro de la sociedad"
     }
   },
 

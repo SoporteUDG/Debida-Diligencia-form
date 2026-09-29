@@ -97,7 +97,7 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, onSearc
 
         <div className="max-w-md mx-auto pt-4 text-left">
           <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700 block mb-2" htmlFor="ingresosMensuales">
-            {t("MonthlyTitle")} <span className="text-red-500 font-bold">*</span>
+            {t("MonthlyTitle")}
           </label>
           <div className="flex items-center gap-3">
             <div className="relative w-full">
@@ -152,7 +152,7 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, onSearc
 
           <div className="flex flex-col gap-2.5 md:col-span-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700">
-              {t("PaymentTitle")} <span className="text-red-500 font-bold">*</span>
+              {t("PaymentTitle")}
               <span className="text-[10px] font-normal text-zinc-500 lowercase ml-1.5 italic">{t("PaymentSubtitle")}</span>
             </label>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
@@ -194,7 +194,7 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, onSearc
 
           <div className="flex flex-col gap-2.5 md:col-span-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="fuenteFondosInmueble">
-              {t("FundsTitle")} <span className="text-red-500 font-bold">*</span>
+              {t("FundsTitle")}
             </label>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
               {ORIGEN_PAGO_OPTIONS.map((opt) => {
@@ -235,7 +235,7 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, onSearc
           {formData.fuenteFondosInmueble.includes("Otros") && (
             <div className="flex flex-col gap-2.5 md:col-span-2">
               <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="ifOtroNombre">
-                {t("OtherFundsTitle")} <span className="text-red-500 font-bold">*</span>
+                {t("OtherFundsTitle")}
               </label>
               <input
                 type="text"
@@ -337,7 +337,7 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, onSearc
           <div className="flex flex-col gap-2 md:col-span-2">
             <div className="grid grid-cols-4 gap-2 items-center">
               <label className="col-span-3 text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="montoServiciosAnuales">
-                {t("MoreUnitsTitle")} <span className="text-red-500 font-bold">*</span>
+                {t("MoreUnitsTitle")}
               </label>
               <SearchableSelect
                   options={["Sí", "No"]}
@@ -388,7 +388,7 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, onSearc
 
           <div className="flex flex-col gap-2">
             <span className="text-xs text-zinc-700 leading-normal font-semibold">
-              {t("OwnerTitle")} <span className="text-red-500 font-bold">*</span>
+              {t("OwnerTitle")}
             </span>
           </div>
           <div className="flex flex-col gap-2">
@@ -399,21 +399,21 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, onSearc
               className={`${errors.adquiereNombreTercero ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
               required
             >
+              <option value="">{tYesNo("placeholder")}</option>
+              <option value="No">{yesNoLabel("No")}</option>
+              <option value="Sí">{yesNoLabel("Sí")}</option>
+            </select>
             {errors.adquiereNombreTercero && (
               <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
                 ⚠️ {errors.adquiereNombreTercero}
               </span>
             )}
-              <option value="">{tYesNo("placeholder")}</option>
-              <option value="No">{yesNoLabel("No")}</option>
-              <option value="Sí">{yesNoLabel("Sí")}</option>
-            </select>
           </div>
           {formData.adquiereNombreTercero === "Sí" && (
             <>
             <div className="flex flex-col gap-2">
               <label className="text-xs text-zinc-700 leading-normal font-semibold" htmlFor="nombreTercero">
-                {t("OtherOwnerTitle")}<span className="text-red-500 font-bold">*</span>
+                {t("OtherOwnerTitle")}
               </label>
             </div>
             <div className="flex flex-col gap-2">
@@ -438,7 +438,7 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, onSearc
 
           <div className="flex flex-col gap-2">
             <span className="text-xs text-zinc-700 leading-normal font-semibold">
-              {t("PurposeTitle")} <span className="text-red-500 font-bold">*</span>
+              {t("PurposeTitle")}
             </span>
           </div>
           <div className="flex flex-col gap-2">
@@ -449,17 +449,17 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, onSearc
               className={`${errors.destinoInmueble ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
               required
             >
-            {errors.destinoInmueble && (
-              <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
-                ⚠️ {errors.destinoInmueble}
-              </span>
-            )}
               <option value="">{p("PurposePlaceholder")}</option>
               <option value="Vivienda Principal">{purposeLabel("Vivienda Principal")}</option>
               <option value="Vivienda Secundaria">{purposeLabel("Vivienda Secundaria")}</option>
               <option value="Inversión">{purposeLabel("Inversión")}</option>
               <option value="Patrimonio">{purposeLabel("Patrimonio")}</option>
             </select>
+            {errors.destinoInmueble && (
+              <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
+                ⚠️ {errors.destinoInmueble}
+              </span>
+            )}
           </div>
         </div>
       </div>
@@ -477,7 +477,7 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, onSearc
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center pt-4 border-t border-zinc-150">
           <span className="text-xs text-zinc-700 leading-normal font-semibold">
-            {t("PepTitle")} <span className="text-red-500 font-bold">*</span>
+            {t("PepTitle")}
           </span>
           <div>
             <select
@@ -507,7 +507,7 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, onSearc
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-zinc-700">
-                  {t("PepNameTitle")} <span className="text-red-500 font-bold">*</span>
+                  {t("PepNameTitle")}
                 </label>
                 <input
                   type="text"
@@ -530,7 +530,7 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, onSearc
 
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-zinc-700">
-                  {t("PepCargoTitle")} <span className="text-red-500 font-bold">*</span>
+                  {t("PepCargoTitle")}
                 </label>
                 <input
                   type="text"
@@ -553,7 +553,7 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, onSearc
 
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-zinc-700">
-                  {t("PepCompanyTitle")} <span className="text-red-500 font-bold">*</span>
+                  {t("PepCompanyTitle")}
                 </label>
                 <input
                   type="text"
@@ -576,7 +576,7 @@ export default function Step3PerfilFinanciero({ formData, onInputChange, onSearc
 
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-zinc-700">
-                  {t("PepRelationTitle")} <span className="text-red-500 font-bold">*</span>
+                  {t("PepRelationTitle")}
                 </label>
                 <select
                   name="pepRelacion"

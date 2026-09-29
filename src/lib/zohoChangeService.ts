@@ -118,7 +118,7 @@ const enOpciones = (campo: string, opciones: readonly string[]): AFormulario => 
 
 // Opciones de los selectores (deben coincidir con los componentes del formulario)
 const FORMA_CONTACTO_NATURAL = [
-  "Broker", "Camapañas internas", "Chat", "Encuentra 24", "Eventos", "Facebook", "Ferias",
+  "Broker", "Campañas internas", "Chat", "Encuentra 24", "Eventos", "Facebook", "Ferias",
   "Google AdWords", "Instagram", "Landing casa desde 150", "Linkedln", "Referido", "Timelines",
   "WhatsApp", "Sala de Ventas", "Valla", "Otros",
 ];

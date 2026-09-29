@@ -259,7 +259,7 @@ export default function Step3Finanzas({
 
           <div className="max-w-md mx-auto pt-4 text-left">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700 block mb-2" htmlFor="ingresosMensuales">
-              {t("MonthlyIncomeLabel")} <span className="text-red-500 font-bold">*</span>
+              {t("MonthlyIncomeLabel")}
             </label>
             <div className="flex items-center gap-3">
               <div className="relative w-full">
@@ -312,7 +312,7 @@ export default function Step3Finanzas({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-[#1a1c1a]">
             <div className="flex flex-col gap-2.5 md:col-span-2">
               <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700">
-                {t("PaymentMethodLabel")} <span className="text-red-500 font-bold">*</span>
+                {t("PaymentMethodLabel")}
                 <span className="text-[10px] font-normal text-zinc-500 lowercase ml-1.5 italic">({t("MultipleSelectionHint")})</span>
               </label>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
@@ -379,7 +379,7 @@ export default function Step3Finanzas({
 
             <div className="flex flex-col gap-2.5 md:col-span-2">
               <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700">
-                {t("PropertyFundsLabel")} <span className="text-red-500 font-bold">*</span>
+                {t("PropertyFundsLabel")}
                 <span className="text-[10px] font-normal text-zinc-500 lowercase ml-1.5 italic">({t("MultipleSelectionHint")})</span>
               </label>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
@@ -450,7 +450,7 @@ export default function Step3Finanzas({
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-semibold text-zinc-700">
-                      {t("ThirdPartyFullNameLabel")} <span className="text-red-500 font-bold">*</span>
+                      {t("ThirdPartyFullNameLabel")}
                     </label>
                     <input
                       type="text"
@@ -471,7 +471,7 @@ export default function Step3Finanzas({
 
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-semibold text-zinc-700">
-                      {t("ThirdPartyNationalityLabel")} <span className="text-red-500 font-bold">*</span>
+                      {t("ThirdPartyNationalityLabel")}
                     </label>
                     <SearchableSelect
                       value={formData.terceroNacionalidad || ""}
@@ -492,7 +492,7 @@ export default function Step3Finanzas({
 
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-semibold text-zinc-700">
-                      {t("ThirdPartyRelationshipLabel")} <span className="text-red-500 font-bold">*</span>
+                      {t("ThirdPartyRelationshipLabel")}
                     </label>
                     <input
                       type="text"
@@ -513,7 +513,7 @@ export default function Step3Finanzas({
 
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-semibold text-zinc-700">
-                      {t("ThirdPartyFundsSourceLabel")} <span className="text-red-500 font-bold">*</span>
+                      {t("ThirdPartyFundsSourceLabel")}
                     </label>
                     <input
                       type="text"
@@ -538,7 +538,7 @@ export default function Step3Finanzas({
             <div className="flex flex-col gap-3 md:col-span-2 pt-4 border-t border-zinc-200">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <label className="text-xs text-zinc-700 font-semibold leading-normal md:max-w-xl" htmlFor="adquiereMasUnidades">
-                  {t("MultipleUnitsQuestion")} <span className="text-red-500 font-bold">*</span>
+                  {t("MultipleUnitsQuestion")}
                 </label>
                 <div className="w-full md:w-56">
                   <select
@@ -568,7 +568,7 @@ export default function Step3Finanzas({
               {(formData.adquiereMasUnidades === "Sí" || formData.adquiereMasUnidades === "Si") && (
                 <div className="bg-[#f8fafc] border border-zinc-300/80 rounded-xl p-4 mt-2 animate-fadeIn space-y-2">
                   <label className="text-xs font-semibold text-zinc-700" htmlFor="cantidadUnidadesInmobiliarias">
-                    {t("UnitsQuantityLabel")}: <span className="text-red-500 font-bold">*</span>
+                    {t("UnitsQuantityLabel")}:
                   </label>
                   <div className="max-w-xs">
                     <input
@@ -632,7 +632,7 @@ export default function Step3Finanzas({
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center pt-2">
           <p className="text-xs md:text-sm font-medium leading-relaxed text-zinc-700 md:col-span-2">
-            {t("PepQuestion")} <span className="text-red-500 font-bold">*</span>
+            {t("PepQuestion")}
           </p>
           <div>
             <select
@@ -666,7 +666,7 @@ export default function Step3Finanzas({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-zinc-700">
-                  {t("PepFullNameLabel")} <span className="text-red-500 font-bold">*</span>
+                  {t("PepFullNameLabel")}
                 </label>
                 <input
                   type="text"
@@ -689,7 +689,7 @@ export default function Step3Finanzas({
 
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-zinc-700">
-                  {t("PepPositionLabel")} <span className="text-red-500 font-bold">*</span>
+                  {t("PepPositionLabel")}
                 </label>
                 <input
                   type="text"
@@ -712,7 +712,7 @@ export default function Step3Finanzas({
 
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-zinc-700">
-                  {t("PepInstitutionLabel")} <span className="text-red-500 font-bold">*</span>
+                  {t("PepInstitutionLabel")}
                 </label>
                 <input
                   type="text"
@@ -735,7 +735,7 @@ export default function Step3Finanzas({
 
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-zinc-700">
-                  {t("PepRelationLabel")} <span className="text-red-500 font-bold">*</span>
+                  {t("PepRelationLabel")}
                 </label>
                 <select
                   name="pepRelacion"

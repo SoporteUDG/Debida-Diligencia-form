@@ -65,7 +65,22 @@
     },
 
     "NaturalFormStep1OptionFields":{
-
+      "FormaContactoOptions": {
+        "FormaContacto1": "Website",
+        "FormaContacto2": "Upper Management",
+        "FormaContacto3": "Internal Database",
+        "FormaContacto4": "Salesperson Database",
+        "FormaContacto5": "Broker",
+        "FormaContacto6": "Chat",
+        "FormaContacto7": "Landing Page Houses From 150k",
+        "FormaContacto8": "LinkedIn",
+        "FormaContacto9": "Referral",
+        "FormaContacto10": "Timelines",
+        "FormaContacto11": "WhatsApp",
+        "FormaContacto12": "Sales Room",
+        "FormaContacto13": "Billboard",
+        "FormaContacto14": "Others"
+      },
       "civilOptions": {
         "civil1":"Married",
         "civil2":"Single",
@@ -405,7 +420,8 @@
       "ClearDraft": "Clear Draft",
       "Back": "Back",
       "Next": "Next",
-      "Submit": "Submit UDG File"
+      "Submit": "Submit UDG File",
+      "SavingBeforeSubmit": "Saving draft..."
     },
 
     "Policies": {
@@ -589,7 +605,7 @@
         "AddMemberButton": "Add Member",
         "StructureErrorLabel": "Structure error:",
         "PendingInfoLabel": "Pending required information:",
-        "PendingInfoText": "All added members must have the required fields completed (* position, first name, last name, nationality, date of birth, ID and address) in order to proceed.",
+        "PendingInfoText": "All added members must have the required fields completed (position, first name, last name, nationality, date of birth, ID and address) in order to proceed.",
         "NoMembersText": "At least one (1) corporate governance member is required.",
         "CreateInitialRecordButton": "Create Initial Record",
         "MemberNumber": "Member #{number}",
@@ -840,7 +856,8 @@
       "ClearDraft": "Clear Draft",
       "Back": "Back",
       "Next": "Next",
-      "Submit": "Submit UDG File"
+      "Submit": "Submit UDG File",
+      "SavingBeforeSubmit": "Saving draft..."
     },
 
     "Policies": {
@@ -965,7 +982,12 @@
       "ThirdPartyNationalityRequired": "The third party's nationality is required",
       "ThirdPartyRelationRequired": "The relationship with the legal entity is required",
       "ThirdPartyFundsSourceRequired": "The third party's source of funds is required",
-      "UnitsQuantityInvalid": "You must enter a valid approximate number of units (minimum 1)"
+      "UnitsQuantityInvalid": "You must enter a valid approximate number of units (minimum 1)",
+      "TooLong": "The text cannot exceed {max} characters",
+      "LettersOnly": "{field} can only contain letters",
+      "MinLength": "{field} must be at least {min} characters long",
+      "InvalidIdFormat": "{field} can only contain letters, numbers, spaces, hyphens, periods or slashes",
+      "InvalidQuantity": "{field} must be a whole number greater than 0"
     },
     "Fields": {
       "NombreDelProyecto": "Project Name",
@@ -1056,7 +1078,22 @@
       "CopiaDeCertificadoDeAvisoDeOperaciones": "Copy of Notice of Operations Certificate",
       "AunqueSeaUnArchivoDeOrigenDeFondos": "Even a Single Source of Funds File",
       "AunqueSeaUnArchivoDePactoSocial": "Even a Single Articles of Incorporation File",
-      "NombreDelRepresentanteLegalOFirmante": "Legal Representative or Signer's Name"
+      "NombreDelRepresentanteLegalOFirmante": "Legal Representative or Signer's Name",
+      "NombreDeQuienLoRefirio": "Name of Referrer",
+      "NombreDeEmpresaDondeLabora": "Name of Employer",
+      "FondosProvienenDeLaSociedad": "Will the funds come from that company?",
+      "OtraActividadEconomica": "Other Economic Activity",
+      "OtraFuenteDeFondos": "Other source of funds",
+      "NombreCompletoDeTercero": "Full Name of Third Party",
+      "FuenteDeIngresoDelTercero": "Third Party's Source of Income",
+      "RelacionConElTercero": "Relationship with the Third Party",
+      "NacionalidadDelTercero": "Third Party's Nationality",
+      "CantidadAproximadaDeUnidades": "Approximate number of units",
+      "AdquiereANombreDeOtraPersona": "Are you acquiring the property on behalf of another person?",
+      "NombreCompletoDeLaPersona": "Full Name of the Person",
+      "PropositoUsoYDestinoDelInmueble": "Purpose, Use and Intended Use of the Property",
+      "NombreCompletoDelPep": "PEP's Full Name",
+      "CargoQueOcupaDentroDeLaSociedad": "Position held within the company"
     }
   },
 

@@ -226,7 +226,7 @@ export default function Step4FirmaDeclaracion({ formData, onInputChange, errors 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6 pt-4 border-t border-zinc-200">
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="signerName">
-              {t("ClientNameLabel")} <span className="text-red-500 font-bold">*</span>
+              {t("ClientNameLabel")}
             </label>
             <input
               type="text"
@@ -251,7 +251,7 @@ export default function Step4FirmaDeclaracion({ formData, onInputChange, errors 
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="signatureDate">
-              {t("DateLabel")} <span className="text-red-500 font-bold">*</span>
+              {t("DateLabel")}
             </label>
             <input
               type="date"
@@ -279,7 +279,7 @@ export default function Step4FirmaDeclaracion({ formData, onInputChange, errors 
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700">
-                {t("SignatureLabel")} <span className="text-red-500 font-bold">*</span>
+                {t("SignatureLabel")}
               </label>
             </div>
             
@@ -420,7 +420,7 @@ export default function Step4FirmaDeclaracion({ formData, onInputChange, errors 
                 required
               />
               <label htmlFor="termsAccepted" className="text-xs text-zinc-600 leading-normal select-none cursor-pointer">
-                {t("TermsAcceptedLabel")} <span className="text-red-500 font-bold">*</span>
+                {t("TermsAcceptedLabel")}
               </label>
             </div>
             {errors.termsAccepted && (
@@ -443,7 +443,7 @@ export default function Step4FirmaDeclaracion({ formData, onInputChange, errors 
                 required
               />
               <label htmlFor="signatureConfirmed" className="text-xs text-zinc-600 leading-normal select-none cursor-pointer">
-                {t("SignatureConfirmedLabel")} <span className="text-red-500 font-bold">*</span>
+                {t("SignatureConfirmedLabel")}
               </label>
             </div>
             {errors.signatureConfirmed && (

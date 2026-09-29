@@ -407,7 +407,8 @@ export const zoho = {
       const payload = mapFormToCrmPayload(clientType, formData);
       const apiPayload = {
           ...payload,           // mapped payload
-          Is_API_Update: true   // to avoid triggering the workflows
+          Is_API_Update: true,// to avoid triggering the workflows
+          Is_API_Update_2: true   
       };
 
       return executeWithRetry(async (accessToken) => {

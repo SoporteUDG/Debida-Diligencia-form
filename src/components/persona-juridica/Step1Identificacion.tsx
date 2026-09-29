@@ -39,7 +39,6 @@ export default function Step1Identificacion({
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700 flex items-center gap-1" htmlFor="nombreProyecto">
               <span>{t("NombreProyectoTitle")}</span>
-              <span className="text-red-500 font-bold">*</span>
             </label>
             <select
               id="nombreProyecto"
@@ -98,7 +97,7 @@ export default function Step1Identificacion({
           {(formData.formaContacto === "Otros" || formData.formaContacto === "Otro") && (
             <div className="flex flex-col gap-2 md:col-span-2 animate-fadeIn">
               <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="formaContactoDetalle">
-                {t("FormaContactoDetalleTitle")} <span className="text-red-500 font-bold">*</span>
+                {t("FormaContactoDetalleTitle")}
               </label>
               <input
                 type="text"
@@ -123,7 +122,7 @@ export default function Step1Identificacion({
           {formData.formaContacto === "Referido" && (
             <div className="flex flex-col gap-2 md:col-span-2 animate-fadeIn">
               <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="referidoPor">
-                {t("ReferidoPorTitle")} <span className="text-red-500 font-bold">*</span>
+                {t("ReferidoPorTitle")}
               </label>
               <input
                 type="text"
@@ -156,7 +155,7 @@ export default function Step1Identificacion({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="razonSocial">
-              {t("RazonSocialTitle")} <span className="text-red-500 font-bold">*</span>
+              {t("RazonSocialTitle")}
             </label>
             <input
               type="text"
@@ -247,7 +246,7 @@ export default function Step1Identificacion({
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="tipoDocumentoIdentidad">
-              {t("TipoDocumentoIdentidadTitle")} <span className="text-red-500 font-bold">*</span>
+              {t("TipoDocumentoIdentidadTitle")}
             </label>
             <select
               id="tipoDocumentoIdentidad"
@@ -290,7 +289,7 @@ export default function Step1Identificacion({
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="numeroDocumento">
-              {t("NumeroDocumentoTitle")} <span className="text-red-500 font-bold">*</span>
+              {t("NumeroDocumentoTitle")}
             </label>
             <input
               type="text"
@@ -441,7 +440,7 @@ export default function Step1Identificacion({
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="contactoNombre">
-              {t("ContactoNombreTitle")} <span className="text-red-500 font-bold">*</span>
+              {t("ContactoNombreTitle")}
             </label>
             <input
               type="text"
@@ -462,7 +461,7 @@ export default function Step1Identificacion({
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="contactoApellido">
-              {t("ContactoApellidoTitle")} <span className="text-red-500 font-bold">*</span>
+              {t("ContactoApellidoTitle")}
             </label>
             <input
               type="text"
@@ -503,7 +502,7 @@ export default function Step1Identificacion({
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="contactoTelefono">
-              {t("ContactoTelefonoTitle")} <span className="text-red-500 font-bold">*</span>
+              {t("ContactoTelefonoTitle")}
             </label>
             <input
               type="tel"
@@ -524,7 +523,7 @@ export default function Step1Identificacion({
 
           <div className="flex flex-col gap-2 md:col-span-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="contactoEmail">
-              {t("ContactoEmailTitle")} <span className="text-red-500 font-bold">*</span>
+              {t("ContactoEmailTitle")}
             </label>
             <input
               type="email"
@@ -601,7 +600,7 @@ export default function Step1Identificacion({
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="flex flex-col gap-2 md:col-span-3">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="empresaDireccion">
-              {t("EmpresaDireccionTitle")} <span className="text-red-500 font-bold">*</span>
+              {t("EmpresaDireccionTitle")}
             </label>
             <textarea
               id="empresaDireccion"

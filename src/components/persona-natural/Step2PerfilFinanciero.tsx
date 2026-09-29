@@ -64,7 +64,7 @@ export default function Step2PerfilFinanciero({
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="flex flex-col gap-2 md:col-span-3">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="direccionResidencial">
-              {t("DirectionTitle")} <span className="text-red-500 font-bold">*</span>
+              {t("DirectionTitle")}
             </label>
             <input
               type="text"
@@ -142,7 +142,7 @@ export default function Step2PerfilFinanciero({
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="email">
-              {t("MailTitle")} <span className="text-red-500 font-bold">*</span>
+              {t("MailTitle")}
             </label>
             <input
               type="email"
@@ -198,7 +198,7 @@ export default function Step2PerfilFinanciero({
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="celular">
-              {t("CelularTitle")} <span className="text-red-500 font-bold">*</span>
+              {t("CelularTitle")}
             </label>
             <div className="flex gap-1 w-full">
               <select
@@ -243,7 +243,7 @@ export default function Step2PerfilFinanciero({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700">
-              {t("ProfesionTitle")} <span className="text-red-500 font-bold">*</span>
+              {t("ProfesionTitle")}
             </label>
             <SearchableSelect
               options={professions}
@@ -280,7 +280,7 @@ export default function Step2PerfilFinanciero({
           {formData.profession === "Otros" && (
             <div className="flex flex-col gap-2 md:col-span-2">
               <label className="text-[11px] font-bold tracking-wider uppercase text-[#052B48]" htmlFor="profesionOtros">
-                {t("OtherProfesionTitle")} <span className="text-red-500 font-bold">*</span>
+                {t("OtherProfesionTitle")}
               </label>
               <input
                 type="text"
@@ -302,7 +302,7 @@ export default function Step2PerfilFinanciero({
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="employer">
-              {t("CompanyTitle")} <span className="text-red-500 font-bold">*</span>
+              {t("CompanyTitle")}
             </label>
             <input
               type="text"
@@ -343,7 +343,7 @@ export default function Step2PerfilFinanciero({
           {formData.actividadLaboral === "OTROS" && (
             <div className="flex flex-col gap-2 md:col-span-2">
               <label className="text-[11px] font-bold tracking-wider uppercase text-[#052B48]" htmlFor="actividadLaboralOtros">
-                {t("OtherCompanyActivityTitle")} <span className="text-red-500 font-bold">*</span>
+                {t("OtherCompanyActivityTitle")}
               </label>
               <input
                 type="text"

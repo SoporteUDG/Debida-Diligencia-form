@@ -26,6 +26,7 @@ export default function Step1DatosPersonales({
 
   const t = useTranslations("NaturalForm.NaturalFormStep1Titles");
   const p = useTranslations("NaturalForm.NaturalFormStep1PlaceHolders");
+  const formaContactoLabel = optionLabeler(OPTIONS.FormaContactoOptions, useTranslations("NaturalForm.NaturalFormStep1OptionFields.FormaContactoOptions"));
   const civilLabel = optionLabeler(OPTIONS.civilOptions, useTranslations("NaturalForm.NaturalFormStep1OptionFields.civilOptions"));
   const typeIdLabel = optionLabeler(OPTIONS.TypeIdOption, useTranslations("NaturalForm.NaturalFormStep1OptionFields.TypeIdOption"));
   const migrationLabel = optionLabeler(OPTIONS.MigrationOption, useTranslations("NaturalForm.NaturalFormStep1OptionFields.MigrationOption"));
@@ -39,7 +40,6 @@ export default function Step1DatosPersonales({
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700 flex items-center gap-1" htmlFor="nombreProyecto">
               <span>{t("ProjectTitle")}</span>
-              <span className="text-red-500 font-bold">*</span>
             </label>
             <select
               id="nombreProyecto"
@@ -88,27 +88,27 @@ export default function Step1DatosPersonales({
               }`}
             >
               <option value="">{p("MediumPlaceholder")}</option>
-              <option value="Pagina Web">Pagina Web</option>
-              <option value="Alta Gerencia">Alta Gerencia</option>
-              <option value="BBDD interna">BBDD interna</option>
-              <option value="BD Vendedor">BD Vendedor</option>
-              <option value="Broker">Broker</option>
-              <option value="Camapañas internas">Camapañas internas</option>
-              <option value="Chat">Chat</option>
-              <option value="Encuentra 24">Encuentra 24</option>
-              <option value="Eventos">Eventos</option>
-              <option value="Facebook">Facebook</option>
-              <option value="Ferias">Ferias</option>
-              <option value="Google AdWords">Google AdWords</option>
-              <option value="Instagram">Instagram</option>
-              <option value="Landing casa desde 150">Landing casa desde 150</option>
-              <option value="Linkedln">Linkedln</option>
-              <option value="Referido">Referido</option>
-              <option value="Timelines">Timelines</option>
-              <option value="WhatsApp">WhatsApp</option>
-              <option value="Sala de Ventas">Sala de Ventas</option>
-              <option value="Valla">Valla</option>
-              <option value="Otros">Otros</option>
+              <option value="Pagina Web">{formaContactoLabel("Pagina Web")}</option>
+              <option value="Alta Gerencia">{formaContactoLabel("Alta Gerencia")}</option>
+              <option value="BBDD interna">{formaContactoLabel("BBDD interna")}</option>
+              <option value="BD Vendedor">{formaContactoLabel("BD Vendedor")}</option>
+              <option value="Broker">{formaContactoLabel("Broker")}</option>
+              <option value="Campañas internas">{formaContactoLabel("Campañas internas")}</option>
+              <option value="Chat">{formaContactoLabel("Chat")}</option>
+              <option value="Encuentra 24">{formaContactoLabel("Encuentra 24")}</option>
+              <option value="Eventos">{formaContactoLabel("Eventos")}</option>
+              <option value="Facebook">{formaContactoLabel("Facebook")}</option>
+              <option value="Ferias">{formaContactoLabel("Ferias")}</option>
+              <option value="Google AdWords">{formaContactoLabel("Google AdWords")}</option>
+              <option value="Instagram">{formaContactoLabel("Instagram")}</option>
+              <option value="Landing casa desde 150">{formaContactoLabel("Landing casa desde 150")}</option>
+              <option value="Linkedln">{formaContactoLabel("Linkedln")}</option>
+              <option value="Referido">{formaContactoLabel("Referido")}</option>
+              <option value="Timelines">{formaContactoLabel("Timelines")}</option>
+              <option value="WhatsApp">{formaContactoLabel("WhatsApp")}</option>
+              <option value="Sala de Ventas">{formaContactoLabel("Sala de Ventas")}</option>
+              <option value="Valla">{formaContactoLabel("Valla")}</option>
+              <option value="Otros">{formaContactoLabel("Otros")}</option>
             </select>
             {errors.formaContacto && (
               <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
@@ -121,7 +121,7 @@ export default function Step1DatosPersonales({
           {(formData.formaContacto === "Otros" || formData.formaContacto === "Otro") && (
             <div className="flex flex-col gap-2 md:col-span-2 animate-fadeIn">
               <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="formaContactoDetalle">
-                {t("OtherMedium")} <span className="text-red-500 font-bold">*</span>
+                {t("OtherMedium")}
               </label>
               <input
                 type="text"
@@ -148,7 +148,7 @@ export default function Step1DatosPersonales({
           {formData.formaContacto === "Referido" && (
             <div className="flex flex-col gap-2 md:col-span-2 animate-fadeIn">
               <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="referidoPor">
-                {t("referredMedium")} <span className="text-red-500 font-bold">*</span>
+                {t("referredMedium")}
               </label>
               <input
                 type="text"
@@ -182,7 +182,7 @@ export default function Step1DatosPersonales({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="firstName">
-              {t("NameTitle")} <span className="text-red-500 font-bold">*</span>
+              {t("NameTitle")}
             </label>
             <input
               type="text"
@@ -207,7 +207,7 @@ export default function Step1DatosPersonales({
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="lastName">
-              {t("LastnameTitle")} <span className="text-red-500 font-bold">*</span>
+              {t("LastnameTitle")}
             </label>
             <input
               type="text"
@@ -232,7 +232,7 @@ export default function Step1DatosPersonales({
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700">
-              {t("BirthCountryTitle")} <span className="text-red-500 font-bold">*</span>
+              {t("BirthCountryTitle")}
             </label>
             <SearchableSelect
               options={countries}
@@ -292,7 +292,7 @@ export default function Step1DatosPersonales({
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700">
-              {t("NacionalityTitle")} <span className="text-red-500 font-bold">*</span>
+              {t("NacionalityTitle")}
             </label>
             <SearchableSelect
               options={countries}
@@ -357,7 +357,7 @@ export default function Step1DatosPersonales({
           {/* Estado Civil (Ubicación exacta según mockup: entre Otra Nacionalidad y Estatus Migratorio) */}
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="estadoCivil">
-              {t("CivilTitle")} <span className="text-red-500 font-bold">*</span>
+              {t("CivilTitle")}
             </label>
             <select
               id="estadoCivil"
@@ -387,7 +387,7 @@ export default function Step1DatosPersonales({
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="idNumber">
-              {t("IdTitle")} <span className="text-red-500 font-bold">*</span>
+              {t("IdTitle")}
             </label>
             <input
               type="text"
@@ -463,7 +463,7 @@ export default function Step1DatosPersonales({
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="fechaNacimiento">
-              {t("BirthTitle")} <span className="text-red-500 font-bold">*</span>
+              {t("BirthTitle")}
             </label>
             <input
               type="date"

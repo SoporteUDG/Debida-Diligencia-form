@@ -162,7 +162,7 @@ export default function PersonaJuridicaPage() {
   }, []);
 
   // Hook up custom autosave hook
-  const { status: saveStatus, lastSaved, setStatus: setSaveStatus, setLastSaved, lastSavedAtRef, forceSave } = useAutosave({
+  const { status: saveStatus, lastSaved, setStatus: setSaveStatus, setLastSaved, lastSavedAtRef, forceSave, flush, hasPendingChanges } = useAutosave({
     data: formData,
     type: "juridica",
     step: currentStep,
@@ -748,7 +748,17 @@ export default function PersonaJuridicaPage() {
     }
   };
 
+  // El envío espera a que el último cambio llegue al borrador. Tras un error de
+  // guardado no se bloquea: al enviar se reintenta el guardado primero.
+  const submitBlocked = hasPendingChanges && saveStatus !== "error";
+
   const handleSubmit = async () => {
+    if (hasPendingChanges) {
+      if (submitBlocked) return;
+      const saved = await flush();
+      if (!saved) return;
+    }
+
     const isFinalValid = validateStep(3);
     if (!isFinalValid) {
       setTimeout(() => {
@@ -1170,6 +1180,7 @@ export default function PersonaJuridicaPage() {
                 onNextStep={handleNextStep}
                 onClearDraft={handleClearDraft}
                 onSubmit={handleSubmit}
+                submitBlocked={submitBlocked}
               />
             </div>
           </div>
@@ -1318,7 +1329,7 @@ export default function PersonaJuridicaPage() {
                 {tp("CompleteData")}
               </button>
               <button
-                disabled={isSubmitting}
+                disabled={isSubmitting || submitBlocked}
                 onClick={() => {
                   executeSubmission();
                 }}

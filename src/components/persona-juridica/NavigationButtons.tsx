@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, ArrowRight } from "lucide-react";
+import { ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 interface NavigationButtonsProps {
@@ -11,6 +11,8 @@ interface NavigationButtonsProps {
   onNextStep: () => void;
   onClearDraft: () => void;
   onSubmit: () => void;
+  /** Hay cambios que aún no llegaron al borrador: el envío espera. */
+  submitBlocked?: boolean;
 }
 
 export default function NavigationButtons({
@@ -21,6 +23,7 @@ export default function NavigationButtons({
   onNextStep,
   onClearDraft,
   onSubmit,
+  submitBlocked = false,
 }: NavigationButtonsProps) {
   const t = useTranslations("JuridicaForm.Navigation");
   return (
@@ -60,9 +63,18 @@ export default function NavigationButtons({
           <button
             type="button"
             onClick={onSubmit}
-            className="flex items-center gap-2 px-8 py-3 rounded-lg font-bold text-xs uppercase tracking-wider transition bg-gradient-to-r from-[#c8a788] via-[#bf9e7e] to-yellow-600 text-zinc-950 hover:shadow-lg hover:shadow-[#c8a788]/35 cursor-pointer active:scale-95"
+            disabled={submitBlocked}
+            aria-busy={submitBlocked}
+            className="disabled:opacity-60 disabled:cursor-wait disabled:active:scale-100 flex items-center gap-2 px-8 py-3 rounded-lg font-bold text-xs uppercase tracking-wider transition bg-gradient-to-r from-[#c8a788] via-[#bf9e7e] to-yellow-600 text-zinc-950 hover:shadow-lg hover:shadow-[#c8a788]/35 cursor-pointer active:scale-95"
           >
-            {t("Submit")}
+            {submitBlocked ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                {t("SavingBeforeSubmit")}
+              </>
+            ) : (
+              t("Submit")
+            )}
           </button>
         )}
       </div>

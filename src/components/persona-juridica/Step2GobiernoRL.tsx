@@ -59,7 +59,7 @@ export default function Step2GobiernoRL({
         <div className="border-b border-zinc-200 pb-3 flex items-center justify-between">
           <div>
             <h3 className="text-sm font-bold tracking-widest text-[#052B48] uppercase">
-              {t("GovernanceTitle")} **
+              {t("GovernanceTitle")}
             </h3>
             <p className="text-[11px] text-zinc-500 mt-1">
               {t("GovernanceDescription")}
@@ -156,7 +156,7 @@ export default function Step2GobiernoRL({
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-[#1a1c1a]">
                     <div className="flex flex-col gap-1.5">
                       <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700">
-                        {idx + 1} - {t("MemberCargo")} <span className="text-red-500 font-bold">*</span>
+                        {idx + 1} - {t("MemberCargo")}
                       </label>
                       <select
                         value={member.cargo}
@@ -188,7 +188,7 @@ export default function Step2GobiernoRL({
 
                     <div className="flex flex-col gap-1.5">
                       <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700">
-                        {idx + 1} - {t("MemberNombre")} <span className="text-red-500 font-bold">*</span>
+                        {idx + 1} - {t("MemberNombre")}
                       </label>
                       <input
                         type="text"
@@ -211,7 +211,7 @@ export default function Step2GobiernoRL({
 
                     <div className="flex flex-col gap-1.5">
                       <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700">
-                        {idx + 1} - {t("MemberApellidos")} <span className="text-red-500 font-bold">*</span>
+                        {idx + 1} - {t("MemberApellidos")}
                       </label>
                       <input
                         type="text"
@@ -234,7 +234,7 @@ export default function Step2GobiernoRL({
 
                     <div className="flex flex-col gap-1.5">
                       <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700">
-                        {idx + 1} - {t("MemberNacionalidad")} <span className="text-red-500 font-bold">*</span>
+                        {idx + 1} - {t("MemberNacionalidad")}
                       </label>
                       <SearchableSelect
                         value={member.nacionalidad}
@@ -252,7 +252,7 @@ export default function Step2GobiernoRL({
 
                     <div className="flex flex-col gap-1.5">
                       <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700">
-                        {idx + 1} - {t("MemberFechaNacimiento")} <span className="text-red-500 font-bold">*</span>
+                        {idx + 1} - {t("MemberFechaNacimiento")}
                       </label>
                       <input
                         type="date"
@@ -274,7 +274,7 @@ export default function Step2GobiernoRL({
 
                     <div className="flex flex-col gap-1.5">
                       <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700">
-                        {idx + 1} - {t("MemberNroId")} <span className="text-red-500 font-bold">*</span>
+                        {idx + 1} - {t("MemberNroId")}
                       </label>
                       <input
                         type="text"
@@ -297,7 +297,7 @@ export default function Step2GobiernoRL({
 
                     <div className="flex flex-col gap-1.5 md:col-span-3">
                       <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700">
-                        {idx + 1} - {t("MemberDireccion")} <span className="text-red-500 font-bold">*</span>
+                        {idx + 1} - {t("MemberDireccion")}
                       </label>
                       <input
                         type="text"
@@ -355,7 +355,7 @@ export default function Step2GobiernoRL({
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="rlFechaNacimiento">
-              {t("RlFechaNacimiento")} <span className="text-red-500 font-bold">*</span>
+              {t("RlFechaNacimiento")}
             </label>
             <input
               type="date"
@@ -393,7 +393,7 @@ export default function Step2GobiernoRL({
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="rlEstadoCivil">
-              {t("RlEstadoCivil")} <span className="text-red-500 font-bold">*</span>
+              {t("RlEstadoCivil")}
             </label>
             <select
               id="rlEstadoCivil"
@@ -439,7 +439,7 @@ export default function Step2GobiernoRL({
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="rlProfesionOcupacion">
-              {t("RlProfesionOcupacion")} <span className="text-red-500 font-bold">*</span>
+              {t("RlProfesionOcupacion")}
             </label>
             <input
               type="text"

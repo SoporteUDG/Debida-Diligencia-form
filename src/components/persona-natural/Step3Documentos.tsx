@@ -41,7 +41,7 @@ export default function Step3Documentos({
     return (
       <div className="flex flex-col gap-2">
         <label className="text-xs font-semibold text-zinc-700 leading-normal">
-          {label} {isRequired && <span className="text-red-500 font-bold">*</span>}
+          {label}
         </label>
         <label className="text-[11px] text-zinc-500 leading-normal">{description}</label>
 

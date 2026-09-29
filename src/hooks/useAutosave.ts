@@ -5,6 +5,9 @@ import { FORM_TYPE_HEADER } from "@/lib/tokenAccess";
 
 export type SaveStatus = "idle" | "saving" | "saved" | "error" | "conflict";
 
+/** Tiempo de inactividad tras el último cambio antes de guardar el borrador. */
+export const AUTOSAVE_DELAY_MS = 3000;
+
 interface UseAutosaveProps {
   data: any;
   type: "natural" | "juridica";
@@ -16,6 +19,8 @@ interface UseAutosaveProps {
 export function useAutosave({ data, type, step, draftToken, onConflict }: UseAutosaveProps) {
   const [status, setStatus] = useState<SaveStatus>("idle");
   const [lastSaved, setLastSaved] = useState<string | null>(null);
+  // true mientras haya cambios en pantalla que aún no llegaron al borrador
+  const [hasPendingChanges, setHasPendingChanges] = useState(false);
 
   const dataRef = useRef(data);
   const typeRef = useRef(type);
@@ -48,6 +53,7 @@ export function useAutosave({ data, type, step, draftToken, onConflict }: UseAut
     if (!token) return false;
 
     setStatus("saving");
+    const sentDataStr = JSON.stringify(dataRef.current);
 
     try {
       const response = await fetch("/api/trpc/saveDraft", {
@@ -58,7 +64,7 @@ export function useAutosave({ data, type, step, draftToken, onConflict }: UseAut
           [FORM_TYPE_HEADER]: typeRef.current === "natural" ? "NATURAL" : "JURIDICA",
         },
         body: JSON.stringify({
-          data: dataRef.current,
+          data: JSON.parse(sentDataStr),
           step: stepRef.current,
           // Omitir la marca fuerza la aceptación: el servidor solo compara
           // cuando el cliente declara desde qué versión viene.
@@ -96,6 +102,10 @@ export function useAutosave({ data, type, step, draftToken, onConflict }: UseAut
       setStatus("saved");
       setLastSaved(new Date().toLocaleTimeString());
       lastSavedAtRef.current = result.updatedAt;
+      // Solo se libera si no hubo cambios mientras se guardaba
+      if (sentDataStr === JSON.stringify(dataRef.current)) {
+        setHasPendingChanges(false);
+      }
       return true;
     } catch (error) {
       console.error("[useAutosave] Error during autosave request:", error);
@@ -126,15 +136,18 @@ export function useAutosave({ data, type, step, draftToken, onConflict }: UseAut
       return;
     }
 
+    // Sin token no hay borrador al que guardar: no se bloquea nada
+    setHasPendingChanges(!!draftToken);
+
     // Clear previous debounce timer on any key/field modification
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
     }
 
-    // Start a 2-second timer of inactivity before triggering the database save
+    // Start a timer of inactivity before triggering the database save
     timeoutRef.current = setTimeout(() => {
       persistRef.current(false);
-    }, 2000);
+    }, AUTOSAVE_DELAY_MS);
 
     return () => {
       if (timeoutRef.current) {
@@ -143,5 +156,14 @@ export function useAutosave({ data, type, step, draftToken, onConflict }: UseAut
     };
   }, [data, step, draftToken]);
 
-  return { status, setStatus, lastSaved, setLastSaved, lastSavedAtRef, forceSave };
+  /** Guarda de inmediato los cambios pendientes (para reintentar tras un error). */
+  const flush = () => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+    return persistRef.current(false);
+  };
+
+  return { status, setStatus, lastSaved, setLastSaved, lastSavedAtRef, forceSave, flush, hasPendingChanges };
 }
