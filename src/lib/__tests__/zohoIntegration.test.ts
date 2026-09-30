@@ -70,8 +70,8 @@ describe("Zoho CRM & WorkDrive Integration Mocks", () => {
       expect(spyFetch).toHaveBeenCalled();
     });
 
-    it("getContact - should fallback to Accounts when the record is not in Debida_Diligencia", async () => {
-      vi.spyOn(global, "fetch").mockImplementation(async (url) => {
+    it("getContact - should not fall back to Accounts when the record is not in Debida_Diligencia", async () => {
+      const spyFetch = vi.spyOn(global, "fetch").mockImplementation(async (url) => {
         const urlStr = String(url);
         if (urlStr.includes("/oauth/v2/token")) return tokenResponse;
         if (urlStr.includes("/Accounts/crm-account-id-2")) {
@@ -84,9 +84,8 @@ describe("Zoho CRM & WorkDrive Integration Mocks", () => {
         return { ok: false, status: 404, text: async () => "Not Found" } as any;
       });
 
-      const result = await zoho.service.getContact("crm-account-id-2");
-
-      expect(result.module).toBe("Accounts");
+      await expect(zoho.service.getContact("crm-account-id-2")).rejects.toThrow("crm-account-id-2");
+      expect(spyFetch.mock.calls.some(([u]) => String(u).includes("/Accounts/"))).toBe(false);
     });
 
     it("getContact - should throw when the record is in neither Debida_Diligencia nor Accounts", async () => {
@@ -104,9 +103,16 @@ describe("Zoho CRM & WorkDrive Integration Mocks", () => {
     });
 
     it("updateContact - should update the Debida_Diligencia record with the mapped payload", async () => {
-      const spyFetch = vi.spyOn(global, "fetch").mockImplementation(async (url) => {
+      const spyFetch = vi.spyOn(global, "fetch").mockImplementation(async (url, init) => {
         const urlStr = String(url);
         if (urlStr.includes("/oauth/v2/token")) return tokenResponse;
+        if (urlStr.includes("/Debida_Diligencia/crm-debida-id-1") && (init as any)?.method === "GET") {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({ data: [{ id: "crm-debida-id-1", Socio_de_Negocios: { id: "acc-1", name: "Socio" } }] }),
+          } as any;
+        }
         if (urlStr.includes("/Debida_Diligencia/crm-debida-id-1")) {
           return {
             ok: true,
@@ -130,7 +136,7 @@ describe("Zoho CRM & WorkDrive Integration Mocks", () => {
       expect(put).toBeDefined();
       const body = JSON.parse((put[1] as any).body).data[0];
       expect(body.Raz_n_social).toBe("Mock Corp S.A.");
-      expect(body.Name).toBe("Mock Corp S.A.");
+      expect(body).not.toHaveProperty("Name");
     });
 
     /** Expediente dd-socio con proyecto "Proyecto Viejo" y Socio acc-1 (`socio` = registro de Accounts). */
@@ -166,12 +172,12 @@ describe("Zoho CRM & WorkDrive Integration Mocks", () => {
       return JSON.parse((put[1] as any).body).data[0];
     };
 
-    it("updateContact - Name sale del Socio de Negocio aunque el cliente cambie el proyecto", async () => {
+    it("updateContact - no renombra el expediente aunque el Socio de Negocio tenga proyecto", async () => {
       const spyFetch = mockNameFetch({ Account_Name: "Inversiones ABC", Unidad: "T1-502", Proyecto: "Altos del Parque" });
 
       await zoho.service.updateContact("dd-socio", "NATURAL", { firstName: "Ana", lastName: "Ruiz", nombreProyecto: "Otro" });
 
-      expect(sentPayload(spyFetch).Name).toBe("Inversiones ABC-T1-502-Altos del Parque");
+      expect(sentPayload(spyFetch)).not.toHaveProperty("Name");
     });
 
     it("updateContact - sin proyecto en el Socio de Negocio no cambia el Name", async () => {
@@ -245,10 +251,9 @@ describe("Zoho CRM & WorkDrive Integration Mocks", () => {
         if (urlStr.includes("/oauth/v2/token")) return tokenResponse;
         if (urlStr.includes("/Debida_Diligencia/crm-missing-id")) {
           return {
-            ok: true,
-            json: async () => ({
-              data: [{ status: "error", code: "INVALID_DATA", message: "the id given seems to be invalid", details: {} }],
-            }),
+            ok: false,
+            status: 400,
+            text: async () => JSON.stringify({ code: "INVALID_DATA", message: "the id given seems to be invalid" }),
           } as any;
         }
         return { ok: false, status: 404 } as any;
@@ -259,6 +264,27 @@ describe("Zoho CRM & WorkDrive Integration Mocks", () => {
       );
       const urls = spyFetch.mock.calls.map(([u]) => String(u));
       expect(urls.some((u) => u.includes("/Contacts/") || u.includes("/Leads/"))).toBe(false);
+    });
+
+    it("updateContact - should throw without updating when the record has no Socio de Negocio", async () => {
+      const spyFetch = vi.spyOn(global, "fetch").mockImplementation(async (url, init) => {
+        const urlStr = String(url);
+        if (urlStr.includes("/oauth/v2/token")) return tokenResponse;
+        if (urlStr.includes("/Debida_Diligencia/dd-sin-socio") && (init as any)?.method === "GET") {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({ data: [{ id: "dd-sin-socio", Socio_de_Negocios: null }] }),
+          } as any;
+        }
+        return { ok: false, status: 404 } as any;
+      });
+
+      await expect(zoho.service.updateContact("dd-sin-socio", "NATURAL", {})).rejects.toThrow(
+        "no tiene Socio de Negocio"
+      );
+      const put = spyFetch.mock.calls.find(([, init]) => (init as any)?.method === "PUT");
+      expect(put).toBeUndefined();
     });
   });
 
@@ -605,12 +631,19 @@ describe("Zoho CRM & WorkDrive Integration Mocks", () => {
     });
 
     it("updateContact - should update record successfully in Debida_Diligencia module", async () => {
-      const spyFetch = vi.spyOn(global, "fetch").mockImplementation(async (url) => {
+      const spyFetch = vi.spyOn(global, "fetch").mockImplementation(async (url, init) => {
         const urlStr = String(url);
         if (urlStr.includes("/oauth/v2/token")) {
           return {
             ok: true,
             json: async () => ({ access_token: "token_abc", expires_in: 3600 }),
+          } as any;
+        }
+        if (urlStr.includes("/Debida_Diligencia/crm-debida-id") && (init as any)?.method === "GET") {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({ data: [{ id: "crm-debida-id", Socio_de_Negocios: { id: "acc-1", name: "Socio" } }] }),
           } as any;
         }
         if (urlStr.includes("/Debida_Diligencia/crm-debida-id")) {
@@ -672,7 +705,7 @@ describe("Zoho CRM & WorkDrive Integration Mocks", () => {
       expect(spyFetch).toHaveBeenCalled();
     });
 
-    it("searchContacts - should search across Debida_Diligencia and Accounts modules", async () => {
+    it("searchContacts - should search only the Debida_Diligencia module", async () => {
       const spyFetch = vi.spyOn(global, "fetch").mockImplementation(async (url) => {
         const urlStr = String(url);
         if (urlStr.includes("/oauth/v2/token")) {
@@ -716,7 +749,7 @@ describe("Zoho CRM & WorkDrive Integration Mocks", () => {
 
       const results = await zoho.service.searchContacts("Test");
 
-      expect(results).toHaveLength(2);
+      expect(results).toHaveLength(1);
       expect(results[0]).toEqual({
         id: "debida-search-1",
         name: "Expediente Test",
@@ -726,16 +759,21 @@ describe("Zoho CRM & WorkDrive Integration Mocks", () => {
         type: "NATURAL",
         projectInterest: "Altos del Parque",
       });
-      expect(results[1]).toEqual({
-        id: "account-search-1",
-        name: "Inversiones Test S.A.",
-        email: "info@testcorp.com",
-        phone: "5073009999",
-        module: "Accounts",
-        type: "JURIDICA",
-        projectInterest: "Ocean Reef",
+      expect(spyFetch.mock.calls.some(([u]) => String(u).includes("/Accounts/"))).toBe(false);
+    });
+
+    it("createDebidaDiligenciaRecord - should throw without Socio de Negocio", async () => {
+      const spyFetch = vi.spyOn(global, "fetch").mockImplementation(async (url) => {
+        if (String(url).includes("/oauth/v2/token")) {
+          return { ok: true, json: async () => ({ access_token: "token_abc", expires_in: 3600 }) } as any;
+        }
+        return { ok: false, status: 404, text: async () => "Not Found" } as any;
       });
-      expect(spyFetch).toHaveBeenCalled();
+
+      await expect(
+        zoho.service.createDebidaDiligenciaRecord({ clientType: "NATURAL", name: "Juan Perez" })
+      ).rejects.toThrow("sin Socio de Negocio");
+      expect(spyFetch.mock.calls.some(([u]) => String(u).endsWith("/Debida_Diligencia"))).toBe(false);
     });
 
     it("createDebidaDiligenciaRecord - should send POST to /Debida_Diligencia and return created record ID", async () => {
@@ -765,6 +803,7 @@ describe("Zoho CRM & WorkDrive Integration Mocks", () => {
 
       const expires = new Date("2026-10-01T12:00:00Z");
       const result = await zoho.service.createDebidaDiligenciaRecord({
+        accountCrmId: "acc-1",
         clientType: "NATURAL",
         name: "Juan Perez",
         projectName: "Costa del Este",

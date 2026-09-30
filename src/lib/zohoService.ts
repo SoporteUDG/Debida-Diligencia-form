@@ -52,10 +52,28 @@ function firstValue(record: any, keys: string[]): string {
  * Las partes vacías se omiten.
  */
 export function formatDDName(parts: { socio?: string; unidad?: string; proyecto?: string }): string {
-  return [parts.socio, parts.unidad, parts.proyecto]
+  const unidad = parts.unidad?.trim() ?? "";
+  const proyecto = parts.proyecto?.trim() ?? "";
+
+  let excludeProyecto = unidad;
+   if (proyecto) {
+    const escapedProyecto = proyecto.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const prefixPattern = new RegExp(`^${escapedProyecto}\\s*-\\s*`, "i");
+    excludeProyecto = unidad.replace(prefixPattern, "");
+  }
+  excludeProyecto = excludeProyecto.replace(/^\s*-\s*/, "");
+  if (!excludeProyecto) excludeProyecto = unidad;
+
+  return [parts.socio, excludeProyecto, parts.proyecto]
     .map((p) => (p ?? "").trim())
     .filter(Boolean)
     .join("-");
+}
+
+/** ID del Socio de Negocio (lookup Socio_de_Negocios) de un expediente, o "". */
+function socioIdDe(ddRecord: any): string {
+  const socioLookup = ddRecord?.Socio_de_Negocios || ddRecord?.Socio_de_Negocio;
+  return cleanValue(socioLookup?.id ?? socioLookup);
 }
 
 /**
@@ -77,13 +95,14 @@ async function resolveDDName(
     ddRecord?: any;
     socioId?: string;
     fallback?: { nombre?: string; unidad?: string; proyecto?: string };
+    overRideName?: string;
   }
 ): Promise<string | undefined> {
   const crmBaseUrl = process.env.ZOHO_CRM_BASE_URL || "https://www.zohoapis.com/crm/v2";
   const { ddRecord, fallback } = input;
 
   const socioLookup = ddRecord?.Socio_de_Negocios || ddRecord?.Socio_de_Negocio;
-  const socioId = input.socioId || cleanValue(socioLookup?.id ?? socioLookup);
+  const socioId = input.socioId || socioIdDe(ddRecord);
 
   let socioRecord: any = null;
   if (socioId) {
@@ -108,6 +127,15 @@ async function resolveDDName(
         console.warn(`[Zoho Service] El Socio de Negocio ${socioId} no tiene nombre o proyecto: se conserva el Name actual.`);
         return undefined;
       }
+    }
+    if(input.overRideName){
+      return (
+        formatDDName({
+          socio: input.overRideName,
+          unidad: firstValue(socioRecord, UNIDAD_KEYS) || firstValue(ddRecord, UNIDAD_KEYS),
+          proyecto,
+        }) || undefined
+      )
     }
     return (
       formatDDName({
@@ -474,21 +502,34 @@ export const zoho = {
           return { success: true, notFound: false };
         };
 
+        // El expediente debe tener Socio de Negocio antes de actualizarse
+        const ddResponse = await fetch(`${crmBaseUrl}/Debida_Diligencia/${crmId}`, {
+          method: "GET",
+          headers: { Authorization: `Zoho-oauthtoken ${accessToken}` },
+        });
+        if (!ddResponse.ok || ddResponse.status === 204) {
+          throw new Error(`No se encontró el registro ${crmId} en el módulo Debida_Diligencia de Zoho CRM.`);
+        }
+        const ddRecord = (await ddResponse.json()).data?.[0];
+        if (!ddRecord) {
+          throw new Error(`No se encontró el registro ${crmId} en el módulo Debida_Diligencia de Zoho CRM.`);
+        }
+        if (!socioIdDe(ddRecord)) {
+          throw new Error(`El expediente ${crmId} no tiene Socio de Negocio (Socio_de_Negocios): no se actualiza.`);
+        }
+
         // Name: "Socio Negocio-unidad-proyecto" solo desde el Socio de Negocio.
         // Sin fallback: lo que el cliente cambie en el formulario (p. ej. el
         // proyecto) no renombra el expediente; si no se resuelve, se conserva.
+
+        // De momento, por actualizacion no se mueve el nombre, para permitir diferentes nombres 
+        /*
         try {
-          const ddResponse = await fetch(`${crmBaseUrl}/Debida_Diligencia/${crmId}`, {
-            method: "GET",
-            headers: { Authorization: `Zoho-oauthtoken ${accessToken}` },
-          });
-          const ddRecord =
-            ddResponse.ok && ddResponse.status !== 204 ? (await ddResponse.json()).data?.[0] : undefined;
           const ddName = await resolveDDName(accessToken, { ddRecord });
           if (ddName) apiPayload.Name = ddName;
         } catch (nameErr) {
           console.warn(`[Zoho Service] No se pudo calcular el Name del expediente ${crmId}:`, nameErr);
-        }
+        }*/
 
         // Carpeta_formulario: enlace a la carpeta de WorkDrive de este
         // expediente. Si no se resuelve, se actualiza el registro sin él.
@@ -644,6 +685,8 @@ export const zoho = {
       razonSocial?: string;
       advisorName?: string;
       relatedDDId?: string;
+      /** Sustituye el nombre del Socio de Negocio en el Name del expediente. */
+      overRideName?: string;
     }): Promise<{ success: boolean; debidaId: string; mocked?: boolean }> => {
       const clientId = process.env.ZOHO_CLIENT_ID;
       const clientSecret = process.env.ZOHO_CLIENT_SECRET;
@@ -662,6 +705,11 @@ export const zoho = {
         const mockDebidaId = "mock-debida-" + Date.now();
         console.log(`[Zoho Service] Simulación: Creando registro en Debida_Diligencia con ID ${mockDebidaId} para socio ${params.accountCrmId}`);
         return { success: true, debidaId: mockDebidaId, mocked: true };
+      }
+
+      // Todo expediente debe quedar vinculado a un Socio de Negocio
+      if (!cleanValue(params.accountCrmId)) {
+        throw new Error("No se puede crear el expediente de Debida_Diligencia sin Socio de Negocio (Socio_de_Negocios).");
       }
 
       return executeWithRetry(async (accessToken) => {
@@ -745,6 +793,7 @@ export const zoho = {
         const ddName = await resolveDDName(accessToken, {
           socioId: params.accountCrmId,
           fallback: { nombre: params.name, proyecto: params.projectName },
+          overRideName: params.overRideName,
         });
         if (ddName) {
           recordPayload.Name = ddName;
@@ -1284,7 +1333,7 @@ function assign(payload: Record<string, unknown>, fields: Record<string, unknown
 export function mapFormToCrmPayload(clientType: "NATURAL" | "JURIDICA", formData: any): any {
   const d = formData || {};
   const payload: Record<string, unknown> = {
-    "Estado": "Completado",
+    "Estado": "En revisión",
     "Fecha_de_Ingreso": new Date().toISOString().split("T")[0],
     "Estado_del_enlace": "Expirado / Revocado",
   };

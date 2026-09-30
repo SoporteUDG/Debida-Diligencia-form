@@ -96,7 +96,7 @@ describe("ZohoService Unit Tests", () => {
 
       const payload = mapFormToCrmPayload("NATURAL", naturalForm);
 
-      expect(payload["Estado"]).toBe("Completado");
+      expect(payload["Estado"]).toBe("En revisión");
       expect(payload["Proyecto"]).toBe("Proyecto Marina");
       expect(payload["Forma_de_contacto"]).toBe("Feria");
       expect(payload["Nombre_natural"]).toBe("Lucas Silva");
@@ -153,7 +153,7 @@ describe("ZohoService Unit Tests", () => {
 
       const payload = mapFormToCrmPayload("JURIDICA", juridicaForm);
 
-      expect(payload["Estado"]).toBe("Completado");
+      expect(payload["Estado"]).toBe("En revisión");
       expect(payload["Raz_n_social"]).toBe("Desarrollo Global S.A.");
       expect(payload["RUC_NIT"]).toBe("123456-9-2026");
       expect(payload["Tipo_de_Cliente"]).toBe("Persona Jurídica Nacional");
