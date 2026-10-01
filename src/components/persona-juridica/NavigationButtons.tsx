@@ -54,7 +54,7 @@ export default function NavigationButtons({
           <button
             type="button"
             onClick={onNextStep}
-            className="flex items-center gap-2 px-6 py-2.5 rounded-lg font-semibold text-xs uppercase tracking-wider transition bg-gradient-to-r from-[#c8a788] to-yellow-600 text-zinc-950 hover:shadow-lg hover:shadow-[#c8a788]/20 cursor-pointer active:scale-95"
+            className="flex items-center gap-2 px-6 py-2.5 rounded-lg font-semibold text-xs uppercase tracking-wider transition bg-[#DAB38D] text-zinc-950 hover:shadow-lg hover:shadow-[#c8a788]/20 cursor-pointer active:scale-95"
           >
             {t("Next")}
             <ArrowRight className="h-4 w-4" />
@@ -65,7 +65,7 @@ export default function NavigationButtons({
             onClick={onSubmit}
             disabled={submitBlocked}
             aria-busy={submitBlocked}
-            className="disabled:opacity-60 disabled:cursor-wait disabled:active:scale-100 flex items-center gap-2 px-8 py-3 rounded-lg font-bold text-xs uppercase tracking-wider transition bg-gradient-to-r from-[#c8a788] via-[#bf9e7e] to-yellow-600 text-zinc-950 hover:shadow-lg hover:shadow-[#c8a788]/35 cursor-pointer active:scale-95"
+            className="disabled:opacity-60 disabled:cursor-wait disabled:active:scale-100 flex items-center gap-2 px-8 py-3 rounded-lg font-bold text-xs uppercase tracking-wider transition bg-[#DAB38D] text-zinc-950 hover:shadow-lg hover:shadow-[#c8a788]/35 cursor-pointer active:scale-95"
           >
             {submitBlocked ? (
               <>
