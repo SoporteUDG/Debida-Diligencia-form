@@ -15,12 +15,18 @@ export async function syncFormToCrm(formId: string) {
     // 1. Fetch form details along with CRM contact info
     form = await prisma.form.findUnique({
       where: { id: formId },
-      include: { crmContact: true },
+      include: { crmContact: { include: { accountContact: true } } },
     });
 
     if (!form) {
       console.error(`[CRM Sync Error] No se encontró el formulario con ID: ${formId}`);
       return { success: false, error: "Formulario no encontrado" };
+    }
+
+    // Un expediente adicional no vincula su información de cliente a Zoho
+    if (form.isAditional) {
+      console.log(`[CRM Sync] El formulario ${formId} es adicional; no se sincroniza con Zoho CRM.`);
+      return { success: true, skipped: true };
     }
 
     // 2. Resolve/Create CrmSync record for tracking
@@ -102,10 +108,14 @@ export async function syncFormToCrm(formId: string) {
     // 4. Trigger Zoho CRM contact/lead update with the mapped form data
     console.log(`[CRM Sync] Iniciando petición PUT de actualización para contacto CRM: ${crmContactId}`);
 
+    // Con contacto vinculado, los datos personales se escriben en el Contact
+    // de Zoho y no en el expediente de Debida_Diligencia.
+    const contactCrmId = form.crmContact?.accountContact?.crmId as string | undefined;
     const syncResult = await zoho.service.updateContact(
       crmContactId,
       form.type as any,
-      form.data
+      form.data,
+      { contactCrmId }
     );
 
     // 5. Update CrmSync to SUCCESS on success

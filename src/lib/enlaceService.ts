@@ -1,6 +1,6 @@
 import prisma from "@/lib/prisma";
 import { generateToken } from "@/lib/tokenService";
-import { zoho } from "@/lib/zohoService";
+import { zoho, contactRecordToFormData } from "@/lib/zohoService";
 import { datosFormularioDesdeZoho } from "@/lib/zohoChangeService";
 
 /**
@@ -11,6 +11,9 @@ import { datosFormularioDesdeZoho } from "@/lib/zohoChangeService";
  *
  * El borrador nace con los campos que ya existan en el registro de Zoho CRM
  * (salvo documentos, sus casillas, términos y firma).
+ *
+ * Con `isAditional` el borrador no se precarga desde Zoho CRM y queda marcado
+ * como adicional (su información de cliente no se vincula a Zoho).
  */
 export async function crearEnlaceConBorrador(params: {
   contactId: string;
@@ -18,6 +21,9 @@ export async function crearEnlaceConBorrador(params: {
   isNatural: boolean;
   appUrl: string;
   draftData: Record<string, any>;
+  isAditional?: boolean;
+  /** Contact de Zoho vinculado: sus datos personales también precargan el borrador. */
+  contactCrmId?: string;
 }): Promise<{ tokenUuid: string; clientUrl: string; expiresAt: Date }> {
   const tokenUuid = await generateToken(params.contactId, "ACCESS", 30);
   const expiresAt = new Date();
@@ -29,10 +35,18 @@ export async function crearEnlaceConBorrador(params: {
 
   let desdeZoho: Record<string, any> = {};
   try {
-    const registro = await zoho.service.getDDRecord(params.crmId);
+    const registro = params.isAditional ? null : await zoho.service.getDDRecord(params.crmId);
     if (registro) desdeZoho = datosFormularioDesdeZoho(formType, registro);
   } catch (err) {
     console.warn(`[Enlace Service] No se pudo precargar el borrador desde el registro ${params.crmId}:`, err);
+  }
+
+  let desdeContacto: Record<string, any> = {};
+  try {
+    const contacto = params.isAditional || !params.contactCrmId ? null : await zoho.service.getAccountContactRecord(params.contactCrmId);
+    if (contacto) desdeContacto = contactRecordToFormData(formType, contacto);
+  } catch (err) {
+    console.warn(`[Enlace Service] No se pudo precargar el borrador desde el contacto ${params.contactCrmId}:`, err);
   }
 
   await prisma.draft.upsert({
@@ -41,7 +55,8 @@ export async function crearEnlaceConBorrador(params: {
       token: tokenUuid,
       type: formType,
       crmContactId: params.contactId,
-      data: { ...params.draftData, ...desdeZoho },
+      isAditional: params.isAditional ?? false,
+      data: { ...params.draftData, ...desdeZoho, ...desdeContacto },
     },
     update: {
       crmContactId: params.contactId,
@@ -72,8 +87,10 @@ export async function prepararExpedienteRelacionado(params: {
   appUrl: string;
   socioId?: string;
   overRideName?: string;
+  /** Contacto de la cuenta (el único de la jurídica): también es el del Representante Legal. */
+  accountContact?: { id: string; crmId: string };
 }): Promise<{ crmId: string; clientUrl: string | null }> {
-  const { juridicaCrmId, clientName, projectName, appUrl, overRideName } = params;
+  const { juridicaCrmId, clientName, projectName, appUrl, overRideName, accountContact } = params;
   const esSimulado = juridicaCrmId.startsWith("mock-") || juridicaCrmId === "simulated-crm-contact-id";
 
   // 1. Expediente relacionado existente (enlace regenerado)
@@ -123,7 +140,13 @@ export async function prepararExpedienteRelacionado(params: {
         firstName: "Representante Legal",
         lastName: clientName,
         email: `cliente@udg.com`,
+        accountContactId: accountContact?.id,
       },
+    });
+  } else if (accountContact && !relatedContact.accountContactId) {
+    relatedContact = await prisma.crmContact.update({
+      where: { id: relatedContact.id },
+      data: { accountContactId: accountContact.id },
     });
   }
 
@@ -142,6 +165,7 @@ export async function prepararExpedienteRelacionado(params: {
     crmId: relatedCrmId,
     isNatural: true,
     appUrl,
+    contactCrmId: accountContact?.crmId,
     draftData: {
       crmContactId: relatedCrmId,
       nombreProyecto: projectName,

@@ -96,6 +96,8 @@ async function resolveDDName(
     socioId?: string;
     fallback?: { nombre?: string; unidad?: string; proyecto?: string };
     overRideName?: string;
+    /** Recibe el registro del Socio de Negocio leído (solo al crear). */
+    onSocioRecord?: (socioRecord: any) => void;
   }
 ): Promise<string | undefined> {
   const crmBaseUrl = process.env.ZOHO_CRM_BASE_URL || "https://www.zohoapis.com/crm/v2";
@@ -120,7 +122,8 @@ async function resolveDDName(
   }
 
   if (socioRecord) {
-    const socio = firstValue(socioRecord, SOCIO_KEYS) || cleanValue(socioLookup?.name);
+    input.onSocioRecord?.(socioRecord);
+    const socio =firstValue(socioRecord, SOCIO_KEYS) || cleanValue(socioLookup?.name);
     const proyecto = firstValue(socioRecord, PROYECTO_KEYS) || fallback?.proyecto;
     if (!socio || !proyecto) {
       if (!fallback) {
@@ -435,7 +438,11 @@ export const zoho = {
     updateContact: async (
       crmId: string,
       clientType: "NATURAL" | "JURIDICA",
-      formData: any
+      formData: any,
+      options?: {
+        /** Contact de Zoho vinculado al expediente: recibe los datos personales. */
+        contactCrmId?: string;
+      }
     ): Promise<{ success: boolean; crmId: string; mocked?: boolean }> => {
       const clientId = process.env.ZOHO_CLIENT_ID;
       const clientSecret = process.env.ZOHO_CLIENT_SECRET;
@@ -454,7 +461,7 @@ export const zoho = {
         return { success: true, crmId, mocked: true };
       }
 
-      const payload = mapFormToCrmPayload(clientType, formData);
+      const payload = mapFormToCrmPayload(clientType, formData, { contactoVinculado: !!options?.contactCrmId });
       const apiPayload: Record<string, unknown> = { ...payload };
 
       return executeWithRetry(async (accessToken) => {
@@ -547,6 +554,11 @@ export const zoho = {
         }
 
         console.log(`[Zoho Service] Registro ${crmId} actualizado exitosamente en módulo Debida_Diligencia.`);
+
+        // Contact vinculado: recibe los datos personales que ya no van al expediente
+        if (options?.contactCrmId) {
+          await zoho.service.updateAccountContact(options.contactCrmId, clientType, formData);
+        }
         return { success: true, crmId };
       });
     },
@@ -687,6 +699,8 @@ export const zoho = {
       relatedDDId?: string;
       /** Sustituye el nombre del Socio de Negocio en el Name del expediente. */
       overRideName?: string;
+      /** Contact de Zoho del expediente (se escribe en el lookup Nombre_de_contacto). */
+      contactCrmId?: string;
     }): Promise<{ success: boolean; debidaId: string; mocked?: boolean }> => {
       const clientId = process.env.ZOHO_CLIENT_ID;
       const clientSecret = process.env.ZOHO_CLIENT_SECRET;
@@ -783,6 +797,11 @@ export const zoho = {
           recordPayload.Socio_de_Negocios = { id: params.accountCrmId };
         }
 
+        // Contact vinculado (lookup Nombre_de_contacto)
+        if (params.contactCrmId && DD_CONTACT_FIELD) {
+          recordPayload[DD_CONTACT_FIELD] = { id: params.contactCrmId };
+        }
+
         // Expediente relacionado (lookup DD_relacionado)
         if (params.relatedDDId) {
           recordPayload.DD_relacionado = { id: params.relatedDDId };
@@ -790,13 +809,21 @@ export const zoho = {
 
         // Name: "Socio Negocio-unidad-proyecto" desde el Socio de Negocio; sin socio,
         // con los datos con que se genera el expediente (no los del formulario)
+        let socioUnidad = "";
         const ddName = await resolveDDName(accessToken, {
           socioId: params.accountCrmId,
           fallback: { nombre: params.name, proyecto: params.projectName },
           overRideName: params.overRideName,
+          onSocioRecord: (socioRecord) => {
+            socioUnidad = firstValue(socioRecord, UNIDAD_KEYS);
+          },
         });
         if (ddName) {
           recordPayload.Name = ddName;
+        }
+        // Unidad del Socio de Negocio (Accounts) al crear el expediente
+        if (socioUnidad) {
+          recordPayload.Unidad = socioUnidad;
         }
 
         console.log(`[Zoho Service] Creando registro en Debida_Diligencia...`);
@@ -1254,8 +1281,411 @@ export const zoho = {
         return relatedId || null;
       });
     },
+
+    /**
+     * Contacts de Zoho vinculados a un Account (Socio de Negocio), del más
+     * antiguo al más reciente (Created_Time).
+     *
+     * @param accountId ID del Account en Zoho CRM
+     */
+    searchAccountContacts: async (accountId: string): Promise<ZohoAccountContact[]> => {
+      if (zohoSimulado(accountId)) {
+        console.log(`[Zoho Service] Simulación: contacto de ejemplo para el Socio de Negocio ${accountId}.`);
+        return [
+          {
+            id: `mock-contact-${accountId}`,
+            firstName: "Contacto",
+            lastName: "Simulado",
+            email: "contacto.mock@gmail.com",
+            phone: "50766554433",
+            createdTime: "2026-01-01T00:00:00+00:00",
+          },
+        ];
+      }
+
+      return executeWithRetry(async (accessToken) => {
+        const crmBaseUrl = process.env.ZOHO_CRM_BASE_URL || "https://www.zohoapis.com/crm/v2";
+        const contacts: ZohoAccountContact[] = [];
+
+        // Related list "Contacts" del Account, paginada
+        for (let page = 1; page <= 20; page++) {
+          const response = await fetch(
+            `${crmBaseUrl}/Accounts/${accountId}/Contacts?fields=First_Name,Last_Name,Email,Phone,Created_Time&per_page=200&page=${page}`,
+            { method: "GET", headers: { Authorization: `Zoho-oauthtoken ${accessToken}` } }
+          );
+          if (response.status === 204) break;
+          if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Zoho CRM Accounts/${accountId}/Contacts respondió HTTP ${response.status}: ${errorText}`);
+          }
+          const json = await response.json();
+          for (const rec of json.data ?? []) {
+            contacts.push({
+              id: cleanValue(rec.id),
+              firstName: cleanValue(rec.First_Name),
+              lastName: cleanValue(rec.Last_Name),
+              email: cleanValue(rec.Email),
+              phone: cleanValue(rec.Phone),
+              createdTime: cleanValue(rec.Created_Time),
+            });
+          }
+          if (!json.info?.more_records) break;
+        }
+
+        return contacts
+          .filter((c) => c.id)
+          .sort((a, b) => (Date.parse(a.createdTime) || 0) - (Date.parse(b.createdTime) || 0));
+      });
+    },
+
+    /**
+     * Expedientes de Debida_Diligencia de un Socio de Negocio (lookup
+     * Socio_de_Negocios), con el Contact al que apuntan (lookup Nombre_de_contacto)
+     * Lanza si Zoho falla: no se debe crear sin saber qué existe.
+     */
+    searchDDsByAccount: async (accountId: string): Promise<ZohoDDResumen[]> => {
+      if (zohoSimulado(accountId)) return [];
+
+      return executeWithRetry(async (accessToken) => {
+        const crmBaseUrl = process.env.ZOHO_CRM_BASE_URL || "https://www.zohoapis.com/crm/v2";
+        const out: ZohoDDResumen[] = [];
+        for (let page = 1; page <= 20; page++) {
+          const response = await fetch(
+            `${crmBaseUrl}/Debida_Diligencia/search?criteria=${encodeURIComponent(`(Socio_de_Negocios:equals:${accountId})`)}&per_page=200&page=${page}`,
+            { method: "GET", headers: { Authorization: `Zoho-oauthtoken ${accessToken}` } }
+          );
+          if (response.status === 204) break;
+          if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Zoho CRM Debida_Diligencia/search respondió HTTP ${response.status}: ${errorText}`);
+          }
+          const json = await response.json();
+          for (const rec of json.data ?? []) {
+            out.push({
+              id: cleanValue(rec.id),
+              name: cleanValue(rec.Name),
+              estado: cleanValue(rec.Estado),
+              contactCrmId: DD_CONTACT_FIELD ? cleanValue(rec[DD_CONTACT_FIELD]?.id) : "",
+            });
+          }
+          if (!json.info?.more_records) break;
+        }
+        return out.filter((d) => d.id);
+      });
+    },
+
+    /**
+     * Usuario de Zoho CRM con su perfil (para autorizar acciones pedidas desde
+     * botones de Zoho). Devuelve null si no existe o no está activo. Lanza si
+     * Zoho falla: sin poder verificar el perfil no se autoriza.
+     */
+    getUserProfile: async (
+      userId: string
+    ): Promise<{ id: string; name: string; email: string; profile: string } | null> => {
+      return executeWithRetry(async (accessToken) => {
+        const crmBaseUrl = process.env.ZOHO_CRM_BASE_URL || "https://www.zohoapis.com/crm/v2";
+        const response = await fetch(`${crmBaseUrl}/users/${encodeURIComponent(userId)}`, {
+          method: "GET",
+          headers: { Authorization: `Zoho-oauthtoken ${accessToken}` },
+        });
+        if (response.status === 204 || response.status === 404) return null;
+        if (!response.ok) {
+          throw new Error(`Zoho CRM users/${userId} respondió HTTP ${response.status}: ${await response.text()}`);
+        }
+        const user = (await response.json()).users?.[0];
+        if (!user || (user.status && String(user.status).toLowerCase() !== "active")) return null;
+        return {
+          id: cleanValue(user.id),
+          name: cleanValue(user.full_name || user.name),
+          email: cleanValue(user.email),
+          profile: cleanValue(user.profile?.name),
+        };
+      });
+    },
+
+    /** Cambia el Estado de un expediente de Debida_Diligencia (no dispara workflows). */
+    setDDEstado: async (ddId: string, estado: string): Promise<{ success: boolean; mocked?: boolean }> => {
+      if (zohoSimulado(ddId)) {
+        console.log(`[Zoho Service] Simulación: Estado de ${ddId} -> "${estado}".`);
+        return { success: true, mocked: true };
+      }
+      return executeWithRetry(async (accessToken) => {
+        const crmBaseUrl = process.env.ZOHO_CRM_BASE_URL || "https://www.zohoapis.com/crm/v2";
+        const response = await fetch(`${crmBaseUrl}/Debida_Diligencia/${ddId}`, {
+          method: "PUT",
+          headers: { Authorization: `Zoho-oauthtoken ${accessToken}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ data: [{ Estado: estado }], trigger: [] }),
+        });
+        if (!response.ok) {
+          throw new Error(`Zoho CRM Debida_Diligencia/${ddId} PUT Estado respondió HTTP ${response.status}: ${await response.text()}`);
+        }
+        const result = (await response.json()).data?.[0];
+        if (!result || result.status === "error") {
+          throw new Error(`Zoho CRM Error cambiando Estado de ${ddId} [${result?.code}]: ${result?.message}`);
+        }
+        return { success: true };
+      });
+    },
+
+    /** Elimina un expediente de Debida_Diligencia de Zoho CRM (pasa a la papelera de Zoho). */
+    deleteDDRecord: async (ddId: string): Promise<{ success: boolean; mocked?: boolean }> => {
+      if (zohoSimulado(ddId)) {
+        console.log(`[Zoho Service] Simulación: eliminación del expediente ${ddId}.`);
+        return { success: true, mocked: true };
+      }
+      return executeWithRetry(async (accessToken) => {
+        const crmBaseUrl = process.env.ZOHO_CRM_BASE_URL || "https://www.zohoapis.com/crm/v2";
+        const response = await fetch(`${crmBaseUrl}/Debida_Diligencia/${ddId}`, {
+          method: "DELETE",
+          headers: { Authorization: `Zoho-oauthtoken ${accessToken}` },
+        });
+        // 404/204: ya no existe
+        if (response.status === 404 || response.status === 204) return { success: true };
+        if (!response.ok) {
+          throw new Error(`Zoho CRM Debida_Diligencia/${ddId} DELETE respondió HTTP ${response.status}: ${await response.text()}`);
+        }
+        const result = (await response.json()).data?.[0];
+        if (result && result.status === "error") {
+          throw new Error(`Zoho CRM Error eliminando ${ddId} [${result.code}]: ${result.message}`);
+        }
+        return { success: true };
+      });
+    },
+
+    /** Registro crudo de un Contact de Zoho, o null si no existe o Zoho está simulado. */
+    getAccountContactRecord: async (contactId: string): Promise<Record<string, any> | null> => {
+      if (zohoSimulado(contactId)) return null;
+
+      return executeWithRetry(async (accessToken) => {
+        const crmBaseUrl = process.env.ZOHO_CRM_BASE_URL || "https://www.zohoapis.com/crm/v2";
+        const response = await fetch(`${crmBaseUrl}/Contacts/${contactId}`, {
+          method: "GET",
+          headers: { Authorization: `Zoho-oauthtoken ${accessToken}` },
+        });
+        if (response.status === 204) return null;
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Zoho CRM Contacts/${contactId} respondió HTTP ${response.status}: ${errorText}`);
+        }
+        return (await response.json()).data?.[0] ?? null;
+      });
+    },
+
+    /** Actualiza un Contact de Zoho con los campos del formulario (no dispara workflows). */
+    updateAccountContact: async (
+      contactId: string,
+      clientType: "NATURAL" | "JURIDICA",
+      formData: any
+    ): Promise<{ success: boolean; mocked?: boolean }> => {
+      if (zohoSimulado(contactId)) {
+        console.log(`[Zoho Service] Simulación: actualización del Contact ${contactId}.`);
+        return { success: true, mocked: true };
+      }
+
+      const payload = mapFormToContactPayload(clientType, formData);
+      if (Object.keys(payload).length === 0) return { success: true };
+
+      return executeWithRetry(async (accessToken) => {
+        const crmBaseUrl = process.env.ZOHO_CRM_BASE_URL || "https://www.zohoapis.com/crm/v2";
+        const response = await fetch(`${crmBaseUrl}/Contacts/${contactId}`, {
+          method: "PUT",
+          headers: { Authorization: `Zoho-oauthtoken ${accessToken}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ data: [payload], trigger: [] }),
+        });
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Zoho CRM Contacts/${contactId} PUT respondió HTTP ${response.status}: ${errorText}`);
+        }
+        const result = (await response.json()).data?.[0];
+        if (!result || result.status === "error") {
+          throw new Error(`Zoho CRM Error actualizando el Contact ${contactId} [${result?.code}]: ${result?.message}`);
+        }
+        console.log(`[Zoho Service] Contact ${contactId} actualizado.`);
+        return { success: true };
+      });
+    },
   },
 };
+
+// ==========================================
+// Contactos de Zoho (módulo Contacts)
+// ==========================================
+
+/** Contact de Zoho tal como lo usa el portal. */
+export interface ZohoAccountContact {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  /** Created_Time (ISO) en Zoho; "" si no viene. */
+  createdTime: string;
+}
+
+/** Resumen de un expediente de Debida_Diligencia de Zoho. */
+export interface ZohoDDResumen {
+  id: string;
+  name: string;
+  estado: string;
+  /** ID del Contact al que apunta el lookup; "" si el lookup está vacío. */
+  contactCrmId: string;
+}
+
+/** API name del lookup Debida_Diligencia -> Contacts (ZOHO_DD_CONTACT_FIELD lo sustituye). */
+export const DD_CONTACT_FIELD = "Nombre_de_contacto";
+
+const normalizar = (v: string) => v.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/s+/g, " ").trim().toLowerCase();
+
+/**
+ * Expediente de Zoho que corresponde a un Contact: por el lookup si lo tiene; si
+ * no (expedientes anteriores al lookup), porque su Name empieza con el nombre
+ * del contacto ("Nombre - unidad - proyecto").
+ */
+export function buscarDDDelContacto(
+  dds: ZohoDDResumen[],
+  contact: { crmId: string; firstName: string; lastName: string }
+): ZohoDDResumen | undefined {
+  const porLookup = dds.find((d) => d.contactCrmId === contact.crmId);
+  if (porLookup) return porLookup;
+
+  const nombre = normalizar(`${contact.firstName} ${contact.lastName}`);
+  if (!nombre) return undefined;
+  return dds.find((d) => {
+    if (d.contactCrmId) return false; // ya pertenece a otro contacto
+    const n = normalizar(d.name);
+    return n === nombre || n.startsWith(`${nombre} -`) || n.startsWith(`${nombre}-`);
+  });
+}
+
+/** Credenciales placeholder o ID simulado: no se llama a Zoho. */
+function zohoSimulado(id: string): boolean {
+  const { ZOHO_CLIENT_ID: c, ZOHO_CLIENT_SECRET: s, ZOHO_REFRESH_TOKEN: r } = process.env;
+  return (
+    !c || c === "placeholder_client_id" ||
+    !s || s === "placeholder_client_secret" || s === "placeholder_secret" ||
+    !r || r === "placeholder_refresh_token" ||
+    id.startsWith("mock-") || id === "simulated-crm-contact-id"
+  );
+}
+
+/** Campos del DD que pasan al Contact cuando el expediente tiene contacto vinculado. */
+const CAMPOS_DD_DEL_CONTACTO: Record<"NATURAL" | "JURIDICA", string[]> = {
+  NATURAL: [
+    "Nombre_natural",
+    "Pais_de_nacimiento",
+    "Nacionalidad",
+    "Otra_nacionalidad",
+    "Estado_Civil",
+    "Numero_Identificacion",
+    "Fecha_vencimiento_ID",
+    "Fecha_de_nacimiento",
+  ],
+  // Representante legal (Fecha_vencimiento_ID es la de la empresa: se queda)
+  JURIDICA: [
+    "Nombre_natural",
+    "Estado_Civil",
+    "Nacionalidad",
+    "Numero_Identificacion",
+    "Fecha_de_nacimiento",
+    "Profesi_n",
+    "Direccion_Representante",
+    "Telefono_Representante",
+  ],
+};
+
+/** Quita del payload del DD los campos que viven en el Contact. */
+/** Lookup DD -> Contact guardado en los datos del formulario (ver DD_CONTACT_FIELD). */
+function lookupContactoDe(d: any): Record<string, unknown> {
+  const id = text(d?.[DD_CONTACT_FIELD]);
+  return id ? { [DD_CONTACT_FIELD]: { id } } : {};
+}
+
+function quitarCamposDeContacto(clientType: "NATURAL" | "JURIDICA", payload: Record<string, unknown>) {
+  for (const campo of CAMPOS_DD_DEL_CONTACTO[clientType]) delete payload[campo];
+  return payload;
+}
+
+/** Nombre completo -> nombre y apellido (mitad y mitad, como en zohoChangeService). */
+function partirNombre(full: unknown): { first?: string; last?: string } {
+  const partes = (text(full) ?? "").split(/\s+/).filter(Boolean);
+  if (!partes.length) return {};
+  if (partes.length === 1) return { first: partes[0] };
+  const mitad = Math.ceil(partes.length / 2);
+  return { first: partes.slice(0, mitad).join(" "), last: partes.slice(mitad).join(" ") };
+}
+
+/**
+ * Campos del formulario que se escriben en el Contact de Zoho (secciones "Zoho
+ * Contacts" de zoho_fields_guide.md):
+ * - Natural: los datos de identificación de la persona.
+ * - Jurídica: los del representante legal (solo se toma un contacto).
+ */
+export function mapFormToContactPayload(clientType: "NATURAL" | "JURIDICA", formData: any): Record<string, unknown> {
+  const d = formData || {};
+  const payload: Record<string, unknown> = {};
+
+  if (clientType === "JURIDICA") {
+    const { first, last } = partirNombre(d.rlNombre);
+    assign(payload, {
+      "First_Name": first,
+      "Last_Name": last,
+      "Estado_Civil": text(d.rlEstadoCivil),
+      "Nacionalidad_2": text(d.rlNacionalidad),
+      "C_I_P_Pasaporte": text(d.rlNoIdentificacion),
+      "Fecha_Nacimiento": toDate(d.rlFechaNacimiento),
+      "Profesi_n": text(d.rlProfesionOcupacion),
+      "Direcci_n_F_sica": text(d.rlDireccion),
+      "Phone": text(d.rlTelefono),
+    });
+  } else {
+    assign(payload, {
+      "First_Name": text(d.firstName),
+      "Last_Name": text(d.lastName),
+      "Pais_de_Nacimiento_2": text(d.paisNacimiento),
+      "Nacionalidad_2": text(d.nationality),
+      "Otra_Nacionalidad": text(d.otraNacionalidad),
+      "Estado_Civil": text(d.estadoCivil),
+      "C_I_P_Pasaporte": text(d.idNumber),
+      "Fecha_de_Expiraci_n_CIP": toDate(d.fechaVencimientoId),
+      "Fecha_Nacimiento": toDate(d.fechaNacimiento),
+    });
+  }
+
+  return payload;
+}
+
+/** Inverso de mapFormToContactPayload: precarga un borrador con los datos del Contact. */
+export function contactRecordToFormData(clientType: "NATURAL" | "JURIDICA", record: any): Record<string, string> {
+  const r = record || {};
+  const out: Record<string, string> = {};
+  const put = (campo: string, valor: unknown) => {
+    const v = cleanValue(valor);
+    if (v) out[campo] = v;
+  };
+  const fecha = (valor: unknown) => cleanValue(valor).slice(0, 10);
+
+  if (clientType === "JURIDICA") {
+    put("rlNombre", `${cleanValue(r.First_Name)} ${cleanValue(r.Last_Name)}`.trim());
+    put("rlEstadoCivil", r.Estado_Civil);
+    put("rlNacionalidad", r.Nacionalidad_2);
+    put("rlNoIdentificacion", r.C_I_P_Pasaporte);
+    put("rlFechaNacimiento", fecha(r.Fecha_Nacimiento));
+    put("rlProfesionOcupacion", r.Profesi_n);
+    put("rlDireccion", r.Direcci_n_F_sica);
+    put("rlTelefono", r.Phone);
+  } else {
+    put("firstName", r.First_Name);
+    put("lastName", r.Last_Name);
+    put("paisNacimiento", r.Pais_de_Nacimiento_2);
+    put("nationality", r.Nacionalidad_2);
+    put("otraNacionalidad", r.Otra_Nacionalidad);
+    put("estadoCivil", r.Estado_Civil);
+    put("idNumber", r.C_I_P_Pasaporte);
+    put("fechaVencimientoId", fecha(r.Fecha_de_Expiraci_n_CIP));
+    put("fechaNacimiento", fecha(r.Fecha_Nacimiento));
+  }
+  return out;
+}
 
 // ==========================================
 // Helpers para el mapeo formulario -> Zoho CRM
@@ -1330,7 +1760,11 @@ function assign(payload: Record<string, unknown>, fields: Record<string, unknown
  * zoho_fields_guide.md. API names follow the real Zoho module (e.g. Tipo_de_Cliente,
  * Promedio_mensual, Aviso_de_Operaciones), which in a few rows differs from the guide.
  */
-export function mapFormToCrmPayload(clientType: "NATURAL" | "JURIDICA", formData: any): any {
+export function mapFormToCrmPayload(
+  clientType: "NATURAL" | "JURIDICA",
+  formData: any,
+  options?: { /** Los datos personales van al Contact vinculado: se omiten del DD. */ contactoVinculado?: boolean }
+): any {
   const d = formData || {};
   const payload: Record<string, unknown> = {
     "Estado": "En revisión",
@@ -1534,5 +1968,6 @@ export function mapFormToCrmPayload(clientType: "NATURAL" | "JURIDICA", formData
     });
   }
 
-  return payload;
+  Object.assign(payload, lookupContactoDe(d));
+  return options?.contactoVinculado ? quitarCamposDeContacto(clientType, payload) : payload;
 }

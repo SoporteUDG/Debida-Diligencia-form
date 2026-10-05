@@ -24,6 +24,9 @@ vi.mock("../prisma", () => {
       crmContact: {
         findUnique: vi.fn(),
       },
+      draft: {
+        findUnique: vi.fn().mockResolvedValue(null),
+      },
     },
   };
 });

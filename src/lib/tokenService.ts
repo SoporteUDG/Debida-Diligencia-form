@@ -164,7 +164,12 @@ async function checkDbTokenValidity(dbToken: any, uuid: string): Promise<{ succe
 
   // 4. Verify expiration date
   if (dbToken.expiresAt < new Date()) {
-    if (!dbToken.expirationNoted) {
+    const draftAdicional = await prisma.draft.findUnique({
+      where: { token: dbToken.token },
+      select: { isAditional: true },
+    });
+    // Un expediente adicional no escribe en Zoho (el enlace del DD base no es suyo)
+    if (!dbToken.expirationNoted && !draftAdicional?.isAditional) {
       try {
         // Mark as noted first to prevent duplicate attempts
         await prisma.token.update({
@@ -262,7 +267,15 @@ export async function reactivateToken(
     });
 
     // Sync reactivation status and expiration back to Zoho CRM
+    // (un expediente adicional no escribe en Zoho)
+    const draftAdicional = await prisma.draft.findUnique({
+      where: { token: uuid },
+      select: { isAditional: true },
+    });
     try {
+      if (draftAdicional?.isAditional) {
+        return { success: true, newExpiresAt };
+      }
       const contact = await prisma.crmContact.findUnique({
         where: { id: dbToken.crmContactId },
       });

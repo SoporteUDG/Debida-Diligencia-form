@@ -369,7 +369,7 @@ export interface ResultadoCambioZoho {
 async function buscarBorrador(crmContactId: string) {
   const tokens = await prisma.token.findMany({ where: { crmContactId }, select: { token: true } });
   return prisma.draft.findFirst({
-    where: { OR: [{ crmContactId }, { token: { in: tokens.map((t) => t.token) } }] },
+    where: { isAditional: false, OR: [{ crmContactId }, { token: { in: tokens.map((t) => t.token) } }] },
     orderBy: { updatedAt: "desc" },
   });
 }
@@ -396,7 +396,7 @@ export async function procesarCambioZoho(crmId: string, usuario?: string | null)
   if (!registro) return { estado: "IGNORADO", motivo: "no se pudo leer el registro en Zoho CRM" };
 
   const form = await prisma.form.findFirst({
-    where: { crmContactId: contacto.id, deletedAt: null },
+    where: { crmContactId: contacto.id, deletedAt: null, isAditional: false },
     orderBy: { submittedAt: "desc" },
   });
   const borrador = form ? null : await buscarBorrador(contacto.id);

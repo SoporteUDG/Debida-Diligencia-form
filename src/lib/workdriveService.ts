@@ -495,3 +495,56 @@ export async function deleteFileFromWorkDrive(
   console.log(`[WorkDrive Service] Recurso ${resourceId} movido a la papelera de WorkDrive.`);
 }
 
+
+
+/**
+ * Mueve un archivo o carpeta a otra carpeta de WorkDrive (conserva su contenido
+ * y su ID).
+ */
+export async function moveFolder(resourceId: string, newParentId: string, accessToken: string): Promise<void> {
+  const workdriveBaseUrl =
+    process.env.ZOHO_WORKDRIVE_BASE_URL || "https://www.zohoapis.com/workdrive/api/v1";
+  const response = await fetch(`${workdriveBaseUrl}/files/${resourceId}`, {
+    method: "PATCH",
+    headers: {
+      Authorization: `Zoho-oauthtoken ${accessToken}`,
+      "Content-Type": "application/vnd.api+json",
+      Accept: "application/vnd.api+json",
+    },
+    body: JSON.stringify({ data: { attributes: { parent_id: newParentId }, type: "files" } }),
+  });
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(
+      `Error al mover ${resourceId} a la carpeta ${newParentId}: ${response.status} ${response.statusText} - ${resumirErrorZoho(errorText)}`
+    );
+  }
+  console.log(`[WorkDrive Service] Recurso ${resourceId} movido a la carpeta ${newParentId}.`);
+}
+
+/**
+ * Ubica (sin crear nada) la carpeta del expediente
+ * /{Socio}/DD/{FORMTYPE}-{Nombre del expediente}. `clientFolderId` es null si aún no existe.
+ */
+export async function localizarCarpetaExpediente(
+  ddId: string,
+  formType: string,
+  accessToken: string
+): Promise<{ socioFolderId: string; ddFolderId: string | null; clientFolderId: string | null }> {
+  const { socioFolderId, ddName } = await findFolderSocio(ddId);
+  const ddFolderId = await findFolderInParent(socioFolderId, "DD", accessToken);
+  if (!ddFolderId) return { socioFolderId, ddFolderId: null, clientFolderId: null };
+  const clientFolderId = await findFolderInParent(ddFolderId, sanitizeFolderName(`${formType}-${ddName}`), accessToken);
+  return { socioFolderId, ddFolderId, clientFolderId };
+}
+
+/** Nombre de la carpeta, dentro de /{Socio}/DD, donde se archivan los expedientes anulados. */
+export const CARPETA_RETIRADOS = "_Retirados";
+
+/** Obtiene (o crea) /{Socio}/DD/_Retirados. */
+export async function getOrCreateCarpetaRetirados(ddFolderId: string, accessToken: string): Promise<string> {
+  return (
+    (await findFolderInParent(ddFolderId, CARPETA_RETIRADOS, accessToken)) ??
+    (await createFolderInParent(ddFolderId, CARPETA_RETIRADOS, accessToken))
+  );
+}

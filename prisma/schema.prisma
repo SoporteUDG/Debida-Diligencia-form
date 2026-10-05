@@ -82,6 +82,20 @@ model CrmContact {
   createdAt          DateTime                @default(now())
   updatedAt          DateTime                @updatedAt
   deletedAt          DateTime?
+  // Socio de Negocio (Accounts) al que pertenece el expediente (Socio_de_Negocios)
+  accountCrmId       String?
+  // Contacto de Zoho (Contacts) cuyos datos personales actualiza este expediente
+  accountContactId   String?
+  accountContact     AccountContact?         @relation(fields: [accountContactId], references: [id], onDelete: SetNull)
+  // Anulación (archivo) de un expediente ya enviado; reactivable. Ver ddRetireService.
+  retiredAt              DateTime?
+  retiredReason          String?   @db.Text
+  retiredBy              String?
+  // Carpeta del expediente en WorkDrive y la carpeta donde estaba, para devolverla al reactivar
+  retiredFolderId        String?
+  retiredOriginFolderId  String?
+  // Contacto faltante: su Contact ya no existe en el Socio de Negocio de Zoho (enlace desactivado, nota en Zoho)
+  missingContactAt       DateTime?
   forms              Form[]
   tokens             Token[]
   drafts             Draft[]
@@ -89,6 +103,35 @@ model CrmContact {
 
   @@index([crmId])
   @@index([email])
+  @@index([deletedAt])
+  @@index([accountCrmId])
+  @@index([accountContactId])
+}
+
+// 2.1 AccountContact (Contactos de Zoho vinculados a un Socio de Negocio)
+//
+// Copia local de los Contacts de Zoho CRM vinculados a un Account. Un Account de
+// Persona Natural puede tener varios; uno de Persona Jurídica solo uno (se
+// valida al crear en accountContactService, no en el esquema). Cada expediente
+// (CrmContact) enlaza con exactamente un contacto: al completarse el formulario
+// se actualizan ese contacto y el expediente de Debida_Diligencia.
+model AccountContact {
+  id            String       @id @default(uuid())
+  crmId         String       @unique // ID del Contact en Zoho CRM
+  accountCrmId  String // ID del Account (Socio de Negocio) en Zoho CRM
+  firstName     String       @default("")
+  lastName      String       @default("")
+  email         String?
+  phone         String?
+  zohoCreatedAt DateTime? // Created_Time en Zoho: define el más antiguo
+  // Marca: el contacto ya no existe en Zoho (se detectó al generar expedientes). No borra nada.
+  missingInZohoAt DateTime?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  deletedAt     DateTime?
+  crmContacts   CrmContact[]
+
+  @@index([accountCrmId])
   @@index([deletedAt])
 }
 
@@ -110,6 +153,10 @@ model Form {
 
   // Número de la versión vigente. Cada reenvío autorizado lo incrementa.
   currentVersion Int @default(1)
+
+  // Expediente adicional: comparte el CrmContact (DD de Zoho) pero su información
+  // de cliente no se vincula ni se sincroniza con Zoho CRM.
+  isAditional Boolean @default(false)
 
   // Relaciones hijas (Cascade onDelete)
   gjcMembers          GjcMember[]
@@ -228,6 +275,9 @@ model Draft {
   updatedAt    DateTime    @updatedAt
   expiresAt    DateTime?
   documents    Document[]
+
+  // Borrador de un expediente adicional (ver Form.isAditional)
+  isAditional Boolean @default(false)
 
   @@index([token])
   @@index([crmContactId])
@@ -350,19 +400,19 @@ model CrmSync {
 
 // 12. WorkDriveSync
 model WorkDriveSync {
-  id           String     @id @default(uuid())
-  formId       String     @unique
-  form         Form       @relation(fields: [formId], references: [id], onDelete: Cascade)
-  status       SyncStatus @default(PENDING)
-  folderUrl    String?    @db.Text
+  id            String     @id @default(uuid())
+  formId        String     @unique
+  form          Form       @relation(fields: [formId], references: [id], onDelete: Cascade)
+  status        SyncStatus @default(PENDING)
+  folderUrl     String?    @db.Text
   // Versión del expediente ya consolidada en WorkDrive. Una enmienda deja este
   // valor por debajo de Form.currentVersion y obliga a regenerar el PDF.
   syncedVersion Int?
-  attempts     Int        @default(0)
-  lastAttempt  DateTime?
-  errorMessage String?    @db.Text
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  attempts      Int        @default(0)
+  lastAttempt   DateTime?
+  errorMessage  String?    @db.Text
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
 
   @@index([status])
 }

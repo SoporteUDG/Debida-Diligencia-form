@@ -1,4 +1,5 @@
 import { router, publicProcedure, tokenProcedure, adminProcedure } from "../trpc";
+import { anularDD, reactivarDD, BajaDDError } from "@/lib/ddRetireService";
 import { z } from "zod";
 import { reactivateToken, generateToken, signUuid, revokeToken, verifySignature } from "@/lib/tokenService";
 import { documentsRouter } from "./documents";
@@ -60,6 +61,12 @@ async function checkAndLogExpiredTokens(prismaClient: any) {
   }
 }
 
+/** Errores de negocio de la baja de expedientes -> códigos tRPC. */
+function bajaDDAtrpc(err: unknown): unknown {
+  if (err instanceof BajaDDError) return new TRPCError({ code: err.code, message: err.message });
+  return err;
+}
+
 export const appRouter = router({
   documents: documentsRouter,
   // 1. Public query (Accessible by anyone)
@@ -111,7 +118,13 @@ export const appRouter = router({
       where: { id: ctx.client.crmContactId },
     });
 
-    if (contact && contact.crmId) {
+    // Un expediente adicional no vincula la información del cliente a Zoho
+    const draftAdicional = await ctx.prisma.draft.findUnique({
+      where: { token: ctx.client.tokenUuid as string },
+      select: { isAditional: true },
+    });
+
+    if (contact && contact.crmId && !draftAdicional?.isAditional) {
       try {
         const crmData = await zoho.service.getContact(contact.crmId);
         const firstName = crmData.type === "NATURAL" ? crmData.firstName : crmData.contactoNombre;
@@ -259,7 +272,7 @@ export const appRouter = router({
 
     // 3. Retrieve pre-loaded details from Zoho CRM and merge them
     let mergedData: any = draft ? draft.data : {};
-    if (crmId) {
+    if (crmId && !draft?.isAditional) {
       try {
         const crmData = await zoho.service.getContact(crmId);
         mergedData = mergeCrmAndDraft(crmData, mergedData);
@@ -325,6 +338,29 @@ export const appRouter = router({
     .mutation(async ({ input }) => {
       const result = await reactivateToken(input.tokenUuid, input.extendDays);
       return result;
+    }),
+
+  // 4.0 Baja de expedientes de Debida Diligencia
+  // Anular/reactivar (enviado): ADMIN o SUPERADMIN. Eliminar (nunca enviado) no está aquí:
+  // se pide desde el botón de Zoho, ver /api/eliminar-expediente.
+  anularDD: adminProcedure
+    .input(z.object({ crmContactId: z.string().min(1), reason: z.string().min(10, "Indique el motivo (mínimo 10 caracteres)") }))
+    .mutation(async ({ input, ctx }) => {
+      try {
+        return await anularDD({ ...input, actor: ctx.admin, ip: ctx.ip });
+      } catch (err) {
+        throw bajaDDAtrpc(err);
+      }
+    }),
+
+  reactivarDD: adminProcedure
+    .input(z.object({ crmContactId: z.string().min(1) }))
+    .mutation(async ({ input, ctx }) => {
+      try {
+        return await reactivarDD({ ...input, actor: ctx.admin, ip: ctx.ip });
+      } catch (err) {
+        throw bajaDDAtrpc(err);
+      }
     }),
 
   // 4.1 Admin-protected mutation: Regenerate link (revoke old token, generate new, update Draft & Zoho)
@@ -1309,9 +1345,13 @@ export const appRouter = router({
             }
           }
 
-          syncFormToCrm(existente.id).catch((e) => console.error("[Amend Sync CRM]", e));
+          if (!existente.isAditional) {
+            syncFormToCrm(existente.id).catch((e) => console.error("[Amend Sync CRM]", e));
+          }
           syncFormToWorkDrive(existente.id).catch((e) => console.error("[Amend Sync WorkDrive]", e));
-          autocompletarExpedienteRelacionado(existente.id).catch((e) => console.error("[Amend Relacionado]", e));
+          if (!existente.isAditional) {
+            autocompletarExpedienteRelacionado(existente.id).catch((e) => console.error("[Amend Relacionado]", e));
+          }
 
           return {
             success: true,
@@ -1332,6 +1372,7 @@ export const appRouter = router({
           clientName,
           projectName,
           crmContactId: ctx.client!.crmContactId || null,
+          isAditional: draft.isAditional,
           data: validatedData as any,
           conclusionesVerificacion: validatedData.conclusionesVerificacion || null,
           submittedAt: new Date(),
@@ -1459,18 +1500,23 @@ export const appRouter = router({
       }
 
       // 6. Trigger Zoho CRM & WorkDrive sync in the background asynchronously
-      syncFormToCrm(dbForm.id).catch((syncErr) => {
-        console.error(`[Submit Form Sync Warning] Error in CRM sync background promise for form ${dbForm.id}:`, syncErr);
-      });
+      // Un expediente adicional no se sincroniza con Zoho CRM
+      if (!dbForm.isAditional) {
+        syncFormToCrm(dbForm.id).catch((syncErr) => {
+          console.error(`[Submit Form Sync Warning] Error in CRM sync background promise for form ${dbForm.id}:`, syncErr);
+        });
+      }
 
       syncFormToWorkDrive(dbForm.id).catch((wdErr) => {
         console.error(`[Submit Form Sync Warning] Error in WorkDrive sync background promise for form ${dbForm.id}:`, wdErr);
       });
 
       // Completa los campos comunes del expediente relacionado (dd_relacionado) si sigue en borrador
-      autocompletarExpedienteRelacionado(dbForm.id).catch((relErr) => {
-        console.error(`[Submit Form Warning] Error al autocompletar el expediente relacionado de ${dbForm.id}:`, relErr);
-      });
+      if (!dbForm.isAditional) {
+        autocompletarExpedienteRelacionado(dbForm.id).catch((relErr) => {
+          console.error(`[Submit Form Warning] Error al autocompletar el expediente relacionado de ${dbForm.id}:`, relErr);
+        });
+      }
 
       return {
         success: true,

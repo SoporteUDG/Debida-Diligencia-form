@@ -1,5 +1,11 @@
 import { vi, describe, it, expect } from "vitest";
-import { mergeCrmAndDraft, zoho, mapFormToCrmPayload } from "../zohoService";
+import {
+  mergeCrmAndDraft,
+  zoho,
+  mapFormToCrmPayload,
+  mapFormToContactPayload,
+  contactRecordToFormData,
+} from "../zohoService";
 
 describe("ZohoService Unit Tests", () => {
   describe("mergeCrmAndDraft", () => {
@@ -174,6 +180,104 @@ describe("ZohoService Unit Tests", () => {
       expect(payload["Certificado_Bancario"]).toBe(true);
       expect(payload).not.toHaveProperty("Name");
       expect(payload).not.toHaveProperty("Email");
+    });
+  });
+
+  describe("campos del Contact de Zoho", () => {
+    const natural = {
+      firstName: "Lucas",
+      lastName: "Silva",
+      paisNacimiento: "Panamá",
+      nationality: "Panameña",
+      otraNacionalidad: "",
+      estadoCivil: "Soltero/a",
+      idNumber: "8-999-9999",
+      fechaVencimientoId: "2030-01-02",
+      fechaNacimiento: "1990-04-05",
+      estatusMigratorio: "Residente",
+      ciudad: "Panamá",
+    };
+
+    it("natural: el Contact recibe los datos de identificación de la guía", () => {
+      expect(mapFormToContactPayload("NATURAL", natural)).toEqual({
+        First_Name: "Lucas",
+        Last_Name: "Silva",
+        Pais_de_Nacimiento_2: "Panamá",
+        Nacionalidad_2: "Panameña",
+        Estado_Civil: "Soltero/a",
+        C_I_P_Pasaporte: "8-999-9999",
+        Fecha_de_Expiraci_n_CIP: "2030-01-02",
+        Fecha_Nacimiento: "1990-04-05",
+      });
+    });
+
+    it("natural: con contacto vinculado el DD ya no lleva esos campos pero conserva el resto", () => {
+      const payload = mapFormToCrmPayload("NATURAL", natural, { contactoVinculado: true });
+      for (const campo of [
+        "Nombre_natural", "Pais_de_nacimiento", "Nacionalidad", "Otra_nacionalidad",
+        "Estado_Civil", "Numero_Identificacion", "Fecha_vencimiento_ID", "Fecha_de_nacimiento",
+      ]) {
+        expect(payload).not.toHaveProperty(campo);
+      }
+      expect(payload["Estado_migratorio"]).toBe("Residente");
+      expect(payload["Ciudad"]).toBe("Panamá");
+      // Sin contacto vinculado el DD conserva todo (comportamiento anterior)
+      expect(mapFormToCrmPayload("NATURAL", natural)["Numero_Identificacion"]).toBe("8-999-9999");
+    });
+
+    it("juridica: el Contact recibe los datos del representante legal", () => {
+      const form = {
+        rlNombre: "Carlos Andrés Gómez Ruiz",
+        rlEstadoCivil: "Casado/a",
+        rlNacionalidad: "Panameña",
+        rlNoIdentificacion: "8-888-8888",
+        rlFechaNacimiento: "1980-02-03",
+        rlProfesionOcupacion: "Abogado",
+        rlDireccion: "Calle 50",
+        rlTelefono: "+507 6000-0000",
+        rlActividadEconomica: "Legal",
+        rlPaisResidencia: "Panamá",
+        fechaVencimientoId: "2031-01-01",
+      };
+      expect(mapFormToContactPayload("JURIDICA", form)).toEqual({
+        First_Name: "Carlos Andrés",
+        Last_Name: "Gómez Ruiz",
+        Estado_Civil: "Casado/a",
+        Nacionalidad_2: "Panameña",
+        C_I_P_Pasaporte: "8-888-8888",
+        Fecha_Nacimiento: "1980-02-03",
+        Profesi_n: "Abogado",
+        Direcci_n_F_sica: "Calle 50",
+        Phone: "+507 6000-0000",
+      });
+
+      const payload = mapFormToCrmPayload("JURIDICA", { ...form, razonSocial: "ACME S.A." }, { contactoVinculado: true });
+      for (const campo of [
+        "Nombre_natural", "Estado_Civil", "Nacionalidad", "Numero_Identificacion",
+        "Fecha_de_nacimiento", "Profesi_n", "Direccion_Representante", "Telefono_Representante",
+      ]) {
+        expect(payload).not.toHaveProperty(campo);
+      }
+      // Se quedan en el DD
+      expect(payload["Actividad_Persona"]).toBe("Legal");
+      expect(payload["Pais_de_residencia_fiscal"]).toBe("Panamá");
+      expect(payload["Raz_n_social"]).toBe("ACME S.A.");
+      expect(payload["Fecha_vencimiento_ID"]).toBe("2031-01-01");
+    });
+
+    it("precarga el borrador desde el Contact (inverso del mapeo)", () => {
+      const record = { First_Name: "Lucas", Last_Name: "Silva", C_I_P_Pasaporte: "8-1-1", Fecha_Nacimiento: "1990-04-05", Estado_Civil: null };
+      expect(contactRecordToFormData("NATURAL", record)).toEqual({
+        firstName: "Lucas", lastName: "Silva", idNumber: "8-1-1", fechaNacimiento: "1990-04-05",
+      });
+      expect(contactRecordToFormData("JURIDICA", record)).toMatchObject({
+        rlNombre: "Lucas Silva", rlNoIdentificacion: "8-1-1", rlFechaNacimiento: "1990-04-05",
+      });
+    });
+
+    it("updateAccountContact simula la actualización sin credenciales de Zoho", async () => {
+      const result = await zoho.service.updateAccountContact("mock-contact-1", "NATURAL", natural);
+      expect(result).toEqual({ success: true, mocked: true });
     });
   });
 

@@ -68,18 +68,20 @@ estructura de filas
 | **No. Identificación** | `No_Identificaci_n` | Línea única (String) | nroId (GjcMember) |
 | **Dirección** | `Direcci_ó_n` | Línea única (String) | direccion (GjcMember) |
 
-| REPRESENTANTE LEGAL O APODERADO |
-| **Nombre natural** | `Nombre_natural` | Línea única (String) | rlNombre (FormState) |
+| REPRESENTANTE LEGAL O APODERADO | 
+| Zoho Contacts |
+| **Nombre natural** | `First_Name`+`Last_Name` | Línea única (String) | rlNombre (FormState) |
 | **Estado Civil** | `Estado_Civil` | Picklist (Lista)  {same as options} | rlEstadoCivil (FormState) |
-| **Nacionalidad** | `Nacionalidad` | Línea única (String) | rlNacionalidad (FormState) |
-| **Numero Identificacion** | `Numero_Identificacion` | Línea única (String) | rlNoIdentificacion (FormState) |
-| **Fecha de nacimiento** | `Fecha_de_nacimiento` | Fecha (Date) | rlFechaNacimiento (FormState) |
+| **Nacionalidad** | `Nacionalidad_2` | Línea única (String) | rlNacionalidad (FormState) |
+| **Numero Identificacion** | `C_I_P_Pasaporte` | Línea única (String) | rlNoIdentificacion (FormState) |
+| **Fecha de nacimiento** | `Fecha_Nacimiento` | Fecha (Date) | rlFechaNacimiento (FormState) |
 | **Profesión** | `Profesi_n` | Línea única (String) | rlProfesionOcupacion (FormState) |
+| **Direccion Representante** | `Direcci_n_F_sica` | Línea multiple (String) | rlDireccion (FormState) |
+| **Telefono Representante** | `Phone` | Teléfono | rlTelefono (FormState) |
+
+| Zoho Debida Diligencia |
 | **Actividad Persona** | `Actividad_Persona` | Línea única (String) | rlActividadEconomica (FormState) |
 | **Pais de residencia fiscal** | `Pais_de_residencia_fiscal` | Línea única (String) | rlPaisResidencia (FormState) |
-| **Direccion Representante** | `Direccion_Representante` | Línea multiple (String) | rlDireccion (FormState) |
-| **Telefono Representante** | `Telefono_Representante` | Teléfono | rlTelefono (FormState) |
-
 | **Declaración del origen ilícito firmada** | `Declaraci_n_del_origen_il_cito_firmada` | Checkbox (Boolean) | rlObjetoInvestigacion (FormState) |
 
 
@@ -127,20 +129,24 @@ estructura de filas
 | **Carta de compra de beneficiarios** | `Carta de compra de beneficiarios` | Checkbox (Boolean) | certComprasFile (FormState)|
 
 
-## 3. Formulario persona juridica 
-| Datos de identificacion Juridica |
-| **Nombre natural** | `Nombre_natural` | Línea única (String) | firstName + lastName (FormState) |
-| **Pais de nacimiento** | `Pais_de_nacimiento` | Línea única (String) | paisNacimiento (FormState) |
+## 3. Formulario persona Natural 
+| Datos de identificacion Natural |
+| Zoho Contactos |
+| **Nombre** | `First_Name` | Línea única (String) | firstName (FormState) |
+| **Apellidos** | `Last_Name` | Línea única (String) | lastName (FormState) |
+| **Pais de nacimiento** | `Pais_de_Nacimiento_2` | Línea única (String) | paisNacimiento (FormState) |
+| **Nacionalidad** | `Nacionalidad_2` | Línea única (String) | nationality (FormState) |
+| **Otra nacionalidad** | `Otra_Nacionalidad` | Línea única (String) | otraNacionalidad (FormState) |
+| **Estado Civil** | `Estado_Civil` | Picklist (Lista)  {same as options} | estadoCivil (FormState) |
+| **Numero Identificacion** | `C_I_P_Pasaporte` | Línea única (String) | idNumber (FormState) |
+| **Fecha vencimiento ID** | `Fecha_de_Expiraci_n_CIP` | Fecha (Date) | fechaVencimientoId (FormState) |
+| **Fecha de nacimiento** | `Fecha_Nacimiento` | Fecha (Date) | fechaNacimiento (FormState) |
+
+| Zoho Debida Diligencia |
+| **Estado migratorio** | `Estado_migratorio` | Picklist (Lista)  {same as options} | estatusMigratorio (FormState) |
+| **Tipo de identificacion** | `Tipo_de_identificacion` | Picklist (Lista) {same as options} | tipoIdentificacion (FormState) |
 | **Pais de residencia fiscal** | `Pais_de_residencia_fiscal` | Línea única (String) | paisResidenciaFiscal (FormState) |
 | **ID tributaria** | `ID_tributaria` | Línea única (String) | idTributaria (FormState) |
-| **Nacionalidad** | `Nacionalidad` | Línea única (String) | nationality (FormState) |
-| **Tipo de identificacion** | `Tipo_de_identificacion` | Picklist (Lista) {same as options} | tipoIdentificacion (FormState) |
-| **Otra nacionalidad** | `Otra_nacionalidad` | Línea única (String) | otraNacionalidad (FormState) |
-| **Estado Civil** | `Estado_Civil` | Picklist (Lista)  {same as options} | estadoCivil (FormState) |
-| **Numero Identificacion** | `Numero_Identificacion` | Línea única (String) | idNumber (FormState) |
-| **Fecha vencimiento ID** | `Fecha_vencimiento_ID` | Fecha (Date) | fechaVencimientoId (FormState) |
-| **Fecha de nacimiento** | `Fecha_de_nacimiento` | Fecha (Date) | fechaNacimiento (FormState) |
-| **Estado migratorio** | `Estado_migratorio` | Picklist (Lista)  {same as options} | estatusMigratorio (FormState) |
 
 | JURISDICCIÓN / UBICACIÓN GEOGRÁFICA |
 | **Dirección / Calle** | `Direccion_Calle` | Multilínea (Text Area) | direccionResidencial (FormState) |

@@ -315,6 +315,7 @@ export async function autocompletarExpedienteRelacionado(
       include: { crmContact: true },
     });
     if (!form) return cancelar("formulario no encontrado");
+    if (form.isAditional) return cancelar("el formulario es adicional");
 
     const ddId = form.crmContact?.crmId;
     if (!ddId) return cancelar("el formulario no está vinculado a un expediente de Zoho CRM");
@@ -332,7 +333,7 @@ export async function autocompletarExpedienteRelacionado(
     if (!relatedContact) return cancelar(`el expediente relacionado ${relatedCrmId} no existe en el portal`);
 
     const formularioRelacionado = await prisma.form.findFirst({
-      where: { crmContactId: relatedContact.id, deletedAt: null },
+      where: { crmContactId: relatedContact.id, deletedAt: null, isAditional: false },
     });
     if (formularioRelacionado) return cancelar("el expediente relacionado ya fue completado");
 
@@ -344,6 +345,7 @@ export async function autocompletarExpedienteRelacionado(
     });
     const relatedDraft = await prisma.draft.findFirst({
       where: {
+        isAditional: false,
         OR: [
           { crmContactId: relatedContact.id },
           { token: { in: tokensRelacionado.map((t) => t.token) } },
