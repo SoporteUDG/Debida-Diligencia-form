@@ -41,14 +41,32 @@ export async function findFolderInParent(
   folderName: string,
   accessToken: string
 ): Promise<string | null> {
+  const targetName = folderName.trim().toLowerCase();
+  return buscarCarpetaEnPadre(parentId, (nombre) => nombre === targetName, accessToken);
+}
+
+/** Como findFolderInParent, pero busca la carpeta cuyo nombre termina con `sufijo` (sin distinguir mayúsculas). */
+export async function findFolderEndingWith(
+  parentId: string,
+  sufijo: string,
+  accessToken: string
+): Promise<string | null> {
+  const fin = sufijo.trim().toLowerCase();
+  return buscarCarpetaEnPadre(parentId, (nombre) => nombre.endsWith(fin), accessToken);
+}
+
+async function buscarCarpetaEnPadre(
+  parentId: string,
+  coincide: (nombreEnMinusculas: string) => boolean,
+  accessToken: string
+): Promise<string | null> {
   const workdriveBaseUrl =
     process.env.ZOHO_WORKDRIVE_BASE_URL || "https://www.zohoapis.com/workdrive/api/v1";
-  
+
   // Use filter[type]=folder to only list directories and limit to max allowed (50) per page.
   // URLSearchParams codifica los corchetes (filter%5Btype%5D), obligatorio para Zoho.
   const queryParams = new URLSearchParams({ "filter[type]": "folder", "page[limit]": "50" });
   let url: string | null = `${workdriveBaseUrl}/files/${parentId}/files?${queryParams.toString()}`;
-  const targetName = folderName.trim().toLowerCase();
 
   while (url) {
     const response: Response = await fetch(url, {
@@ -72,8 +90,8 @@ export async function findFolderInParent(
     // Search case-insensitively in the current page
     const found = files.find(
       (item: any) =>
-        item.attributes?.name?.trim().toLowerCase() === targetName ||
-        item.attributes?.display_attr_name?.trim().toLowerCase() === targetName
+        coincide(String(item.attributes?.name ?? "").trim().toLowerCase()) ||
+        coincide(String(item.attributes?.display_attr_name ?? "").trim().toLowerCase())
     );
 
     if (found) {
@@ -219,21 +237,30 @@ export async function createFolderInParent(
 }
 
 /**
- * Nombre de la carpeta del expediente dentro de /{Socio}/DD.
- * - Principal: {FORMTYPE}-{Nombre del expediente}
- * - Adicional: {FORMTYPE}-adicional de {Nombre del expediente} ({token}); el token
- *   (8 primeros caracteres) distingue varios adicionales del mismo expediente. Su
- *   estructura interna (subcarpetas por documento) es la misma que la del principal.
+ * Expediente adicional: su carpeta vive DENTRO de la carpeta del expediente principal
+ *   /{Socio}/DD/{FORMTYPE}-{DD}/{TIPO}-{nombre dado}-{DD} ({token8})/
+ * con la misma estructura interna (subcarpetas por documento) que la principal.
+ * Los 8 primeros caracteres del token identifican la carpeta: se busca por ese
+ * sufijo, así que el nombre puede cambiar (el cliente edita el suyo) sin perderla.
  */
-export function nombreCarpetaExpediente(formType: string, ddName: string, adicionalToken?: string | null): string {
-  if (adicionalToken) {
-    return sanitizeFolderName(`${formType}-adicional de ${ddName} (${adicionalToken.slice(0, 8)})`);
-  }
-  return sanitizeFolderName(`${formType}-${ddName}`);
+export interface AdicionalCarpeta {
+  token: string;
+  /** Nombre dado al adicional (cliente / razón social) */
+  nombre: string;
+  /** Tipo del adicional ("NATURAL" | "JURIDICA"); el del expediente principal va en `formType` */
+  tipo: string;
+}
+
+const sufijoAdicional = (token: string) => `(${token.slice(0, 8)})`;
+
+function nombreCarpetaAdicional(a: AdicionalCarpeta, ddName: string): string {
+  return sanitizeFolderName(`${a.tipo}-${a.nombre || "Adicional"}-${ddName} ${sufijoAdicional(a.token)}`);
 }
 
 /** Resoluciones en curso de la carpeta del expediente, por ruta. */
 const carpetasExpedienteEnCurso = new Map<string, Promise<{ ddFolderId: string; clientFolderId: string }>>();
+/** Resoluciones en curso de la carpeta de un adicional, por token. */
+const carpetasAdicionalEnCurso = new Map<string, Promise<string>>();
 
 /**
  * Creates or reuses the Zoho WorkDrive folder structure inside the Socio de
@@ -243,9 +270,11 @@ const carpetasExpedienteEnCurso = new Map<string, Promise<{ ddFolderId: string; 
  * The operation is completely idempotent and will not create duplicate folders if run repeatedly.
  *
  * @param ddId ID del registro de Debida_Diligencia en Zoho CRM (CrmContact.crmId)
- * @param formType Tipo de formulario ("NATURAL" | "JURIDICA")
+ * @param formType Tipo de formulario del expediente principal ("NATURAL" | "JURIDICA")
  * @param documentTypes Ranuras documentales (p. ej. "copiaIdFile"); cada una se
  *   crea como subcarpeta con su nombre legible
+ * @param adicional Si se indica, `clientFolderId` y las subcarpetas son las de esa
+ *   carpeta adicional (dentro de la del expediente principal); `expedienteFolderId` es la principal
  * @returns IDs of the hierarchy; `subfolders` is keyed by the documentTypes received
  */
 export async function getOrCreateFolderStructure(
@@ -253,17 +282,18 @@ export async function getOrCreateFolderStructure(
   formType: string,
   documentTypes: string[],
   passedToken?: string,
-  adicionalToken?: string | null
+  adicional?: AdicionalCarpeta | null
 ): Promise<{
   socioFolderId: string;
   ddFolderId: string;
   clientFolderId: string;
+  expedienteFolderId: string;
   subfolders: Record<string, string>;
 }> {
   const accessToken = passedToken || await getAccessToken();
 
   const { socioFolderId, ddName } = await findFolderSocio(ddId);
-  const clientFolderName = nombreCarpetaExpediente(formType, ddName, adicionalToken);
+  const clientFolderName = sanitizeFolderName(`${formType}-${ddName}`);
 
   console.log(`[WorkDrive Service] Iniciando sincronización de estructura de carpetas: /${socioFolderId}/DD/${clientFolderName}`);
 
@@ -292,7 +322,22 @@ export async function getOrCreateFolderStructure(
     })().finally(() => carpetasExpedienteEnCurso.delete(clave));
     carpetasExpedienteEnCurso.set(clave, enCurso);
   }
-  const { ddFolderId, clientFolderId } = await enCurso;
+  const { ddFolderId, clientFolderId: expedienteFolderId } = await enCurso;
+
+  // 2b. Adicional: su carpeta dentro de la del expediente principal (se busca por el
+  // sufijo del token; si no existe se crea con el nombre dado)
+  let clientFolderId = expedienteFolderId;
+  if (adicional) {
+    let adicionalEnCurso = carpetasAdicionalEnCurso.get(adicional.token);
+    if (!adicionalEnCurso) {
+      adicionalEnCurso = (async () => {
+        const existente = await findFolderEndingWith(expedienteFolderId, sufijoAdicional(adicional.token), accessToken);
+        return existente ?? createFolderInParent(expedienteFolderId, nombreCarpetaAdicional(adicional, ddName), accessToken);
+      })().finally(() => carpetasAdicionalEnCurso.delete(adicional.token));
+      carpetasAdicionalEnCurso.set(adicional.token, adicionalEnCurso);
+    }
+    clientFolderId = await adicionalEnCurso;
+  }
 
   // 3. Una subcarpeta con nombre legible por cada tipo de documento
   const subfolders: Record<string, string> = {};
@@ -310,6 +355,7 @@ export async function getOrCreateFolderStructure(
     socioFolderId,
     ddFolderId,
     clientFolderId,
+    expedienteFolderId,
     subfolders,
   };
 }
@@ -540,18 +586,29 @@ export async function moveFolder(resourceId: string, newParentId: string, access
 /**
  * Ubica (sin crear nada) la carpeta del expediente
  * /{Socio}/DD/{FORMTYPE}-{Nombre del expediente}. `clientFolderId` es null si aún no existe.
+ * Con `adicionalToken` (`formType` sigue siendo el del expediente principal), `clientFolderId`
+ * es la carpeta de ese adicional dentro de la principal (`expedienteFolderId`).
  */
 export async function localizarCarpetaExpediente(
   ddId: string,
   formType: string,
   accessToken: string,
   adicionalToken?: string | null
-): Promise<{ socioFolderId: string; ddFolderId: string | null; clientFolderId: string | null }> {
+): Promise<{
+  socioFolderId: string;
+  ddFolderId: string | null;
+  clientFolderId: string | null;
+  expedienteFolderId: string | null;
+}> {
   const { socioFolderId, ddName } = await findFolderSocio(ddId);
   const ddFolderId = await findFolderInParent(socioFolderId, "DD", accessToken);
-  if (!ddFolderId) return { socioFolderId, ddFolderId: null, clientFolderId: null };
-  const clientFolderId = await findFolderInParent(ddFolderId, nombreCarpetaExpediente(formType, ddName, adicionalToken), accessToken);
-  return { socioFolderId, ddFolderId, clientFolderId };
+  if (!ddFolderId) return { socioFolderId, ddFolderId: null, clientFolderId: null, expedienteFolderId: null };
+  const expedienteFolderId = await findFolderInParent(ddFolderId, sanitizeFolderName(`${formType}-${ddName}`), accessToken);
+  if (!adicionalToken || !expedienteFolderId) {
+    return { socioFolderId, ddFolderId, clientFolderId: adicionalToken ? null : expedienteFolderId, expedienteFolderId };
+  }
+  const clientFolderId = await findFolderEndingWith(expedienteFolderId, sufijoAdicional(adicionalToken), accessToken);
+  return { socioFolderId, ddFolderId, clientFolderId, expedienteFolderId };
 }
 
 /** Nombre de la carpeta, dentro de /{Socio}/DD, donde se archivan los expedientes anulados. */

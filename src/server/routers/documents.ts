@@ -13,6 +13,7 @@ import crypto from "crypto";
 import { logAuditEvent } from "@/lib/auditService";
 import { getAccessToken, executeWithRetry } from "@/lib/zohoAuthService";
 import { buildDocumentFileName, isMultiFileField, nextDocumentFileIndex, normalizeMultiFileValue } from "@/lib/documentFields";
+import { contextoCarpetaAdicional } from "@/lib/adicionalFolderContext";
 
 type UploadStage =
   | "INPUT_VALIDATION"
@@ -261,12 +262,22 @@ export const documentsRouter = router({
                 `[tRPC Upload] Resolviendo estructura de carpetas en Zoho WorkDrive para el expediente: ${contact.crmId}`
               );
 
+              // Un adicional sube a su carpeta dentro de la del expediente principal
+              const ctxAdicional = draft?.isAditional
+                ? await contextoCarpetaAdicional({
+                    crmContactId: draft.crmContactId,
+                    token: draft.token,
+                    tipo: formType,
+                    data: draft.data,
+                  })
+                : null;
+
               const folderStructure = await getOrCreateFolderStructure(
                 contact.crmId,
-                formType,
+                ctxAdicional?.formType ?? formType,
                 [input.documentType],
                 accessToken,
-                draft?.isAditional ? draft.token : null
+                ctxAdicional?.adicional ?? null
               );
 
               const targetFolderId = folderStructure.subfolders[input.documentType];

@@ -8,6 +8,7 @@ import {
 import { generateCompleteDossierPDF, PREFIJO_EXPEDIENTE_CONSOLIDADO } from "@/lib/completeDossierService";
 import { logAuditEvent } from "@/lib/auditService";
 import { zoho } from "@/lib/zohoService";
+import { contextoCarpetaAdicional } from "@/lib/adicionalFolderContext";
 
 /**
  * Synchronizes a submitted Form with Zoho WorkDrive:
@@ -125,12 +126,23 @@ export async function syncFormToWorkDrive(formId: string) {
     const result = await executeWithRetry(async (accessToken) => {
       // 1. Get or create folder structure in WorkDrive
       console.log(`[WorkDrive Sync] Creando/obteniendo estructura de carpetas para ${clientIdentifier}...`);
+      // Un adicional (con token) se sincroniza en su carpeta dentro de la del expediente principal
+      const ctxAdicional =
+        form.isAditional && form.tokenUuid
+          ? await contextoCarpetaAdicional({
+              crmContactId: form.crmContactId,
+              token: form.tokenUuid,
+              tipo: form.type,
+              data: datosVersion,
+              nombre: form.clientName,
+            })
+          : null;
       const folderStructure = await getOrCreateFolderStructure(
         ddId,
-        form.type,
+        ctxAdicional?.formType ?? form.type,
         [],
         accessToken,
-        form.isAditional ? form.tokenUuid : null
+        ctxAdicional?.adicional ?? null
       );
 
       const targetFolderId = folderStructure.clientFolderId;
