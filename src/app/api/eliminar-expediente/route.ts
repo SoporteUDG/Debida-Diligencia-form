@@ -19,8 +19,9 @@ function llaveValida(request: NextRequest): boolean | "sin-configurar" {
 
 /**
  * Solicitud de eliminación de un expediente desde el botón personalizado de
- * Zoho CRM (Debida_Diligencia). Solo se elimina un expediente cuyo formulario
- * nunca se envió.
+ * Zoho CRM (Debida_Diligencia). Un expediente sin formularios enviados se
+ * ELIMINA; si ya tiene alguno enviado (principal o adicional) se ANULA
+ * (reversible, `action: "retired"`; el motivo por defecto lo arma el servicio).
  *
  * Seguridad:
  * 1. La llamada debe traer ZOHO_BUTTON_API_KEY. El botón la envía por una
@@ -68,7 +69,10 @@ export async function POST(request: NextRequest) {
       actor: user,
       ip: request.headers.get("x-forwarded-for"),
     });
-    return NextResponse.json({ ...result, message: "Expediente eliminado." });
+    return NextResponse.json({
+      ...result,
+      message: result.action === "retired" ? "Expediente anulado." : "Expediente eliminado.",
+    });
   } catch (error: any) {
     if (error instanceof BajaDDError) {
       return NextResponse.json(

@@ -72,10 +72,23 @@ describe("eliminarDDNoEnviado", () => {
     expect(zohoMock.service.deleteDDRecord).not.toHaveBeenCalled();
   });
 
-  it("rechaza si ya se envio un formulario", async () => {
+  it("si ya se envio un formulario, anula en vez de eliminar", async () => {
     prismaMock.crmContact.findUnique.mockResolvedValue({ ...base, forms: [{ id: "f", type: "NATURAL" }] });
-    await expect(eliminarDDNoEnviado(params)).rejects.toThrow(/anularse/);
+    const r = await eliminarDDNoEnviado(params);
+    expect(r).toMatchObject({ success: true, action: "retired", crmId: "dd1" });
+    // anulado: carpeta a _Retirados y Estado = Anulado; nada se borra
+    expect(wd.moveFolder).toHaveBeenCalledWith("cf", "ret", "tok");
+    expect(zohoMock.service.setDDEstado).toHaveBeenCalledWith("dd1", "Anulado");
+    expect(prismaMock.crmContact.update.mock.calls[0][0].data).toMatchObject({ retiredBy: "u1" });
+    expect(wd.deleteFileFromWorkDrive).not.toHaveBeenCalled();
     expect(zohoMock.service.deleteDDRecord).not.toHaveBeenCalled();
+    expect(prismaMock.crmContact.delete).not.toHaveBeenCalled();
+  });
+
+  it("anula aunque en Zoho este en revision (ya enviado)", async () => {
+    prismaMock.crmContact.findUnique.mockResolvedValue({ ...base, forms: [{ id: "f", type: "NATURAL" }] });
+    zohoMock.service.getDDRecord.mockResolvedValue({ Estado: "En revisión" });
+    await expect(eliminarDDNoEnviado(params)).resolves.toMatchObject({ action: "retired" });
   });
 
   it("rechaza si no existe en Prisma", async () => {
@@ -155,18 +168,17 @@ describe("anularDD", () => {
     expect(wd.localizarCarpetaExpediente).toHaveBeenCalledWith("dd1", "NATURAL", "tok");
   });
 
-  it("eliminar: rechaza si solo hay un formulario adicional enviado", async () => {
+  it("eliminar con solo un formulario adicional enviado: anula (no manda sus archivos a la papelera)", async () => {
     prismaMock.crmContact.findFirst.mockResolvedValue({ id: "c1" });
     prismaMock.crmContact.findUnique.mockResolvedValue({
       ...base,
       forms: [{ id: "fa", type: "NATURAL", isAditional: true, tokenUuid: "ta", retiredAt: null }],
     });
-    await expect(
-      eliminarDDNoEnviado({
-        crmId: "dd1",
-        actor: { id: "u1", email: "g@x.com", name: "G", profile: "Administrador" },
-      })
-    ).rejects.toThrow(/adicionales enviados/);
+    const r = await eliminarDDNoEnviado({
+      crmId: "dd1",
+      actor: { id: "u1", email: "g@x.com", name: "G", profile: "Administrador" },
+    });
+    expect(r).toMatchObject({ action: "retired", adicionalesAnulados: 1 });
     expect(wd.deleteFileFromWorkDrive).not.toHaveBeenCalled();
   });
 

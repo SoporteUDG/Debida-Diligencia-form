@@ -235,3 +235,70 @@ async function marcarExpedientesDeContactosFaltantes(
     }
   }
 }
+
+/** El expediente no tiene un Contact de Zoho asociado (lookup Nombre_de_contacto). */
+export class SinContactoExpedienteError extends Error {
+  constructor(public ddCrmId: string) {
+    super(
+      `El expediente ${ddCrmId} no tiene un Contact de Zoho asociado (${DD_CONTACT_FIELD}): vincule un contacto al expediente para generar su enlace.`
+    );
+    this.name = "SinContactoExpedienteError";
+  }
+}
+
+const idDe = (v: any): string => String((v && typeof v === "object" ? v.id : v) ?? "").trim();
+
+/**
+ * Contact de Zoho de un expediente de Debida_Diligencia que YA existe (botón del
+ * expediente). Es obligatorio. Orden de búsqueda:
+ * 1. El contacto ya vinculado en el portal (CrmContact.accountContact).
+ * 2. El lookup Nombre_de_contacto del expediente en Zoho (se guarda su copia local).
+ * 3. Solo Persona Jurídica: el único contacto del Socio de Negocio (como
+ *    /api/generar-expediente).
+ * Si no hay ninguno lanza SinContactoExpedienteError.
+ */
+export async function resolverContactoDeExpediente(params: {
+  ddCrmId: string;
+  clientType: ClientType;
+  /** Registro de Debida_Diligencia tal como lo devuelve Zoho */
+  ddRecord: Record<string, any> | null;
+}): Promise<AccountContactRow> {
+  const { ddCrmId, clientType, ddRecord } = params;
+
+  // 1. Vínculo local
+  const local = await prisma.crmContact.findUnique({ where: { crmId: ddCrmId }, include: { accountContact: true } });
+  if (local?.accountContact && !local.accountContact.deletedAt) return local.accountContact;
+
+  const socioId = idDe(ddRecord?.Socio_de_Negocios ?? ddRecord?.Socio_de_Negocio);
+
+  // 2. Lookup del expediente en Zoho
+  const contactId = idDe(ddRecord?.[DD_CONTACT_FIELD]);
+  if (contactId) {
+    const fila = await prisma.accountContact.findUnique({ where: { crmId: contactId } });
+    if (fila && !fila.deletedAt) return fila;
+
+    const rec = await zoho.service.getAccountContactRecord(contactId);
+    if (rec && socioId) {
+      return createAccountContact({
+        accountCrmId: socioId,
+        clientType,
+        contact: {
+          id: contactId,
+          firstName: String(rec.First_Name ?? "").trim(),
+          lastName: String(rec.Last_Name ?? "").trim(),
+          email: String(rec.Email ?? "").trim(),
+          phone: String(rec.Phone ?? rec.Mobile ?? "").trim(),
+          createdTime: String(rec.Created_Time ?? ""),
+        },
+      });
+    }
+  }
+
+  // 3. Jurídica: el único contacto del Socio de Negocio
+  if (clientType === "JURIDICA" && socioId) {
+    const [unico] = await obtenerContactosDeCuenta(socioId, "JURIDICA");
+    if (unico) return unico;
+  }
+
+  throw new SinContactoExpedienteError(ddCrmId);
+}

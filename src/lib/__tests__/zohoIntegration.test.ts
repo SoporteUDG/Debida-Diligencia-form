@@ -828,7 +828,7 @@ describe("Zoho CRM & WorkDrive Integration Mocks", () => {
       expect(body.data[0].Name).toBe("Juan Perez-Costa del Este");
       expect(body.data[0].Tipo_de_Persona).toBe("Natural");
       expect(body.data[0].Estado_del_enlace).toBe("Activo");
-      expect(body.data[0].Estado).toBe("En Proceso");
+      expect(body.data[0].Estado).toBe("En borrador");
       expect(body.data[0].Email).toBe("juan@example.com");
       expect(body.data[0].RUC_NIT).toBe("8-888-8888");
       expect(body.data[0].Estado_Civil).toBe("Soltero/a");

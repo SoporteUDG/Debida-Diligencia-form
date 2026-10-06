@@ -111,15 +111,17 @@ export async function eliminarDDNoEnviado(params: {
   if (contact.retiredAt) {
     throw new BajaDDError("El expediente está anulado: reactívelo antes de eliminarlo.", "CONFLICT");
   }
-  // Cuenta también los formularios adicionales enviados: eliminar mandaría sus archivos a la papelera.
-  // Los borradores adicionales (nunca enviados) sí se eliminan con el expediente (cascada y carpeta).
+  // Con algún formulario enviado (principal o adicional) no se elimina: eliminar mandaría sus
+  // archivos a la papelera. Este botón es la única vía hacia la baja desde Zoho, así que en ese
+  // caso se ANULA (reversible). Los borradores adicionales nunca enviados se eliminan con la anulación.
   if (contact.forms.length > 0) {
-    throw new BajaDDError(
-      contact.forms.some((f) => !f.isAditional)
-        ? "El formulario ya fue enviado: solo puede anularse, no eliminarse."
-        : "El expediente tiene formularios adicionales enviados: solo puede anularse, no eliminarse.",
-      "CONFLICT"
-    );
+    const anulado = await anularDD({
+      crmContactId: contact.id,
+      reason,
+      actor: { id: actor.id, email: actor.email },
+      ip: params.ip,
+    });
+    return { ...anulado, action: "retired" as const };
   }
 
   // Zoho: estado y relacionado. Si Zoho falla se aborta: no se borra a ciegas.
@@ -159,7 +161,7 @@ export async function eliminarDDNoEnviado(params: {
     },
   });
 
-  return { success: true, crmId: contact.crmId, carpetaEliminada: !!clientFolderId };
+  return { success: true, action: "deleted" as const, crmId: contact.crmId, carpetaEliminada: !!clientFolderId };
 }
 
 /**
