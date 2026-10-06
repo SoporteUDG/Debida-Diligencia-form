@@ -1373,6 +1373,7 @@ export const appRouter = router({
           projectName,
           crmContactId: ctx.client!.crmContactId || null,
           isAditional: draft.isAditional,
+          tokenUuid: draft.token,
           data: validatedData as any,
           conclusionesVerificacion: validatedData.conclusionesVerificacion || null,
           submittedAt: new Date(),

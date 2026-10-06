@@ -15,11 +15,114 @@ export async function OPTIONS() {
   return NextResponse.json({}, { headers: corsHeaders });
 }
 
-export async function GET() {
-  return NextResponse.json(
-    { message: "El endpoint de generación de expedientes adicionales está activo y listo." },
-    { headers: corsHeaders }
-  );
+/**
+ * Sin parámetros: health check.
+ *
+ * Con ?crmId=<ID del expediente en Zoho> (también ddId / debidaId): lista todos
+ * los enlaces/borradores y formularios adicionales de ese expediente.
+ *
+ * - links: un elemento por enlace adicional generado (borrador + token), con
+ *   `linkStatus` ("Activo" | "Vencido" | "Utilizado") y `expiresAt` (vigencia).
+ *   "Utilizado" = el token se consumió (formulario enviado) o fue revocado.
+ * - forms: formularios adicionales ya enviados; `tokenUuid` es el enlace con el que
+ *   se enviaron (el mismo `token` de links) y es lo que /api/reactivar recibe.
+ */
+export async function GET(request: NextRequest) {
+  const params = request.nextUrl.searchParams;
+  const crmId = (params.get("crmId") || params.get("ddId") || params.get("debidaId") || "").trim();
+
+  if (!crmId) {
+    return NextResponse.json(
+      { message: "El endpoint de generación de expedientes adicionales está activo y listo." },
+      { headers: corsHeaders }
+    );
+  }
+
+  try {
+    const contact = await prisma.crmContact.findUnique({ where: { crmId } });
+    if (!contact || contact.deletedAt) {
+      return NextResponse.json(
+        { success: false, error: `No existe un expediente ${crmId} en el portal` },
+        { status: 404, headers: corsHeaders }
+      );
+    }
+
+    const [drafts, forms] = await Promise.all([
+      prisma.draft.findMany({
+        where: { crmContactId: contact.id, isAditional: true },
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.form.findMany({
+        where: { crmContactId: contact.id, isAditional: true, deletedAt: null },
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          type: true,
+          status: true,
+          clientName: true,
+          projectName: true,
+          currentVersion: true,
+          tokenUuid: true,
+          submittedAt: true,
+          createdAt: true,
+        },
+      }),
+    ]);
+
+    const formByToken = new Map(forms.map((f) => [f.tokenUuid, f.id]));
+
+    const tokens = await prisma.token.findMany({
+      where: { token: { in: drafts.map((d) => d.token) } },
+      select: { token: true, used: true, expiresAt: true },
+    });
+    const tokenByValue = new Map(tokens.map((t) => [t.token, t]));
+
+    const host = request.headers.get("host") || "debida-diligencia.duckdns.org";
+    const protocol = request.headers.get("x-forwarded-proto") || "https";
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || `${protocol}://${host}`;
+    const now = new Date();
+
+    const links = drafts.map((d) => {
+      const t = tokenByValue.get(d.token);
+      const expiresAt = t?.expiresAt ?? d.expiresAt ?? null;
+      const linkStatus = !t
+        ? "Desconocido"
+        : t.used
+          ? "Utilizado"
+          : t.expiresAt < now
+            ? "Vencido"
+            : "Activo";
+      const formPath = d.type === "NATURAL" ? "persona-natural" : "persona-juridica";
+      const data = (d.data || {}) as Record<string, any>;
+
+      return {
+        token: d.token,
+        draftId: d.id,
+        formId: formByToken.get(d.token) ?? null,
+        type: d.type,
+        step: d.step,
+        completed: !!data.completed,
+        name: data.razonSocial || [data.firstName, data.lastName].filter(Boolean).join(" ") || null,
+        projectName: data.nombreProyecto || null,
+        clientUrl: `${appUrl}/${formPath}?token=${d.token}`,
+        linkStatus,
+        expiresAt,
+        createdAt: d.createdAt,
+        updatedAt: d.updatedAt,
+      };
+    });
+
+    return NextResponse.json(
+      { success: true, crmId, isAditional: true, links, forms },
+      { headers: corsHeaders }
+    );
+  } catch (error: any) {
+    console.error("[API Generar Adicional GET Error]:", error);
+    return NextResponse.json(
+      { success: false, error: error.message || "Error interno del servidor" },
+      { status: 500, headers: corsHeaders }
+    );
+  }
 }
 
 /**

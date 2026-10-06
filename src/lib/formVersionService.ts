@@ -62,12 +62,16 @@ export async function registrarAutorizacionEdicion(params: {
   tokenUuid?: string | null;
   expiresAt: Date;
   source?: string;
+  /** Expediente concreto a autorizar (p. ej. el adicional ligado al token reactivado). */
+  formId?: string | null;
 }) {
-  const formVigente = await prisma.form.findFirst({
-    where: { crmContactId: params.crmContactId, deletedAt: null },
-    orderBy: { submittedAt: "desc" },
-    select: { id: true },
-  });
+  const formVigente = params.formId
+    ? { id: params.formId }
+    : await prisma.form.findFirst({
+        where: { crmContactId: params.crmContactId, deletedAt: null },
+        orderBy: { submittedAt: "desc" },
+        select: { id: true },
+      });
 
   const autorizacion = await prisma.formEditAuthorization.create({
     data: {

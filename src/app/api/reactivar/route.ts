@@ -78,7 +78,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const latestToken = contact.tokens[0];
+    // Con `token` (UUID o URL del enlace) se reactiva ese enlace en concreto, p. ej.
+    // un expediente adicional; sin él, el último token del expediente.
+    const tokenParam = String(body.token || body.tokenUuid || "").trim();
+    let requestedToken = "";
+    if (tokenParam) {
+      const match = tokenParam.match(/[?&]token=([^&#]+)/);
+      requestedToken = (match ? decodeURIComponent(match[1]) : tokenParam).split(".")[0];
+    }
+
+    let latestToken = contact.tokens[0];
+    if (requestedToken) {
+      const found = await prisma.token.findUnique({ where: { token: requestedToken } });
+      if (!found || found.crmContactId !== contact.id) {
+        return NextResponse.json(
+          { success: false, error: "El token indicado no pertenece a este expediente" },
+          { status: 404 }
+        );
+      }
+      latestToken = found;
+    }
     if (!latestToken) {
       return NextResponse.json(
         { success: false, error: "No se encontró ningún token asociado para este expediente" },
@@ -96,21 +115,29 @@ export async function POST(request: NextRequest) {
     }
     
     // 3. Cambiar CrmSync a pendiente para que la actualizacion se dispare
-    const form = contact.forms[0];
-    if (!form) {
+    //    Con token explícito el formulario es el enviado con ese token; un adicional
+    //    no se sincroniza con Zoho CRM, así que no tiene CrmSync.
+    const form = requestedToken
+      ? await prisma.form.findFirst({
+          where: { crmContactId: contact.id, tokenUuid: requestedToken, deletedAt: null },
+        })
+      : contact.forms[0];
+    if (!form && !requestedToken) {
       return NextResponse.json(
         { success: false, error: "El contacto no tiene ningún formulario asociado para sincronizar" },
         { status: 404 }
       );
     }
-    await prisma.crmSync.update({
-      where: { formId: form.id },
-      data: {
-        status: "IN_PROGRESS",
-        attempts: { increment: 1 },
-        lastAttempt: new Date(),
-      },
-    });
+    if (form && !form.isAditional) {
+      await prisma.crmSync.update({
+        where: { formId: form.id },
+        data: {
+          status: "IN_PROGRESS",
+          attempts: { increment: 1 },
+          lastAttempt: new Date(),
+        },
+      });
+    }
 
 
     console.log(`[API Reactivar] Token ${latestToken.token} reactivado con éxito hasta: ${extension.newExpiresAt}`);
@@ -123,6 +150,7 @@ export async function POST(request: NextRequest) {
       authorizedBy: responsable,
       reason: motivoCambio,
       tokenUuid: latestToken.token,
+      formId: requestedToken ? form?.id ?? null : undefined,
       expiresAt: extension.newExpiresAt ?? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
     });
 
