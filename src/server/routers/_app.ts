@@ -8,7 +8,7 @@ import { syncFormToCrm } from "@/lib/crmSyncService";
 import { syncFormToWorkDrive } from "@/lib/workdriveSyncService";
 import { TRPCError } from "@trpc/server";
 import { logAuditEvent, computeDiff, sanitizeDetails } from "@/lib/auditService";
-import { zoho, mergeCrmAndDraft } from "@/lib/zohoService";
+import { zoho, mergeCrmAndDraft, DD_CONTACT_FIELD } from "@/lib/zohoService";
 import { obtenerAutorizacionVigente, sellarNuevaVersion, sellarVersionInicial } from "@/lib/formVersionService";
 import { sanitizeInput } from "@/lib/sanitizer";
 import { autocompletarExpedienteRelacionado } from "@/lib/relatedDraftService";
@@ -1010,11 +1010,17 @@ export const appRouter = router({
       const form = submittedFormId
         ? await ctx.prisma.form.findFirst({ where: { id: submittedFormId, deletedAt: null }, include: formInclude })
         : !draft && contactId
-          ? await ctx.prisma.form.findFirst({
-              where: { crmContactId: contactId, deletedAt: null },
+          ? // Primero el formulario enviado con este mismo enlace (un adicional tiene el suyo);
+            // si no, el último del expediente principal, nunca el de un adicional.
+            (await ctx.prisma.form.findFirst({
+              where: { tokenUuid, deletedAt: null },
+              include: formInclude,
+            })) ??
+            (await ctx.prisma.form.findFirst({
+              where: { crmContactId: contactId, deletedAt: null, isAditional: false },
               orderBy: { submittedAt: "desc" },
               include: formInclude,
-            })
+            }))
           : null;
 
       if (!draft && !form) {
@@ -1157,6 +1163,11 @@ export const appRouter = router({
       }
 
       const validatedData = validation.data as any;
+      // El esquema descarta los campos que no son del formulario: el Contact de Zoho del
+      // expediente (lookup Nombre_de_contacto) debe llegar a Form.data para el sync a Zoho
+      if (typeof sanitizedDraftData[DD_CONTACT_FIELD] === "string" && sanitizedDraftData[DD_CONTACT_FIELD]) {
+        validatedData[DD_CONTACT_FIELD] = sanitizedDraftData[DD_CONTACT_FIELD];
+      }
 
       // Safely parse signature date to prevent Invalid Date crash
       let parsedSignatureDate = new Date();

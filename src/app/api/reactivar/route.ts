@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { reactivateToken } from "@/lib/tokenService";
+import { reactivateToken, getLatestMainToken } from "@/lib/tokenService";
 import { registrarAutorizacionEdicion } from "@/lib/formVersionService";
 
 export const dynamic = "force-dynamic";
@@ -60,11 +60,9 @@ export async function POST(request: NextRequest) {
     const contact = await prisma.crmContact.findUnique({
       where: { crmId: recordId },
       include: {
-        tokens: {
-          orderBy: { createdAt: "desc" },
-          take: 1,
-        },
+        // Solo el expediente principal: los adicionales se reactivan con su `token`
         forms: {
+          where: { isAditional: false },
           orderBy: { createdAt: "desc" },
           take: 1,
         }
@@ -87,7 +85,7 @@ export async function POST(request: NextRequest) {
       requestedToken = (match ? decodeURIComponent(match[1]) : tokenParam).split(".")[0];
     }
 
-    let latestToken = contact.tokens[0];
+    let latestToken = requestedToken ? undefined : await getLatestMainToken(contact.id);
     if (requestedToken) {
       const found = await prisma.token.findUnique({ where: { token: requestedToken } });
       if (!found || found.crmContactId !== contact.id) {

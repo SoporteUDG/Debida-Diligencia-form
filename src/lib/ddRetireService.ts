@@ -5,6 +5,7 @@ import { logAuditEvent } from "@/lib/auditService";
 import { reactivateToken } from "@/lib/tokenService";
 import {
   deleteFileFromWorkDrive,
+  findFolderAdicional,
   getOrCreateCarpetaRetirados,
   localizarCarpetaExpediente,
   moveFolder,
@@ -51,12 +52,16 @@ async function cargarExpediente(crmContactId: string) {
   const contact = await prisma.crmContact.findUnique({
     where: { id: crmContactId },
     include: {
-      forms: { select: { id: true, type: true } },
-      drafts: { select: { id: true, type: true, data: true } },
+      forms: { select: { id: true, type: true, isAditional: true, tokenUuid: true, retiredAt: true }, orderBy: { createdAt: "asc" } },
+      drafts: { select: { id: true, type: true, data: true, isAditional: true, token: true }, orderBy: { createdAt: "asc" } },
     },
   });
   if (!contact) throw new BajaDDError("Expediente no encontrado.", "NOT_FOUND");
-  const formType = contact.forms[0]?.type ?? contact.drafts[0]?.type ?? "NATURAL";
+  // El tipo del expediente principal da nombre a su carpeta; un adicional puede ser de otro tipo
+  const formType =
+    contact.forms.find((f) => !f.isAditional)?.type ??
+    contact.drafts.find((d) => !d.isAditional)?.type ??
+    "NATURAL";
   return { contact, formType: formType as string };
 }
 
@@ -106,8 +111,15 @@ export async function eliminarDDNoEnviado(params: {
   if (contact.retiredAt) {
     throw new BajaDDError("El expediente está anulado: reactívelo antes de eliminarlo.", "CONFLICT");
   }
+  // Cuenta también los formularios adicionales enviados: eliminar mandaría sus archivos a la papelera.
+  // Los borradores adicionales (nunca enviados) sí se eliminan con el expediente (cascada y carpeta).
   if (contact.forms.length > 0) {
-    throw new BajaDDError("El formulario ya fue enviado: solo puede anularse, no eliminarse.", "CONFLICT");
+    throw new BajaDDError(
+      contact.forms.some((f) => !f.isAditional)
+        ? "El formulario ya fue enviado: solo puede anularse, no eliminarse."
+        : "El expediente tiene formularios adicionales enviados: solo puede anularse, no eliminarse.",
+      "CONFLICT"
+    );
   }
 
   // Zoho: estado y relacionado. Si Zoho falla se aborta: no se borra a ciegas.
@@ -165,11 +177,26 @@ export async function anularDD(params: { crmContactId: string; reason: string; a
     throw new BajaDDError("El formulario nunca se envió: corresponde eliminarlo, no anularlo.", "CONFLICT");
   }
 
-  // 1. Carpeta -> _Retirados (se recuerda dónde estaba)
+  // Expedientes adicionales (sus carpetas viven dentro de la del principal):
+  // - borrador nunca enviado: se ELIMINA (carpeta a la papelera, borrador, documentos y token)
+  // - formulario enviado: se ANULA junto con el principal (su carpeta viaja con la del principal)
+  const tokensEnviados = new Set(contact.forms.map((f) => f.tokenUuid).filter(Boolean));
+  const draftsAdicionales = contact.drafts.filter((d) => d.isAditional);
+  const borradoresAEliminar = draftsAdicionales.filter((d) => !tokensEnviados.has(d.token));
+  const formsAdicionalesAAnular = contact.forms.filter((f) => f.isAditional && !f.retiredAt);
+
+  // 1. Carpetas. Primero las de los borradores adicionales (papelera) y luego la del
+  //    expediente -> _Retirados (se recuerda dónde estaba)
   let retiredFolderId: string | null = null;
   let retiredOriginFolderId: string | null = null;
   const accessToken = await getAccessToken();
   const { ddFolderId, clientFolderId } = await localizarCarpetaExpediente(contact.crmId, formType, accessToken);
+  if (clientFolderId) {
+    for (const d of borradoresAEliminar) {
+      const carpetaAdicional = await findFolderAdicional(clientFolderId, d.token, accessToken);
+      if (carpetaAdicional) await deleteFileFromWorkDrive(carpetaAdicional, accessToken);
+    }
+  }
   if (ddFolderId && clientFolderId) {
     const retirados = await getOrCreateCarpetaRetirados(ddFolderId, accessToken);
     await moveFolder(clientFolderId, retirados, accessToken);
@@ -180,8 +207,9 @@ export async function anularDD(params: { crmContactId: string; reason: string; a
   // 2. Zoho
   await zoho.service.setDDEstado(contact.crmId, ESTADO_ANULADO);
 
-  // 3. Prisma: archivo, enlaces vencidos y borrador cerrado
+  // 3. Prisma: archivo, enlaces vencidos y borradores cerrados
   const ahora = new Date();
+  const motivoAdicional = `Anulado junto con el expediente principal: ${reason.trim()}`;
   await prisma.$transaction([
     prisma.crmContact.update({
       where: { id: contact.id },
@@ -195,12 +223,28 @@ export async function anularDD(params: { crmContactId: string; reason: string; a
       },
     }),
     prisma.token.updateMany({ where: { crmContactId: contact.id }, data: { expiresAt: ahora } }),
-    ...contact.drafts.map((d) =>
-      prisma.draft.update({
-        where: { id: d.id },
-        data: { data: { ...((d.data as any) || {}), retired: true }, expiresAt: ahora },
+    // Borradores adicionales nunca enviados: eliminados (los documentos caen en cascada)
+    ...borradoresAEliminar.flatMap((d) => [
+      prisma.draft.delete({ where: { id: d.id } }),
+      prisma.token.deleteMany({ where: { token: d.token } }),
+    ]),
+    // Formularios adicionales enviados: anulados. Sin retiredFolderId: su carpeta viaja con la del
+    // principal; reactivarAdicional no la mueve y basta con reactivar el expediente principal.
+    ...formsAdicionalesAAnular.map((f) =>
+      prisma.form.update({
+        where: { id: f.id },
+        data: { retiredAt: ahora, retiredReason: motivoAdicional, retiredBy: actor.id, deletedAt: ahora },
       })
     ),
+    // Borradores restantes (principal y adicionales enviados): cerrados
+    ...contact.drafts
+      .filter((d) => !borradoresAEliminar.includes(d))
+      .map((d) =>
+        prisma.draft.update({
+          where: { id: d.id },
+          data: { data: { ...((d.data as any) || {}), retired: true }, expiresAt: ahora },
+        })
+      ),
   ]);
 
   await logAuditEvent({
@@ -209,10 +253,23 @@ export async function anularDD(params: { crmContactId: string; reason: string; a
     entityId: contact.id,
     userId: actor.id,
     ipAddress: params.ip ?? null,
-    details: { crmId: contact.crmId, reason, actor: actor.email, movedFolder: retiredFolderId },
+    details: {
+      crmId: contact.crmId,
+      reason,
+      actor: actor.email,
+      movedFolder: retiredFolderId,
+      adicionalesEliminados: borradoresAEliminar.length,
+      adicionalesAnulados: formsAdicionalesAAnular.length,
+    },
   });
 
-  return { success: true, crmId: contact.crmId, carpetaMovida: !!retiredFolderId };
+  return {
+    success: true,
+    crmId: contact.crmId,
+    carpetaMovida: !!retiredFolderId,
+    adicionalesEliminados: borradoresAEliminar.length,
+    adicionalesAnulados: formsAdicionalesAAnular.length,
+  };
 }
 
 /**
@@ -246,16 +303,23 @@ export async function reactivarDD(params: { crmContactId: string; actor: Actor; 
         deletedAt: null,
       },
     }),
-    ...contact.drafts.map((d) =>
-      prisma.draft.update({
-        where: { id: d.id },
-        data: { data: { ...((d.data as any) || {}), retired: false }, expiresAt: null },
-      })
-    ),
+    // Solo los borradores del principal: los adicionales anulados junto con él se reactivan
+    // uno a uno (/api/reactivar-adicional), y los eliminados no vuelven.
+    ...contact.drafts
+      .filter((d) => !d.isAditional)
+      .map((d) =>
+        prisma.draft.update({
+          where: { id: d.id },
+          data: { data: { ...((d.data as any) || {}), retired: false }, expiresAt: null },
+        })
+      ),
   ]);
 
-  // 4. Enlace: se reactiva el token del borrador y se refleja en Zoho
-  const draft = await prisma.draft.findFirst({ where: { crmContactId: contact.id }, orderBy: { createdAt: "desc" } });
+  // 4. Enlace: se reactiva el token del borrador del principal y se refleja en Zoho
+  const draft = await prisma.draft.findFirst({
+    where: { crmContactId: contact.id, isAditional: false },
+    orderBy: { createdAt: "desc" },
+  });
   if (draft) {
     const token = await reactivateToken(draft.token, 30);
     if (token.success && token.newExpiresAt) {

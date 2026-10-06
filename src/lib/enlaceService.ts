@@ -1,6 +1,6 @@
 import prisma from "@/lib/prisma";
 import { generateToken } from "@/lib/tokenService";
-import { zoho, contactRecordToFormData } from "@/lib/zohoService";
+import { zoho, contactRecordToFormData, DD_CONTACT_FIELD } from "@/lib/zohoService";
 import { datosFormularioDesdeZoho } from "@/lib/zohoChangeService";
 
 /**
@@ -122,6 +122,8 @@ export async function prepararExpedienteRelacionado(params: {
       projectName,
       relatedDDId: juridicaCrmId,
       overRideName,
+      // El Representante Legal es el mismo Contact de la cuenta: se vincula al crear el registro
+      contactCrmId: accountContact?.crmId,
     });
     if (!created.debidaId) throw new Error("Zoho CRM no devolvió el ID del expediente natural creado");
     relatedCrmId = created.debidaId;
@@ -172,6 +174,9 @@ export async function prepararExpedienteRelacionado(params: {
       firstName: "",
       lastName: "",
       email: "",
+      // Contact de Zoho (lookup Nombre_de_contacto): al completarse el formulario también
+      // lo fija en el expediente si el registro ya existía sin él
+      ...(accountContact ? { [DD_CONTACT_FIELD]: accountContact.crmId } : {}),
     },
   });
 

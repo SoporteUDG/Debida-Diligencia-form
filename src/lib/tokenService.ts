@@ -340,3 +340,18 @@ export async function revokeToken(
     return { success: false, error: error.message || "Error al revocar el token" };
   }
 }
+
+/**
+ * Último token del expediente PRINCIPAL: excluye los de sus expedientes adicionales,
+ * que comparten el mismo CrmContact pero tienen su propio enlace.
+ */
+export async function getLatestMainToken(crmContactId: string) {
+  const adicionales = await prisma.draft.findMany({
+    where: { crmContactId, isAditional: true },
+    select: { token: true },
+  });
+  return prisma.token.findFirst({
+    where: { crmContactId, token: { notIn: adicionales.map((d) => d.token) } },
+    orderBy: { createdAt: "desc" },
+  });
+}

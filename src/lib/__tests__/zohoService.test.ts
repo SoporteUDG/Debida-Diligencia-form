@@ -4,6 +4,7 @@ import {
   zoho,
   mapFormToCrmPayload,
   mapFormToContactPayload,
+  buscarDDDelContacto,
   contactRecordToFormData,
 } from "../zohoService";
 
@@ -204,7 +205,6 @@ describe("ZohoService Unit Tests", () => {
         Last_Name: "Silva",
         Pais_de_Nacimiento_2: "Panamá",
         Nacionalidad_2: "Panameña",
-        Estado_Civil: "Soltero/a",
         C_I_P_Pasaporte: "8-999-9999",
         Fecha_de_Expiraci_n_CIP: "2030-01-02",
         Fecha_Nacimiento: "1990-04-05",
@@ -215,10 +215,12 @@ describe("ZohoService Unit Tests", () => {
       const payload = mapFormToCrmPayload("NATURAL", natural, { contactoVinculado: true });
       for (const campo of [
         "Nombre_natural", "Pais_de_nacimiento", "Nacionalidad", "Otra_nacionalidad",
-        "Estado_Civil", "Numero_Identificacion", "Fecha_vencimiento_ID", "Fecha_de_nacimiento",
+        "Numero_Identificacion", "Fecha_vencimiento_ID", "Fecha_de_nacimiento",
       ]) {
         expect(payload).not.toHaveProperty(campo);
       }
+      // Estado civil (natural) se queda en el DD
+      expect(payload["Estado_Civil"]).toBe("Soltero/a");
       expect(payload["Estado_migratorio"]).toBe("Residente");
       expect(payload["Ciudad"]).toBe("Panamá");
       // Sin contacto vinculado el DD conserva todo (comportamiento anterior)
@@ -273,6 +275,13 @@ describe("ZohoService Unit Tests", () => {
       expect(contactRecordToFormData("JURIDICA", record)).toMatchObject({
         rlNombre: "Lucas Silva", rlNoIdentificacion: "8-1-1", rlFechaNacimiento: "1990-04-05",
       });
+    });
+
+    it("buscarDDDelContacto: sin lookup, casa por nombre aunque termine en 's' o lleve espacios dobles", () => {
+      const dds = [{ id: "dd1", name: "Lucas  Silva - 12A - Costa", estado: "", contactCrmId: "" }];
+      expect(buscarDDDelContacto(dds, { crmId: "c1", firstName: "Lucas", lastName: "Silva" })?.id).toBe("dd1");
+      const dds2 = [{ id: "dd2", name: "Carlos - 3B - Proyecto", estado: "", contactCrmId: "" }];
+      expect(buscarDDDelContacto(dds2, { crmId: "c2", firstName: "Carlos", lastName: "" })?.id).toBe("dd2");
     });
 
     it("updateAccountContact simula la actualización sin credenciales de Zoho", async () => {

@@ -611,6 +611,15 @@ export async function localizarCarpetaExpediente(
   return { socioFolderId, ddFolderId, clientFolderId, expedienteFolderId };
 }
 
+/** Carpeta de un adicional dentro de la del expediente principal (null si no existe). */
+export async function findFolderAdicional(
+  expedienteFolderId: string,
+  token: string,
+  accessToken: string
+): Promise<string | null> {
+  return findFolderEndingWith(expedienteFolderId, sufijoAdicional(token), accessToken);
+}
+
 /** Nombre de la carpeta, dentro de /{Socio}/DD, donde se archivan los expedientes anulados. */
 export const CARPETA_RETIRADOS = "_Retirados";
 

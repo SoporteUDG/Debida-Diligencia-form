@@ -68,7 +68,7 @@ export async function registrarAutorizacionEdicion(params: {
   const formVigente = params.formId
     ? { id: params.formId }
     : await prisma.form.findFirst({
-        where: { crmContactId: params.crmContactId, deletedAt: null },
+        where: { crmContactId: params.crmContactId, deletedAt: null, isAditional: false },
         orderBy: { submittedAt: "desc" },
         select: { id: true },
       });

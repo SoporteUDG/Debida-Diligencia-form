@@ -181,7 +181,8 @@ export async function syncFormToWorkDrive(formId: string) {
       }
 
       // 5. Also attach the consolidated PDF directly to the Zoho CRM record's Attachments related list
-      const crmContactId = form.crmContact?.crmId;
+      // Un adicional no escribe nada en el registro de Zoho del expediente principal
+      const crmContactId = form.isAditional ? null : form.crmContact?.crmId;
       if (crmContactId) {
         try {
           console.log(`[WorkDrive Sync] Subiendo copia del expediente a Archivos Adjuntos de Zoho CRM (${crmContactId})...`);

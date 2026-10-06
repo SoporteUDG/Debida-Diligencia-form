@@ -744,7 +744,7 @@ export const zoho = {
         const recordPayload: any = {
           Tipo_de_Persona: params.clientType === "NATURAL" ? "Natural" : "Jurídica",
           Estado_del_enlace: "Activo",
-          Estado: "En Proceso",
+          Estado: "En borrador",
         };
 
         if (params.formLink) {
@@ -1534,7 +1534,7 @@ export interface ZohoDDResumen {
 /** API name del lookup Debida_Diligencia -> Contacts (ZOHO_DD_CONTACT_FIELD lo sustituye). */
 export const DD_CONTACT_FIELD = "Nombre_de_contacto";
 
-const normalizar = (v: string) => v.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/s+/g, " ").trim().toLowerCase();
+const normalizar = (v: string) => v.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, " ").trim().toLowerCase();
 
 /**
  * Expediente de Zoho que corresponde a un Contact: por el lookup si lo tiene; si
@@ -1575,7 +1575,6 @@ const CAMPOS_DD_DEL_CONTACTO: Record<"NATURAL" | "JURIDICA", string[]> = {
     "Pais_de_nacimiento",
     "Nacionalidad",
     "Otra_nacionalidad",
-    "Estado_Civil",
     "Numero_Identificacion",
     "Fecha_vencimiento_ID",
     "Fecha_de_nacimiento",
@@ -1644,7 +1643,7 @@ export function mapFormToContactPayload(clientType: "NATURAL" | "JURIDICA", form
       "Pais_de_Nacimiento_2": text(d.paisNacimiento),
       "Nacionalidad_2": text(d.nationality),
       "Otra_Nacionalidad": text(d.otraNacionalidad),
-      "Estado_Civil": text(d.estadoCivil),
+      // Estado civil (natural) es de Debida_Diligencia según la guía: no va al Contact
       "C_I_P_Pasaporte": text(d.idNumber),
       "Fecha_de_Expiraci_n_CIP": toDate(d.fechaVencimientoId),
       "Fecha_Nacimiento": toDate(d.fechaNacimiento),
@@ -1679,7 +1678,6 @@ export function contactRecordToFormData(clientType: "NATURAL" | "JURIDICA", reco
     put("paisNacimiento", r.Pais_de_Nacimiento_2);
     put("nationality", r.Nacionalidad_2);
     put("otraNacionalidad", r.Otra_Nacionalidad);
-    put("estadoCivil", r.Estado_Civil);
     put("idNumber", r.C_I_P_Pasaporte);
     put("fechaVencimientoId", fecha(r.Fecha_de_Expiraci_n_CIP));
     put("fechaNacimiento", fecha(r.Fecha_Nacimiento));

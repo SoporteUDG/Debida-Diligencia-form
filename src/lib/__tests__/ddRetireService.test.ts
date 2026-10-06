@@ -3,8 +3,9 @@ import { vi, describe, it, expect, beforeEach } from "vitest";
 const { prismaMock, zohoMock, wd } = vi.hoisted(() => ({
   prismaMock: {
     crmContact: { findUnique: vi.fn(), findFirst: vi.fn(), delete: vi.fn(), update: vi.fn() },
-    token: { updateMany: vi.fn() },
-    draft: { update: vi.fn(), findFirst: vi.fn() },
+    token: { updateMany: vi.fn(), deleteMany: vi.fn() },
+    draft: { update: vi.fn(), findFirst: vi.fn(), delete: vi.fn() },
+    form: { update: vi.fn() },
     $transaction: vi.fn(async (ops: any[]) => Promise.all(ops)),
   },
   zohoMock: {
@@ -15,7 +16,7 @@ const { prismaMock, zohoMock, wd } = vi.hoisted(() => ({
   },
   wd: {
     localizarCarpetaExpediente: vi.fn(), deleteFileFromWorkDrive: vi.fn(),
-    getOrCreateCarpetaRetirados: vi.fn(), moveFolder: vi.fn(),
+    getOrCreateCarpetaRetirados: vi.fn(), moveFolder: vi.fn(), findFolderAdicional: vi.fn(),
   },
 }));
 
@@ -109,6 +110,64 @@ describe("anularDD", () => {
     expect(data.retiredAt).toBeInstanceOf(Date);
     expect(prismaMock.token.updateMany).toHaveBeenCalled();
     expect(prismaMock.draft.update.mock.calls[0][0].data.data).toMatchObject({ retired: true });
+  });
+
+  it("con adicionales: elimina el borrador adicional y anula el enviado sin mover su carpeta aparte", async () => {
+    wd.findFolderAdicional.mockResolvedValue("cf-adic");
+    prismaMock.crmContact.findUnique.mockResolvedValue({
+      ...base,
+      forms: [
+        { id: "f", type: "NATURAL", isAditional: false, tokenUuid: "tm", retiredAt: null },
+        { id: "fa", type: "JURIDICA", isAditional: true, tokenUuid: "t-enviado", retiredAt: null },
+        { id: "fr", type: "NATURAL", isAditional: true, tokenUuid: "t-ya-anulado", retiredAt: new Date() },
+      ],
+      drafts: [
+        { id: "dm", type: "NATURAL", data: {}, isAditional: false, token: "tm" },
+        { id: "da", type: "JURIDICA", data: {}, isAditional: true, token: "t-enviado" },
+        { id: "db", type: "NATURAL", data: {}, isAditional: true, token: "t-borrador" },
+      ],
+    });
+    const r = await anularDD({ crmContactId: "c1", reason: "cliente desistio", actor });
+    expect(wd.findFolderAdicional).toHaveBeenCalledWith("cf", "t-borrador", "tok");
+    expect(wd.deleteFileFromWorkDrive).toHaveBeenCalledWith("cf-adic", "tok");
+    expect(wd.moveFolder).toHaveBeenCalledTimes(1);
+    expect(prismaMock.draft.delete).toHaveBeenCalledWith({ where: { id: "db" } });
+    expect(prismaMock.token.deleteMany).toHaveBeenCalledWith({ where: { token: "t-borrador" } });
+    // solo el adicional enviado y aun no anulado se anula
+    expect(prismaMock.form.update).toHaveBeenCalledTimes(1);
+    expect(prismaMock.form.update.mock.calls[0][0]).toMatchObject({ where: { id: "fa" } });
+    expect(prismaMock.form.update.mock.calls[0][0].data.retiredFolderId).toBeUndefined();
+    // los borradores restantes (principal + adicional enviado) se cierran; el eliminado no
+    expect(prismaMock.draft.update).toHaveBeenCalledTimes(2);
+    expect(r).toMatchObject({ adicionalesEliminados: 1, adicionalesAnulados: 1 });
+  });
+
+  it("el tipo del principal sale del formulario principal, no de un adicional", async () => {
+    prismaMock.crmContact.findUnique.mockResolvedValue({
+      ...base,
+      forms: [
+        { id: "fa", type: "JURIDICA", isAditional: true, tokenUuid: "ta", retiredAt: null },
+        { id: "f", type: "NATURAL", isAditional: false, tokenUuid: "tm", retiredAt: null },
+      ],
+      drafts: [],
+    });
+    await anularDD({ crmContactId: "c1", reason: "cliente desistio", actor });
+    expect(wd.localizarCarpetaExpediente).toHaveBeenCalledWith("dd1", "NATURAL", "tok");
+  });
+
+  it("eliminar: rechaza si solo hay un formulario adicional enviado", async () => {
+    prismaMock.crmContact.findFirst.mockResolvedValue({ id: "c1" });
+    prismaMock.crmContact.findUnique.mockResolvedValue({
+      ...base,
+      forms: [{ id: "fa", type: "NATURAL", isAditional: true, tokenUuid: "ta", retiredAt: null }],
+    });
+    await expect(
+      eliminarDDNoEnviado({
+        crmId: "dd1",
+        actor: { id: "u1", email: "g@x.com", name: "G", profile: "Administrador" },
+      })
+    ).rejects.toThrow(/adicionales enviados/);
+    expect(wd.deleteFileFromWorkDrive).not.toHaveBeenCalled();
   });
 
   it("rechaza un expediente nunca enviado", async () => {

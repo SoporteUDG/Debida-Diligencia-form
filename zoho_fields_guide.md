@@ -137,12 +137,12 @@ estructura de filas
 | **Pais de nacimiento** | `Pais_de_Nacimiento_2` | Línea única (String) | paisNacimiento (FormState) |
 | **Nacionalidad** | `Nacionalidad_2` | Línea única (String) | nationality (FormState) |
 | **Otra nacionalidad** | `Otra_Nacionalidad` | Línea única (String) | otraNacionalidad (FormState) |
-| **Estado Civil** | `Estado_Civil` | Picklist (Lista)  {same as options} | estadoCivil (FormState) |
 | **Numero Identificacion** | `C_I_P_Pasaporte` | Línea única (String) | idNumber (FormState) |
 | **Fecha vencimiento ID** | `Fecha_de_Expiraci_n_CIP` | Fecha (Date) | fechaVencimientoId (FormState) |
 | **Fecha de nacimiento** | `Fecha_Nacimiento` | Fecha (Date) | fechaNacimiento (FormState) |
 
 | Zoho Debida Diligencia |
+| **Estado Civil** | `Estado_Civil` | Picklist (Lista)  {same as options} | estadoCivil (FormState) |
 | **Estado migratorio** | `Estado_migratorio` | Picklist (Lista)  {same as options} | estatusMigratorio (FormState) |
 | **Tipo de identificacion** | `Tipo_de_identificacion` | Picklist (Lista) {same as options} | tipoIdentificacion (FormState) |
 | **Pais de residencia fiscal** | `Pais_de_residencia_fiscal` | Línea única (String) | paisResidenciaFiscal (FormState) |

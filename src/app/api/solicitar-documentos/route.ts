@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { reactivateToken, signUuid } from "@/lib/tokenService";
+import { reactivateToken, signUuid, getLatestMainToken } from "@/lib/tokenService";
 import { zoho } from "@/lib/zohoService";
 import { logAuditEvent } from "@/lib/auditService";
 
@@ -43,12 +43,6 @@ export async function POST(request: NextRequest) {
     // 1. Buscar el contacto local por su crmId
     const contact = await prisma.crmContact.findUnique({
       where: { crmId: recordId },
-      include: {
-        tokens: {
-          orderBy: { createdAt: "desc" },
-          take: 1,
-        },
-      },
     });
 
     if (!contact) {
@@ -58,7 +52,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const latestToken = contact.tokens[0];
+    // Token del expediente principal (no el de un adicional)
+    const latestToken = await getLatestMainToken(contact.id);
     if (!latestToken) {
       return NextResponse.json(
         { success: false, error: "No se ha generado ningún enlace para este expediente" },
