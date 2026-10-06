@@ -31,6 +31,8 @@ function llaveValida(request: NextRequest): boolean | "sin-configurar" {
  * Body: { crmId: string, userId: string, reason?: string }
  */
 export async function POST(request: NextRequest) {
+  // Primer registro, antes de validar nada: confirma que la solicitud de Zoho llega
+  console.log(`[API Eliminar Expediente] Solicitud recibida (x-api-key ${request.headers.get("x-api-key") ? "presente" : "ausente"}).`);
   const llave = llaveValida(request);
   if (llave === "sin-configurar") {
     console.error("[API Eliminar Expediente] Falta ZOHO_BUTTON_API_KEY: solicitud rechazada.");
@@ -46,7 +48,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: "crmId y userId son requeridos" }, { status: 400 });
     }
 
-    const user = await zoho.service.getUserProfile(userId);
+    let user;
+    try {
+      user = await zoho.service.getUserProfile(userId);
+    } catch (err) {
+      console.error("[API Eliminar Expediente] No se pudo verificar el perfil del usuario en Zoho:", err);
+      return NextResponse.json(
+        { success: false, code: "PERFIL_NO_VERIFICABLE", error: "No se pudo verificar su perfil en Zoho. No se eliminó nada; avise a soporte." },
+        { status: 502 }
+      );
+    }
     if (!user) {
       return NextResponse.json({ success: false, error: "Usuario de Zoho no encontrado o inactivo" }, { status: 403 });
     }

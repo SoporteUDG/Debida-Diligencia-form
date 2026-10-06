@@ -56,7 +56,7 @@ describe("eliminarDDNoEnviado", () => {
     expect(wd.deleteFileFromWorkDrive.mock.invocationCallOrder[0]).toBeLessThan(zohoMock.service.deleteDDRecord.mock.invocationCallOrder[0]);
   });
 
-  it.each(["Gerente Gestión Inmobiliaria", "gerente gestion inmobiliaria", "Administrador"])(
+  it.each(["Gerente Gestión Inmobiliaria", "gerente gestion inmobiliaria", "Administrador", "Administrator"])(
     "perfil autorizado: %s",
     async (profile) => {
       prismaMock.crmContact.findUnique.mockResolvedValue(base);

@@ -61,7 +61,8 @@ async function cargarExpediente(crmContactId: string) {
 }
 
 /** Perfiles de Zoho CRM que pueden eliminar un expediente (botón en Zoho). */
-export const PERFILES_ELIMINAR_DD = ["Gerente Gestión Inmobiliaria", "Administrador"];
+// "Administrator" es el nombre en inglés del perfil de administrador de Zoho (así lo devuelve la API)
+export const PERFILES_ELIMINAR_DD = ["Gerente Gestión Inmobiliaria", "Administrador", "Administrator"];
 
 const normalizarPerfil = (v: string) =>
   v.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, " ").trim().toLowerCase();
