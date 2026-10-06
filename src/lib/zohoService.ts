@@ -1403,10 +1403,14 @@ export const zoho = {
       });
     },
 
-    /** Cambia el Estado de un expediente de Debida_Diligencia (no dispara workflows). */
-    setDDEstado: async (ddId: string, estado: string): Promise<{ success: boolean; mocked?: boolean }> => {
+    /**
+     * Cambia el Estado de un expediente de Debida_Diligencia (no dispara workflows) y su marca
+     * `retirado`. Con retirado = true (anulación) el enlace queda "Retirado"; con false
+     * (reactivación) se quita la marca y quien llama restablece el Estado_del_enlace.
+     */
+    setDDEstado: async (ddId: string, estado: string, retirado: boolean): Promise<{ success: boolean; mocked?: boolean }> => {
       if (zohoSimulado(ddId)) {
-        console.log(`[Zoho Service] Simulación: Estado de ${ddId} -> "${estado}".`);
+        console.log(`[Zoho Service] Simulación: Estado de ${ddId} -> "${estado}" (retirado: ${retirado}).`);
         return { success: true, mocked: true };
       }
       return executeWithRetry(async (accessToken) => {
@@ -1414,7 +1418,10 @@ export const zoho = {
         const response = await fetch(`${crmBaseUrl}/Debida_Diligencia/${ddId}`, {
           method: "PUT",
           headers: { Authorization: `Zoho-oauthtoken ${accessToken}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ data: [{ Estado: estado }], trigger: [] }),
+          body: JSON.stringify({
+            data: [{ Estado: estado, retirado, ...(retirado ? { Estado_del_enlace: "Retirado" } : {}) }],
+            trigger: [],
+          }),
         });
         if (!response.ok) {
           throw new Error(`Zoho CRM Debida_Diligencia/${ddId} PUT Estado respondió HTTP ${response.status}: ${await response.text()}`);

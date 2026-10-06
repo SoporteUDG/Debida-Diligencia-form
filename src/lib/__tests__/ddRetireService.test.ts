@@ -27,7 +27,22 @@ vi.mock("@/lib/auditService", () => ({ logAuditEvent: vi.fn() }));
 vi.mock("@/lib/tokenService", () => ({ reactivateToken: vi.fn(async () => ({ success: true, newExpiresAt: new Date() })) }));
 vi.mock("@/lib/workdriveService", () => wd);
 
-import { eliminarDDNoEnviado, anularDD, reactivarDD } from "../ddRetireService";
+import { eliminarDDNoEnviado, anularDD, reactivarDD, expedienteRetirado } from "../ddRetireService";
+
+describe("expedienteRetirado", () => {
+  it("true si el portal lo archivó o Zoho lo marca (retirado / Estado Anulado)", () => {
+    expect(expedienteRetirado(null, { retiredAt: new Date() })).toBe(true);
+    expect(expedienteRetirado({ retirado: true })).toBe(true);
+    expect(expedienteRetirado({ retirado: "true" })).toBe(true);
+    expect(expedienteRetirado({ Estado: "Anulado" })).toBe(true);
+  });
+
+  it("false si no hay marca (o se quitó al reactivar)", () => {
+    expect(expedienteRetirado(null, null)).toBe(false);
+    expect(expedienteRetirado({ retirado: false, Estado: "En borrador" }, { retiredAt: null })).toBe(false);
+    expect(expedienteRetirado({})).toBe(false);
+  });
+});
 
 const actor = { id: "a1", email: "a@x.com" };
 const base = { id: "c1", crmId: "dd1", retiredAt: null, forms: [], drafts: [{ id: "d1", type: "NATURAL", data: {} }] };
@@ -78,7 +93,7 @@ describe("eliminarDDNoEnviado", () => {
     expect(r).toMatchObject({ success: true, action: "retired", crmId: "dd1" });
     // anulado: carpeta a _Retirados y Estado = Anulado; nada se borra
     expect(wd.moveFolder).toHaveBeenCalledWith("cf", "ret", "tok");
-    expect(zohoMock.service.setDDEstado).toHaveBeenCalledWith("dd1", "Anulado");
+    expect(zohoMock.service.setDDEstado).toHaveBeenCalledWith("dd1", "Anulado", true);
     expect(prismaMock.crmContact.update.mock.calls[0][0].data).toMatchObject({ retiredBy: "u1" });
     expect(wd.deleteFileFromWorkDrive).not.toHaveBeenCalled();
     expect(zohoMock.service.deleteDDRecord).not.toHaveBeenCalled();
@@ -103,6 +118,13 @@ describe("eliminarDDNoEnviado", () => {
     expect(wd.deleteFileFromWorkDrive).not.toHaveBeenCalled();
   });
 
+  it("rechaza si Zoho lo marca retirado (aunque el portal no)", async () => {
+    prismaMock.crmContact.findUnique.mockResolvedValue(base);
+    zohoMock.service.getDDRecord.mockResolvedValue({ Estado: "En borrador", retirado: true });
+    await expect(eliminarDDNoEnviado(params)).rejects.toThrow(/retirado/);
+    expect(wd.deleteFileFromWorkDrive).not.toHaveBeenCalled();
+  });
+
   it("rechaza si tiene expediente relacionado", async () => {
     prismaMock.crmContact.findUnique.mockResolvedValue(base);
     zohoMock.service.getRelatedDDId.mockResolvedValue("rel");
@@ -117,7 +139,7 @@ describe("anularDD", () => {
     prismaMock.crmContact.findUnique.mockResolvedValue(enviado);
     await anularDD({ crmContactId: "c1", reason: "cliente desistio", actor });
     expect(wd.moveFolder).toHaveBeenCalledWith("cf", "ret", "tok");
-    expect(zohoMock.service.setDDEstado).toHaveBeenCalledWith("dd1", "Anulado");
+    expect(zohoMock.service.setDDEstado).toHaveBeenCalledWith("dd1", "Anulado", true);
     const data = prismaMock.crmContact.update.mock.calls[0][0].data;
     expect(data).toMatchObject({ retiredFolderId: "cf", retiredOriginFolderId: "dd", retiredBy: "a1" });
     expect(data.retiredAt).toBeInstanceOf(Date);
@@ -196,7 +218,7 @@ describe("reactivarDD", () => {
     prismaMock.draft.findFirst.mockResolvedValue({ token: "t" });
     await reactivarDD({ crmContactId: "c1", actor });
     expect(wd.moveFolder).toHaveBeenCalledWith("cf", "dd", "tok");
-    expect(zohoMock.service.setDDEstado).toHaveBeenCalledWith("dd1", "En borrador");
+    expect(zohoMock.service.setDDEstado).toHaveBeenCalledWith("dd1", "En borrador", false);
     expect(prismaMock.crmContact.update.mock.calls[0][0].data).toMatchObject({ retiredAt: null, deletedAt: null });
   });
 

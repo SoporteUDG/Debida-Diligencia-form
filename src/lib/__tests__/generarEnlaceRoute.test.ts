@@ -64,6 +64,21 @@ describe("POST /api/generar-enlace", () => {
     expect(enlaceMock.prepararExpedienteRelacionado).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ["marca retirado en Zoho", { Socio_de_Negocios: { id: "s1" }, retirado: true }, local],
+    ["Estado Anulado en Zoho", { Socio_de_Negocios: { id: "s1" }, Estado: "Anulado" }, local],
+    ["archivado en el portal", { Socio_de_Negocios: { id: "s1" } }, { ...local, retiredAt: new Date() }],
+  ])("expediente retirado (%s): 409 RETIRADO y no crea nada", async (_caso, ddRecord, contactoLocal) => {
+    zohoMock.service.getDDRecord.mockResolvedValue(ddRecord);
+    prismaMock.crmContact.findUnique.mockResolvedValue(contactoLocal);
+    const res = await post({ recordId: "dd1", tipo: "juridica" });
+    expect(res.status).toBe(409);
+    expect((await res.json()).code).toBe("RETIRADO");
+    expect(contactoMock.resolverContactoDeExpediente).not.toHaveBeenCalled();
+    expect(enlaceMock.crearEnlaceConBorrador).not.toHaveBeenCalled();
+    expect(enlaceMock.prepararExpedienteRelacionado).not.toHaveBeenCalled();
+  });
+
   it("404 si el expediente no existe en Zoho", async () => {
     zohoMock.service.getDDRecord.mockResolvedValue(null);
     expect((await post({ recordId: "dd1", tipo: "natural" })).status).toBe(404);

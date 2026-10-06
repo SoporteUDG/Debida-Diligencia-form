@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { zoho, DD_CONTACT_FIELD } from "@/lib/zohoService";
 import { logAuditEvent } from "@/lib/auditService";
+import { expedienteRetirado, MENSAJE_RETIRADO } from "@/lib/ddRetireService";
 import { crearEnlaceConBorrador, prepararExpedienteRelacionado } from "@/lib/enlaceService";
 import { resolverContactoDeExpediente, SinContactoExpedienteError, type AccountContactRow } from "@/lib/accountContactService";
 
@@ -78,6 +79,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Un expediente retirado (anulado) no admite enlaces nuevos: solo se reactiva
+    let contact = await prisma.crmContact.findUnique({
+      where: { crmId: recordId },
+    });
+    if (expedienteRetirado(ddRecord, contact)) {
+      return NextResponse.json(
+        { success: false, error: MENSAJE_RETIRADO, code: "RETIRADO", crmId: recordId },
+        { status: 409, headers: corsHeaders }
+      );
+    }
+
     // 2. Contact de Zoho: obligatorio para generar (natural y jurídica)
     let accountContact: AccountContactRow;
     try {
@@ -110,9 +122,6 @@ export async function POST(request: NextRequest) {
     const socioLookup = ddRecord.Socio_de_Negocios ?? ddRecord.Socio_de_Negocio;
     const socioId = String((socioLookup && typeof socioLookup === "object" ? socioLookup.id : socioLookup) ?? "").trim() || undefined;
 
-    let contact = await prisma.crmContact.findUnique({
-      where: { crmId: recordId },
-    });
     if (!contact) {
       contact = await prisma.crmContact.create({
         data: {

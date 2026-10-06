@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { logAuditEvent } from "@/lib/auditService";
+import { zoho } from "@/lib/zohoService";
+import { expedienteRetirado, MENSAJE_RETIRADO } from "@/lib/ddRetireService";
 import { crearEnlaceConBorrador } from "@/lib/enlaceService";
 
 export const dynamic = "force-dynamic";
@@ -180,10 +182,31 @@ export async function POST(request: NextRequest) {
     const clientType = isNatural ? "NATURAL" : "JURIDICA";
 
     const contact = await prisma.crmContact.findUnique({ where: { crmId } });
+    // Un expediente retirado (anulado) no admite adicionales nuevos: solo se reactiva
+    // (se comprueba antes que deletedAt, que la anulación también marca)
+    if (contact?.retiredAt) {
+      return NextResponse.json(
+        { success: false, error: MENSAJE_RETIRADO, code: "RETIRADO", crmId },
+        { status: 409, headers: corsHeaders }
+      );
+    }
     if (!contact || contact.deletedAt) {
       return NextResponse.json(
         { success: false, error: `No existe un expediente ${crmId} en el portal` },
         { status: 404, headers: corsHeaders }
+      );
+    }
+    // Zoho también lo marca (retirado / Estado "Anulado"). Solo se lee: un adicional no escribe en Zoho.
+    let ddRecord: Record<string, any> | null = null;
+    try {
+      ddRecord = await zoho.service.getDDRecord(crmId);
+    } catch (err) {
+      console.warn(`[API Generar Adicional] No se pudo leer el expediente ${crmId} en Zoho; se usa solo el estado del portal:`, err);
+    }
+    if (expedienteRetirado(ddRecord, contact)) {
+      return NextResponse.json(
+        { success: false, error: MENSAJE_RETIRADO, code: "RETIRADO", crmId },
+        { status: 409, headers: corsHeaders }
       );
     }
 

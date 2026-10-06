@@ -30,6 +30,20 @@ const ESTADOS_NO_ELIMINABLES = ["En revisión", "Aprobado", ESTADO_ANULADO];
 
 const MIN_MOTIVO = 10;
 
+/**
+ * ¿El expediente está retirado (anulado)? Un expediente retirado solo se reactiva con
+ * reactivarDD: no admite enlaces nuevos, adicionales ni eliminación. Se considera retirado si
+ * el portal lo archivó (CrmContact.retiredAt) o si Zoho lo marca (retirado = true o
+ * Estado = "Anulado").
+ */
+export function expedienteRetirado(ddRecord?: Record<string, any> | null, contact?: { retiredAt?: Date | null } | null): boolean {
+  if (contact?.retiredAt) return true;
+  const marca = ddRecord?.retirado;
+  return marca === true || String(marca ?? "").toLowerCase() === "true" || String(ddRecord?.Estado ?? "").trim() === ESTADO_ANULADO;
+}
+
+export const MENSAJE_RETIRADO = "El expediente está retirado (anulado): solo puede reactivarse.";
+
 export class BajaDDError extends Error {
   constructor(message: string, public code: "NOT_FOUND" | "BAD_REQUEST" | "CONFLICT" | "FORBIDDEN") {
     super(message);
@@ -127,6 +141,9 @@ export async function eliminarDDNoEnviado(params: {
   // Zoho: estado y relacionado. Si Zoho falla se aborta: no se borra a ciegas.
   const registro = await zoho.service.getDDRecord(contact.crmId);
   const estado = String(registro?.Estado ?? "").trim();
+  if (expedienteRetirado(registro)) {
+    throw new BajaDDError(`${MENSAJE_RETIRADO} Reactívelo antes de eliminarlo.`, "CONFLICT");
+  }
   if (ESTADOS_NO_ELIMINABLES.includes(estado)) {
     throw new BajaDDError(`El expediente está en estado "${estado}" en Zoho: no se puede eliminar.`, "CONFLICT");
   }
@@ -207,7 +224,7 @@ export async function anularDD(params: { crmContactId: string; reason: string; a
   }
 
   // 2. Zoho
-  await zoho.service.setDDEstado(contact.crmId, ESTADO_ANULADO);
+  await zoho.service.setDDEstado(contact.crmId, ESTADO_ANULADO, true);
 
   // 3. Prisma: archivo, enlaces vencidos y borradores cerrados
   const ahora = new Date();
@@ -290,7 +307,7 @@ export async function reactivarDD(params: { crmContactId: string; actor: Actor; 
   }
 
   // 2. Zoho
-  await zoho.service.setDDEstado(contact.crmId, ESTADO_REACTIVADO);
+  await zoho.service.setDDEstado(contact.crmId, ESTADO_REACTIVADO, false);
 
   // 3. Prisma
   await prisma.$transaction([
