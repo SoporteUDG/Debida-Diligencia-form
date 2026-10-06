@@ -129,7 +129,8 @@ export async function syncFormToWorkDrive(formId: string) {
         ddId,
         form.type,
         [],
-        accessToken
+        accessToken,
+        form.isAditional ? form.tokenUuid : null
       );
 
       const targetFolderId = folderStructure.clientFolderId;

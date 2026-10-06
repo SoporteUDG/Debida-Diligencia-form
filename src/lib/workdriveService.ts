@@ -218,6 +218,20 @@ export async function createFolderInParent(
   return result.data.id;
 }
 
+/**
+ * Nombre de la carpeta del expediente dentro de /{Socio}/DD.
+ * - Principal: {FORMTYPE}-{Nombre del expediente}
+ * - Adicional: {FORMTYPE}-adicional de {Nombre del expediente} ({token}); el token
+ *   (8 primeros caracteres) distingue varios adicionales del mismo expediente. Su
+ *   estructura interna (subcarpetas por documento) es la misma que la del principal.
+ */
+export function nombreCarpetaExpediente(formType: string, ddName: string, adicionalToken?: string | null): string {
+  if (adicionalToken) {
+    return sanitizeFolderName(`${formType}-adicional de ${ddName} (${adicionalToken.slice(0, 8)})`);
+  }
+  return sanitizeFolderName(`${formType}-${ddName}`);
+}
+
 /** Resoluciones en curso de la carpeta del expediente, por ruta. */
 const carpetasExpedienteEnCurso = new Map<string, Promise<{ ddFolderId: string; clientFolderId: string }>>();
 
@@ -238,7 +252,8 @@ export async function getOrCreateFolderStructure(
   ddId: string,
   formType: string,
   documentTypes: string[],
-  passedToken?: string
+  passedToken?: string,
+  adicionalToken?: string | null
 ): Promise<{
   socioFolderId: string;
   ddFolderId: string;
@@ -248,7 +263,7 @@ export async function getOrCreateFolderStructure(
   const accessToken = passedToken || await getAccessToken();
 
   const { socioFolderId, ddName } = await findFolderSocio(ddId);
-  const clientFolderName = sanitizeFolderName(`${formType}-${ddName}`);
+  const clientFolderName = nombreCarpetaExpediente(formType, ddName, adicionalToken);
 
   console.log(`[WorkDrive Service] Iniciando sincronización de estructura de carpetas: /${socioFolderId}/DD/${clientFolderName}`);
 
@@ -529,12 +544,13 @@ export async function moveFolder(resourceId: string, newParentId: string, access
 export async function localizarCarpetaExpediente(
   ddId: string,
   formType: string,
-  accessToken: string
+  accessToken: string,
+  adicionalToken?: string | null
 ): Promise<{ socioFolderId: string; ddFolderId: string | null; clientFolderId: string | null }> {
   const { socioFolderId, ddName } = await findFolderSocio(ddId);
   const ddFolderId = await findFolderInParent(socioFolderId, "DD", accessToken);
   if (!ddFolderId) return { socioFolderId, ddFolderId: null, clientFolderId: null };
-  const clientFolderId = await findFolderInParent(ddFolderId, sanitizeFolderName(`${formType}-${ddName}`), accessToken);
+  const clientFolderId = await findFolderInParent(ddFolderId, nombreCarpetaExpediente(formType, ddName, adicionalToken), accessToken);
   return { socioFolderId, ddFolderId, clientFolderId };
 }
 

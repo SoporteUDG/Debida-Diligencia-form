@@ -162,6 +162,13 @@ model Form {
   // al reactivar un enlace adicional en concreto (ver /api/reactivar).
   tokenUuid String?
 
+  // Anulación (archivo) de un formulario adicional ya enviado. Ver adicionalRetireService.
+  retiredAt             DateTime?
+  retiredReason         String?   @db.Text
+  retiredBy             String?
+  retiredFolderId       String?
+  retiredOriginFolderId String?
+
   // Relaciones hijas (Cascade onDelete)
   gjcMembers          GjcMember[]
   bfMembers           BfMember[]

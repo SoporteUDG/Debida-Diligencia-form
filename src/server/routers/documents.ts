@@ -265,7 +265,8 @@ export const documentsRouter = router({
                 contact.crmId,
                 formType,
                 [input.documentType],
-                accessToken
+                accessToken,
+                draft?.isAditional ? draft.token : null
               );
 
               const targetFolderId = folderStructure.subfolders[input.documentType];

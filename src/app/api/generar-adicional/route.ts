@@ -85,7 +85,9 @@ export async function GET(request: NextRequest) {
     const links = drafts.map((d) => {
       const t = tokenByValue.get(d.token);
       const expiresAt = t?.expiresAt ?? d.expiresAt ?? null;
-      const linkStatus = !t
+      const linkStatus = (d.data as any)?.retired
+        ? "Anulado"
+        : !t
         ? "Desconocido"
         : t.used
           ? "Utilizado"
@@ -201,7 +203,7 @@ export async function POST(request: NextRequest) {
       draftData: {
         crmContactId: crmId,
         nombreProyecto: projectName,
-        ...(isNatural ? { firstName: "", lastName: "", email: "" } : { razonSocial: name }),
+        ...(isNatural ? { firstName: name, lastName: "", email: "" } : { razonSocial: name }),
       },
     });
 

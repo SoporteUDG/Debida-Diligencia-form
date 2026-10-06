@@ -155,7 +155,7 @@ export async function POST(request: NextRequest) {
             projectName,
             appUrl,
             socioId,
-            overRideName: `Representante Legal ${nombre}`,
+            overRideName: `Representante Legal ${accountContact ? `(${accountContact.firstName} ${accountContact.lastName})` : nombre}`,
             accountContact: accountContact ?? undefined,
           });
         } catch (relErr) {
