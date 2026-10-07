@@ -89,13 +89,15 @@ export async function prepararExpedienteRelacionado(params: {
   overRideName?: string;
   /** Contacto de la cuenta (el único de la jurídica): también es el del Representante Legal. */
   accountContact?: { id: string; crmId: string };
+  /** Crea siempre un expediente natural nuevo (el DD_relacionado actual está retirado). */
+  crearNuevo?: boolean;
 }): Promise<{ crmId: string; clientUrl: string | null }> {
   const { juridicaCrmId, clientName, projectName, appUrl, overRideName, accountContact } = params;
   const esSimulado = juridicaCrmId.startsWith("mock-") || juridicaCrmId === "simulated-crm-contact-id";
 
   // 1. Expediente relacionado existente (enlace regenerado)
   let relatedCrmId: string | null = null;
-  if (!esSimulado) {
+  if (!esSimulado && !params.crearNuevo) {
     try {
       relatedCrmId = await zoho.service.getRelatedDDId(juridicaCrmId);
     } catch (err) {

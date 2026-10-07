@@ -223,6 +223,7 @@ function prepararJuridica(contactos, ddRecords) {
         .map(function (r) { return { id: contactId, nombre: nombre, tipo: r.tipo }; });
 
     var puedeSolicitar = !ddNatural && !ddJuridica;
+    puedeSolicitar = faltantes.length > 0 ? true : false;
 
     var mensaje = "";
     if (!puedeSolicitar) {

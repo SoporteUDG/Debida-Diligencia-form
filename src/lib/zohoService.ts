@@ -1366,6 +1366,12 @@ export const zoho = {
               name: cleanValue(rec.Name),
               estado: cleanValue(rec.Estado),
               contactCrmId: DD_CONTACT_FIELD ? cleanValue(rec[DD_CONTACT_FIELD]?.id) : "",
+              tipo: cleanValue(rec.Tipo_de_Persona),
+              retirado:
+                rec.retirado === true ||
+                String(rec.retirado ?? "").toLowerCase() === "true" ||
+                cleanValue(rec.Estado) === "Anulado",
+              relatedCrmId: cleanValue((rec.dd_relacionado ?? rec.DD_relacionado ?? rec.DD_Relacionado)?.id),
             });
           }
           if (!json.info?.more_records) break;
@@ -1536,6 +1542,12 @@ export interface ZohoDDResumen {
   estado: string;
   /** ID del Contact al que apunta el lookup; "" si el lookup está vacío. */
   contactCrmId: string;
+  /** Tipo_de_Persona tal como está en Zoho ("Natural" / "Jurídica"). */
+  tipo: string;
+  /** Anulado en Zoho (retirado = true o Estado = "Anulado"). */
+  retirado: boolean;
+  /** ID del expediente en DD_relacionado; "" si está vacío. */
+  relatedCrmId: string;
 }
 
 /** API name del lookup Debida_Diligencia -> Contacts (ZOHO_DD_CONTACT_FIELD lo sustituye). */

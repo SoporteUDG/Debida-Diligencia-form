@@ -30,6 +30,11 @@ html, body {
   gap: 12px;
 }
 
+/* Tras ZOHO.CRM.UI.Resize el iframe mide lo mismo que el modal, pero la
+   cabecera del modal (68px) tapa ese espacio: el contenido se ajusta a lo visible. */
+html.dd-redimensionado body { overflow: hidden; }
+html.dd-redimensionado .dd { height: calc(100% - 68px); }
+
 .dd-aviso {
   padding: 10px 12px;
   border-radius: 6px;
@@ -40,7 +45,6 @@ html, body {
 
 .dd-tabla-wrap {
   flex: 1;
-  min-height: 240px;
   overflow: auto;
   border: 1px solid var(--borde);
   border-radius: 6px;

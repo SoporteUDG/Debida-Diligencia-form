@@ -17,7 +17,7 @@ vi.mock("@/lib/zohoService", async (importOriginal) => ({
   zoho: zohoMock,
 }));
 
-import { createAccountContact, obtenerContactosDeCuenta, clasificarContactosNaturales, SinContactosError } from "../accountContactService";
+import { createAccountContact, obtenerContactosDeCuenta, clasificarContactosNaturales, clasificarExpedientesJuridica, SinContactosError } from "../accountContactService";
 
 const contacto = (id: string, createdTime: string) => ({
   id, firstName: `N${id}`, lastName: `A${id}`, email: "", phone: "", createdTime,
@@ -159,5 +159,31 @@ describe("clasificarContactosNaturales", () => {
   it("si Zoho falla propaga el error (no crea a ciegas)", async () => {
     zohoMock.service.searchDDsByAccount.mockRejectedValue(new Error("boom"));
     await expect(clasificarContactosNaturales("acc1", [fila("c1")])).rejects.toThrow("boom");
+  });
+});
+
+describe("clasificarExpedientesJuridica", () => {
+  const dd = (id: string, tipo: string, extra: Record<string, any> = {}) => ({
+    id, name: id, estado: "", contactCrmId: "", tipo, retirado: false, relatedCrmId: "", ...extra,
+  });
+
+  it("ignora los retirados (en Zoho o en el portal) y separa por tipo", async () => {
+    zohoMock.service.searchDDsByAccount.mockResolvedValue([
+      dd("j-old", "Jurídica", { retirado: true }),
+      dd("j1", "Jurídica"),
+      dd("n-old", "Natural"),
+    ]);
+    prismaMock.crmContact.findMany.mockResolvedValue([{ crmId: "n-old" }]);
+    const r = await clasificarExpedientesJuridica("acc1");
+    expect(r.juridica?.id).toBe("j1");
+    expect(r.natural).toBeNull();
+    expect(r.duplicados).toBe(false);
+    expect(r.retirados).toEqual(["j-old", "n-old"]);
+  });
+
+  it("marca duplicados con más de un vigente del mismo tipo", async () => {
+    zohoMock.service.searchDDsByAccount.mockResolvedValue([dd("n1", "Natural"), dd("n2", "natural")]);
+    prismaMock.crmContact.findMany.mockResolvedValue([]);
+    expect((await clasificarExpedientesJuridica("acc1")).duplicados).toBe(true);
   });
 });

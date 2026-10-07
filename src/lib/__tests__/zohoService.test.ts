@@ -278,9 +278,9 @@ describe("ZohoService Unit Tests", () => {
     });
 
     it("buscarDDDelContacto: sin lookup, casa por nombre aunque termine en 's' o lleve espacios dobles", () => {
-      const dds = [{ id: "dd1", name: "Lucas  Silva - 12A - Costa", estado: "", contactCrmId: "" }];
+      const dds = [{ id: "dd1", name: "Lucas  Silva - 12A - Costa", estado: "", contactCrmId: "", tipo: "", retirado: false, relatedCrmId: "" }];
       expect(buscarDDDelContacto(dds, { crmId: "c1", firstName: "Lucas", lastName: "Silva" })?.id).toBe("dd1");
-      const dds2 = [{ id: "dd2", name: "Carlos - 3B - Proyecto", estado: "", contactCrmId: "" }];
+      const dds2 = [{ id: "dd2", name: "Carlos - 3B - Proyecto", estado: "", contactCrmId: "", tipo: "", retirado: false, relatedCrmId: "" }];
       expect(buscarDDDelContacto(dds2, { crmId: "c2", firstName: "Carlos", lastName: "" })?.id).toBe("dd2");
     });
 

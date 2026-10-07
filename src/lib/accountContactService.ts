@@ -1,6 +1,6 @@
 import prisma from "@/lib/prisma";
 import { revokeToken } from "@/lib/tokenService";
-import { zoho, buscarDDDelContacto, DD_CONTACT_FIELD, type ZohoAccountContact } from "@/lib/zohoService";
+import { zoho, buscarDDDelContacto, DD_CONTACT_FIELD, type ZohoAccountContact, type ZohoDDResumen } from "@/lib/zohoService";
 
 type ClientType = "NATURAL" | "JURIDICA";
 
@@ -192,6 +192,57 @@ export async function clasificarContactosNaturales(
   }
 
   return { faltantes, existentes, eliminadosEnZoho };
+}
+
+export interface ExpedientesJuridica {
+  /** Expediente vigente (no retirado) de Persona Jurídica; null si falta. */
+  juridica: ZohoDDResumen | null;
+  /** Expediente vigente de Persona Natural (Representante Legal); null si falta. */
+  natural: ZohoDDResumen | null;
+  /** Hay más de un expediente vigente del mismo tipo: no se sabe cuál completar. */
+  duplicados: boolean;
+  juridicas: ZohoDDResumen[];
+  naturales: ZohoDDResumen[];
+  /** IDs de los expedientes del socio retirados (en Zoho o en el portal). */
+  retirados: string[];
+}
+
+const tipoDe = (dd: ZohoDDResumen): "NATURAL" | "JURIDICA" | null => {
+  const t = (dd.tipo ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").trim().toLowerCase();
+  return t === "natural" ? "NATURAL" : t === "juridica" ? "JURIDICA" : null;
+};
+
+/**
+ * Expedientes vigentes de un Socio de Negocio Jurídico: uno de Persona Jurídica y
+ * uno de Persona Natural (Representante Legal), como valida el widget de Zoho
+ * (validarDebidaDiligencia). Un expediente retirado (en Zoho o en el portal) no
+ * cuenta: se puede volver a generar. Lanza si Zoho falla, para no duplicar.
+ */
+export async function clasificarExpedientesJuridica(accountCrmId: string): Promise<ExpedientesJuridica> {
+  const dds = await zoho.service.searchDDsByAccount(accountCrmId);
+
+  const retiradosEnPortal = dds.length
+    ? new Set(
+        (
+          await prisma.crmContact.findMany({
+            where: { crmId: { in: dds.map((d) => d.id) }, retiredAt: { not: null } },
+            select: { crmId: true },
+          })
+        ).map((c) => c.crmId)
+      )
+    : new Set<string>();
+  const vigentes = dds.filter((d) => !d.retirado && !retiradosEnPortal.has(d.id));
+
+  const juridicas = vigentes.filter((d) => tipoDe(d) === "JURIDICA");
+  const naturales = vigentes.filter((d) => tipoDe(d) === "NATURAL");
+  return {
+    juridica: juridicas[0] ?? null,
+    natural: naturales[0] ?? null,
+    duplicados: juridicas.length > 1 || naturales.length > 1,
+    juridicas,
+    naturales,
+    retirados: dds.filter((d) => !vigentes.includes(d)).map((d) => d.id),
+  };
 }
 
 /**

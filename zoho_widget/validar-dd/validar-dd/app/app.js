@@ -3,7 +3,6 @@
 
   var tbody = document.getElementById("tabla-body");
   var btnAgregar = document.getElementById("btn-agregar");
-  var btnCancelar = document.getElementById("btn-cancelar");
   var aviso = document.getElementById("aviso");
 
   var registros = [];
@@ -81,7 +80,6 @@
       : '<tr><td colspan="4" class="dd-vacio">No hay registros para mostrar.</td></tr>';
 
     btnAgregar.disabled = !puedeSolicitar;
-    btnCancelar.disabled = false;
     btnAgregar.title = puedeSolicitar ? "" : "No es posible solicitar en este momento";
 
     if (puedeSolicitar) {
@@ -116,7 +114,6 @@
     if (cerrando) return; // evita dobles clics
     cerrando = true;
     btnAgregar.disabled = true;
-    btnCancelar.disabled = true;
 
     esperarClient()
       .then(function (client) { client.close(resultado); })
@@ -137,13 +134,19 @@
 
   // ---------- Tamaño ----------
   // Si Zoho no aplica el height de openPopup, el iframe queda en el tamaño por
-  // defecto del navegador (150px). Se pide el tamaño explícitamente.
-  var ALTO = "625";
-  var ANCHO = "390";
+  // defecto del navegador (150px). Solo en ese caso se pide el tamaño con
+  // Resize, que le da al modal y al iframe el mismo tamaño: la cabecera del
+  // modal (68px) deja el final del iframe fuera de la vista, así que la clase
+  // "dd-redimensionado" reserva ese espacio (ver style.css).
+  var ALTO = "400";
+  var ANCHO = "650";
+  var ALTO_POR_DEFECTO_IFRAME = 150;
 
   function ajustarTamano() {
+    if (window.innerHeight > ALTO_POR_DEFECTO_IFRAME) return; // Zoho ya lo dimensionó
     try {
       if (ZOHO.CRM && ZOHO.CRM.UI && ZOHO.CRM.UI.Resize) {
+        document.documentElement.classList.add("dd-redimensionado");
         ZOHO.CRM.UI.Resize({ height: ALTO, width: ANCHO }).catch(function (e) {
           console.warn("No se pudo redimensionar el widget", e);
         });
