@@ -11,7 +11,8 @@ const { prismaMock, zohoMock, enlaceMock, contactoMock, SinContactoErr } = vi.ho
     SinContactoErr,
     prismaMock: {
       crmContact: { findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
-      draft: { findFirst: vi.fn() },
+      draft: { findFirst: vi.fn(), update: vi.fn() },
+      form: { count: vi.fn() },
     },
     zohoMock: {
       service: {
@@ -22,7 +23,7 @@ const { prismaMock, zohoMock, enlaceMock, contactoMock, SinContactoErr } = vi.ho
       },
     },
     enlaceMock: { crearEnlaceConBorrador: vi.fn(), prepararExpedienteRelacionado: vi.fn() },
-    contactoMock: { resolverContactoDeExpediente: vi.fn() },
+    contactoMock: { resolverContactoDeExpediente: vi.fn(), contactoDelLookupZoho: vi.fn() },
   };
 });
 
@@ -32,6 +33,7 @@ vi.mock("@/lib/auditService", () => ({ logAuditEvent: vi.fn() }));
 vi.mock("@/lib/enlaceService", () => enlaceMock);
 vi.mock("@/lib/accountContactService", () => ({
   resolverContactoDeExpediente: contactoMock.resolverContactoDeExpediente,
+  contactoDelLookupZoho: contactoMock.contactoDelLookupZoho,
   SinContactoExpedienteError: SinContactoErr,
 }));
 
@@ -48,6 +50,8 @@ beforeEach(() => {
   zohoMock.service.getDDRecord.mockResolvedValue({ Socio_de_Negocios: { id: "s1" } });
   zohoMock.service.getContact.mockResolvedValue({});
   contactoMock.resolverContactoDeExpediente.mockResolvedValue(contacto);
+  contactoMock.contactoDelLookupZoho.mockResolvedValue(contacto);
+  prismaMock.form.count.mockResolvedValue(0);
   prismaMock.crmContact.findUnique.mockImplementation(async ({ where }: any) => (where.crmId === "dd1" ? local : null));
   prismaMock.draft.findFirst.mockResolvedValue(null);
   enlaceMock.crearEnlaceConBorrador.mockResolvedValue({ tokenUuid: "tk", clientUrl: "https://x/persona-natural?token=tk", expiresAt: new Date() });
@@ -143,5 +147,46 @@ describe("POST /api/generar-enlace", () => {
     expect(res.status).toBe(200);
     expect(enlaceMock.prepararExpedienteRelacionado).not.toHaveBeenCalled();
     expect(enlaceMock.crearEnlaceConBorrador).toHaveBeenCalled();
+  });
+
+  describe("enlace ya creado con otro Contact en Zoho", () => {
+    const nuevo = { id: "ac2", crmId: "zc2", accountCrmId: "s1", firstName: "Luis", lastName: "Mora" };
+
+    beforeEach(() => {
+      prismaMock.draft.findFirst.mockResolvedValue({ id: "d1", data: { firstName: "Ana", Nombre_de_contacto: "zc1" } });
+      contactoMock.contactoDelLookupZoho.mockResolvedValue(nuevo);
+    });
+
+    it("en borrador: actualiza el Contact en Prisma y responde CONTACT_UPDATED sin crear nada", async () => {
+      const res = await post({ recordId: "dd1", tipo: "natural" });
+      expect(res.status).toBe(200);
+      const json = await res.json();
+      expect(json.code).toBe("CONTACT_UPDATED");
+      expect(json.contactId).toBe("zc2");
+      expect(prismaMock.crmContact.update).toHaveBeenCalledWith({ where: { id: "cc1" }, data: { accountContactId: "ac2" } });
+      expect(prismaMock.draft.update).toHaveBeenCalledWith({
+        where: { id: "d1" },
+        data: { data: { firstName: "Ana", Nombre_de_contacto: "zc2" } },
+      });
+      expect(enlaceMock.crearEnlaceConBorrador).not.toHaveBeenCalled();
+      expect(enlaceMock.prepararExpedienteRelacionado).not.toHaveBeenCalled();
+      expect(zohoMock.service.updateClientFormLink).not.toHaveBeenCalled();
+    });
+
+    it("formulario ya enviado: 409 ALREADY_EXISTS y no cambia el Contact", async () => {
+      prismaMock.form.count.mockResolvedValue(1);
+      const res = await post({ recordId: "dd1", tipo: "natural" });
+      expect(res.status).toBe(409);
+      expect((await res.json()).code).toBe("ALREADY_EXISTS");
+      expect(prismaMock.crmContact.update).not.toHaveBeenCalled();
+      expect(prismaMock.draft.update).not.toHaveBeenCalled();
+    });
+
+    it("mismo Contact en Zoho y Prisma: 409 ALREADY_EXISTS", async () => {
+      contactoMock.contactoDelLookupZoho.mockResolvedValue(contacto);
+      const res = await post({ recordId: "dd1", tipo: "natural" });
+      expect(res.status).toBe(409);
+      expect(prismaMock.draft.update).not.toHaveBeenCalled();
+    });
   });
 });

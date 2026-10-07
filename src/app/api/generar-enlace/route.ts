@@ -4,7 +4,7 @@ import { zoho, DD_CONTACT_FIELD } from "@/lib/zohoService";
 import { logAuditEvent } from "@/lib/auditService";
 import { expedienteRetirado, MENSAJE_RETIRADO } from "@/lib/ddRetireService";
 import { crearEnlaceConBorrador, prepararExpedienteRelacionado } from "@/lib/enlaceService";
-import { resolverContactoDeExpediente, SinContactoExpedienteError, type AccountContactRow } from "@/lib/accountContactService";
+import { resolverContactoDeExpediente, contactoDelLookupZoho, SinContactoExpedienteError, type AccountContactRow } from "@/lib/accountContactService";
 
 export const dynamic = "force-dynamic";
 
@@ -35,6 +35,9 @@ export async function GET(request: NextRequest) {
  *   local con su borrador o formulario) que el relacionado no exista ya.
  * - Si el enlace y, en la jurídica, el relacionado ya están creados: 409
  *   (ALREADY_EXISTS). Para extender un enlace existente se usa /api/reactivar.
+ *   Excepción: si el Contact del expediente en Zoho (Nombre_de_contacto) no es el
+ *   vinculado en Prisma y el formulario sigue en borrador, se actualiza el vínculo
+ *   (CrmContact y Draft) y se responde 200 CONTACT_UPDATED, sin tocar el enlace.
  *
  * Body: { recordId (ID del expediente), tipo: "natural" | "juridica", modulo? }
  */
@@ -144,7 +147,7 @@ export async function POST(request: NextRequest) {
     //    (Zoho: DD_relacionado; Prisma: su expediente local con borrador o formulario)
     const enlaceExistente = await prisma.draft.findFirst({
       where: { crmContactId: contact.id, isAditional: false },
-      select: { id: true },
+      select: { id: true, data: true },
     });
 
     let relacionadoCompleto = false;
@@ -161,6 +164,46 @@ export async function POST(request: NextRequest) {
     }
 
     if (enlaceExistente && (isNatural || relacionadoCompleto)) {
+      // Antes del 409: si el Contact del expediente cambió en Zoho y el formulario
+      // sigue en borrador, se actualiza el vínculo en Prisma (sin tocar el enlace)
+      const contactoZoho = await contactoDelLookupZoho({ clientType, ddRecord });
+      if (contactoZoho && contactoZoho.id !== contact.accountContactId) {
+        const enviado = await prisma.form.count({
+          where: { crmContactId: contact.id, isAditional: false, deletedAt: null },
+        });
+        if (!enviado) {
+          const anterior = accountContact;
+          await prisma.crmContact.update({
+            where: { id: contact.id },
+            data: { accountContactId: contactoZoho.id },
+          });
+          await prisma.draft.update({
+            where: { id: enlaceExistente.id },
+            data: { data: { ...((enlaceExistente.data as Record<string, any>) ?? {}), [DD_CONTACT_FIELD]: contactoZoho.crmId } },
+          });
+
+          await logAuditEvent({
+            action: "LINK_CONTACT_UPDATE_ZDK",
+            entityName: "CrmContact",
+            entityId: contact.id,
+            details: { crmId: recordId, previousContactCrmId: anterior.crmId, contactCrmId: contactoZoho.crmId },
+          });
+
+          return NextResponse.json(
+            {
+              success: true,
+              status: "contact_updated",
+              code: "CONTACT_UPDATED",
+              message: `Contacto actualizado: ${contactoZoho.firstName} ${contactoZoho.lastName}`.trim(),
+              crmId: recordId,
+              contactId: contactoZoho.crmId,
+              previousContactId: anterior.crmId,
+            },
+            { headers: corsHeaders }
+          );
+        }
+      }
+
       return NextResponse.json(
         {
           success: false,

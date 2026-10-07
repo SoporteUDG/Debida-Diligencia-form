@@ -249,6 +249,39 @@ export class SinContactoExpedienteError extends Error {
 const idDe = (v: any): string => String((v && typeof v === "object" ? v.id : v) ?? "").trim();
 
 /**
+ * Contact de Zoho que indica el lookup Nombre_de_contacto del expediente (copia
+ * local; se crea si aún no existe). null si el lookup está vacío o el Contact no
+ * se pudo leer de Zoho.
+ */
+export async function contactoDelLookupZoho(params: {
+  clientType: ClientType;
+  ddRecord: Record<string, any> | null;
+}): Promise<AccountContactRow | null> {
+  const { clientType, ddRecord } = params;
+  const contactId = idDe(ddRecord?.[DD_CONTACT_FIELD]);
+  if (!contactId) return null;
+
+  const fila = await prisma.accountContact.findUnique({ where: { crmId: contactId } });
+  if (fila && !fila.deletedAt) return fila;
+
+  const socioId = idDe(ddRecord?.Socio_de_Negocios ?? ddRecord?.Socio_de_Negocio);
+  const rec = await zoho.service.getAccountContactRecord(contactId);
+  if (!rec || !socioId) return null;
+  return createAccountContact({
+    accountCrmId: socioId,
+    clientType,
+    contact: {
+      id: contactId,
+      firstName: String(rec.First_Name ?? "").trim(),
+      lastName: String(rec.Last_Name ?? "").trim(),
+      email: String(rec.Email ?? "").trim(),
+      phone: String(rec.Phone ?? rec.Mobile ?? "").trim(),
+      createdTime: String(rec.Created_Time ?? ""),
+    },
+  });
+}
+
+/**
  * Contact de Zoho de un expediente de Debida_Diligencia que YA existe (botón del
  * expediente). Es obligatorio. Orden de búsqueda:
  * 1. El contacto ya vinculado en el portal (CrmContact.accountContact).
@@ -272,27 +305,8 @@ export async function resolverContactoDeExpediente(params: {
   const socioId = idDe(ddRecord?.Socio_de_Negocios ?? ddRecord?.Socio_de_Negocio);
 
   // 2. Lookup del expediente en Zoho
-  const contactId = idDe(ddRecord?.[DD_CONTACT_FIELD]);
-  if (contactId) {
-    const fila = await prisma.accountContact.findUnique({ where: { crmId: contactId } });
-    if (fila && !fila.deletedAt) return fila;
-
-    const rec = await zoho.service.getAccountContactRecord(contactId);
-    if (rec && socioId) {
-      return createAccountContact({
-        accountCrmId: socioId,
-        clientType,
-        contact: {
-          id: contactId,
-          firstName: String(rec.First_Name ?? "").trim(),
-          lastName: String(rec.Last_Name ?? "").trim(),
-          email: String(rec.Email ?? "").trim(),
-          phone: String(rec.Phone ?? rec.Mobile ?? "").trim(),
-          createdTime: String(rec.Created_Time ?? ""),
-        },
-      });
-    }
-  }
+  const delLookup = await contactoDelLookupZoho({ clientType, ddRecord });
+  if (delLookup) return delLookup;
 
   // 3. Jurídica: el único contacto del Socio de Negocio
   if (clientType === "JURIDICA" && socioId) {
