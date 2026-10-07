@@ -1,0 +1,61 @@
+:root {
+  --texto: #1d2433;
+  --suave: #4b5565;
+  --borde: #dfe3ea;
+  --enlace: #4a56f0;
+  --primario: #0b5fcb;
+  --primario-hover: #094fa8;
+  --sec-fondo: #e8ecf3;
+  --sec-hover: #d9dfe9;
+  --ok: #1e7b4a;
+  --error: #b42318;
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0;
+  font-family: "Zoho Puvi", "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, Arial, sans-serif;
+  font-size: 15px;
+  color: var(--texto);
+  background: #f4f6f9;
+}
+.card {
+  margin: 12px;
+  padding: 24px 28px;
+  background: #fff;
+  border: 1px solid var(--borde);
+  border-radius: 16px;
+  box-shadow: 0 1px 4px rgba(20, 30, 50, .08);
+}
+h1 { margin: 0 0 18px; font-size: 22px; font-weight: 500; }
+.tabla-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+th {
+  text-align: left; font-weight: 400; color: var(--suave);
+  padding: 8px 14px 10px 0; border-bottom: 1px solid var(--borde); white-space: nowrap;
+}
+td { padding: 14px 14px 14px 0; border-bottom: 1px solid var(--borde); vertical-align: middle; }
+tbody tr:last-child td { border-bottom: none; }
+.enlace {
+  display: block; max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: var(--enlace); text-decoration: none;
+}
+.enlace:hover { text-decoration: underline; }
+.valor { text-align: center; font-weight: 600; white-space: nowrap; }
+.estado-ok { color: var(--ok); }
+.estado-error { color: var(--error); }
+.col-acciones { text-align: center; padding-right: 0; }
+td.acciones { text-align: center; padding-right: 0; white-space: nowrap; }
+.btn {
+  font: inherit; font-weight: 500; padding: 8px 20px; margin-left: 8px;
+  border: 0; border-radius: 8px; cursor: pointer;
+}
+.btn:focus-visible { outline: 2px solid var(--primario); outline-offset: 2px; }
+.btn-reactivar { background: var(--sec-fondo); color: var(--texto); }
+.btn-reactivar:hover { background: var(--sec-hover); }
+.btn-ver { background: var(--primario); color: #fff; }
+.btn-ver:hover { background: var(--primario-hover); }
+.vacio { text-align: center; color: var(--suave); padding: 32px 0; }
+.btn-borrar { background: #fdecea; color: #b42318; }
+.btn-borrar:hover { background: #fad4d0; }
+.btn:disabled { opacity: .45; cursor: not-allowed; pointer-events: none; }
+.confirmar-texto { font-weight: 500; margin-right: 4px; }

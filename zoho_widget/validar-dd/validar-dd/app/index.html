@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Validación de Debida Diligencia</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="dd">
+    <div id="aviso" class="dd-aviso" hidden></div>
+
+    <div class="dd-tabla-wrap">
+      <table class="dd-tabla">
+        <thead>
+          <tr>
+            <th>Nombre</th>
+            <th>Tipo</th>
+            <th>Estado</th>
+            <th>Creado</th>
+          </tr>
+        </thead>
+        <tbody id="tabla-body">
+          <tr><td colspan="4" class="dd-vacio">Cargando registros…</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <footer class="dd-acciones">
+      <button type="button" id="btn-agregar" class="btn btn-primario" disabled>Agregar</button>
+    </footer>
+  </main>
+
+  <script src="https://live.zwidgets.com/js-sdk/1.2/ZohoEmbededAppSDK.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
