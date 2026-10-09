@@ -533,8 +533,9 @@ export const zoho = {
           throw new Error(`El expediente ${crmId} no tiene Socio de Negocio (Socio_de_Negocios): no se actualiza.`);
         }
 
-        // Estado: el formulario se completó o se actualizó -> "Enviado" (desde aquí ya no
-        // se puede eliminar). Un expediente anulado conserva su estado: solo se reactiva.
+        // Estado: el formulario se completó o se actualizó -> "En borrador" (Zoho no tiene
+        // "Enviado": que no se pueda eliminar lo decide Prisma). Un expediente anulado
+        // conserva su estado: solo se reactiva.
         const anulado =
           ddRecord.retirado === true ||
           String(ddRecord.retirado ?? "").toLowerCase() === "true" ||

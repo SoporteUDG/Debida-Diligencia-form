@@ -80,7 +80,7 @@ function enlaceDe(dd) {
 
 function obtenerDDsDelAccount(accountId) {
     var params = new Map();
-    params.set("fields", "id,Name,Estado,Tipo_de_Persona,Nombre_de_contacto,Enlace_de_Formulario,retirado,DD_relacionado");
+    params.set("fields", "id,Name,Estado,Persona_de_Tipo,Nombre_de_contacto,Enlace_de_Formulario,retirado,DD_relacionado");
     return ZDK.Apps.CRM.Accounts.fetchRelatedRecords(accountId, RELATED_DD, params) || [];
 }
 
@@ -116,7 +116,7 @@ async function validarDebidaDiligencia() {
             return;
         }
 
-        var tipoPersona = account.Tipo_de_Persona;
+        var tipoPersona = account.Persona_de_Tipo;
         if (!tipoPersona) {
             ZDK.Client.showAlert("El Socio de Negocio no tiene definido el Tipo de Persona.");
             return;
@@ -209,10 +209,10 @@ function prepararNatural(contactos, ddRecords) {
 
 function prepararJuridica(socioNombre, representanteLegal, contactos, ddRecords) {
     var vigentes = ddRecords.filter(function (dd) { return !esRetirada(dd); });
-    var juridicas = vigentes.filter(function (dd) { return esJuridica(dd.Tipo_de_Persona); });
-    var naturales = vigentes.filter(function (dd) { return esNatural(dd.Tipo_de_Persona); });
+    var juridicas = vigentes.filter(function (dd) { return esJuridica(dd.Persona_de_Tipo); });
+    var naturales = vigentes.filter(function (dd) { return esNatural(dd.Persona_de_Tipo); });
     var idsJuridicas = ddRecords
-        .filter(function (dd) { return esJuridica(dd.Tipo_de_Persona); })
+        .filter(function (dd) { return esJuridica(dd.Persona_de_Tipo); })
         .map(function (dd) { return String(dd.id); });
 
     var ddJuridica = juridicas[0] || null;
@@ -251,7 +251,7 @@ function prepararJuridica(socioNombre, representanteLegal, contactos, ddRecords)
     ];
 
     // Contactos: sus DD naturales (la jurídica no es de un contacto)
-    var ddNaturales = ddRecords.filter(function (dd) { return !esJuridica(dd.Tipo_de_Persona); });
+    var ddNaturales = ddRecords.filter(function (dd) { return !esJuridica(dd.Persona_de_Tipo); });
     registros = registros.concat(filasDeContactos(contactos, ddNaturales));
 
     var faltanPrincipales = !ddJuridica || !ddRepresentante;

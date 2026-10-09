@@ -119,9 +119,9 @@ describe("eliminarDDNoEnviado", () => {
     expect(zohoMock.service.deleteDDRecord).not.toHaveBeenCalled();
   });
 
-  it("solo en Zoho (sin Prisma ni enlace): elimina carpeta y registro sin las demas validaciones", async () => {
+  it("solo en Zoho (sin Prisma ni enlace): elimina carpeta y registro sin validar el relacionado", async () => {
     prismaMock.crmContact.findFirst.mockResolvedValue(null);
-    zohoMock.service.getDDRecord.mockResolvedValue({ Estado: "En revisión", retirado: true, Tipo_de_Persona: "Jurídica", Enlace_de_Formulario: null });
+    zohoMock.service.getDDRecord.mockResolvedValue({ Estado: "En Borrador", Tipo_de_Persona: "Jurídica", Enlace_de_Formulario: null });
     zohoMock.service.getRelatedDDId.mockResolvedValue("rel");
     const r = await eliminarDDNoEnviado(params);
     expect(r).toMatchObject({ success: true, action: "deleted", crmId: "dd1", carpetaEliminada: true });
@@ -139,18 +139,41 @@ describe("eliminarDDNoEnviado", () => {
     expect(zohoMock.service.deleteDDRecord).not.toHaveBeenCalled();
   });
 
-  it("rechaza si en Zoho ya esta Enviado (formulario completado)", async () => {
-    prismaMock.crmContact.findUnique.mockResolvedValue(base);
+  it.each([
+    "En revisión", "Aprobado", "Rechazado", "Observaciones enviadas", "Anulado", "Cualquier otro estado",
+  ])("solo en Zoho: rechaza con Estado %s", async (Estado) => {
+    prismaMock.crmContact.findFirst.mockResolvedValue(null);
+    zohoMock.service.getDDRecord.mockResolvedValue({ Estado, Enlace_de_Formulario: null });
     await expect(eliminarDDNoEnviado(params)).rejects.toMatchObject({ code: "CONFLICT" });
     expect(wd.deleteFileFromWorkDrive).not.toHaveBeenCalled();
     expect(zohoMock.service.deleteDDRecord).not.toHaveBeenCalled();
   });
 
-  it("rechaza si en Zoho ya esta en revision", async () => {
-    prismaMock.crmContact.findUnique.mockResolvedValue(base);
-    zohoMock.service.getDDRecord.mockResolvedValue({ Estado: "En revisión" });
-    await expect(eliminarDDNoEnviado(params)).rejects.toThrow(/En revisión/);
+  it("rechaza si Prisma marca el borrador como completado (sin Form)", async () => {
+    prismaMock.crmContact.findUnique.mockResolvedValue({
+      ...base,
+      drafts: [{ id: "d1", type: "NATURAL", data: { completed: true, submittedFormId: "f1" } }],
+    });
+    await expect(eliminarDDNoEnviado(params)).rejects.toThrow(/completado/);
+    expect(zohoMock.service.getDDRecord).not.toHaveBeenCalled();
     expect(wd.deleteFileFromWorkDrive).not.toHaveBeenCalled();
+    expect(zohoMock.service.deleteDDRecord).not.toHaveBeenCalled();
+  });
+
+  it.each(["En borrador", "En Borrador", "", null])("elimina con Estado %s en Zoho", async (Estado) => {
+    prismaMock.crmContact.findUnique.mockResolvedValue(base);
+    zohoMock.service.getDDRecord.mockResolvedValue({ Estado });
+    await expect(eliminarDDNoEnviado(params)).resolves.toMatchObject({ action: "deleted" });
+  });
+
+  it.each([
+    "En revisión", "Aprobado", "aprobado", "Rechazado", "Observaciones enviadas", "Cualquier otro estado",
+  ])("rechaza si en Zoho esta en %s", async (Estado) => {
+    prismaMock.crmContact.findUnique.mockResolvedValue(base);
+    zohoMock.service.getDDRecord.mockResolvedValue({ Estado });
+    await expect(eliminarDDNoEnviado(params)).rejects.toMatchObject({ code: "CONFLICT" });
+    expect(wd.deleteFileFromWorkDrive).not.toHaveBeenCalled();
+    expect(zohoMock.service.deleteDDRecord).not.toHaveBeenCalled();
   });
 
   it("rechaza si Zoho lo marca retirado (aunque el portal no)", async () => {

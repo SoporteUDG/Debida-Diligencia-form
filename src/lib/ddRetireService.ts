@@ -3,7 +3,7 @@ import { zoho } from "@/lib/zohoService";
 import { getAccessToken } from "@/lib/zohoAuthService";
 import { logAuditEvent } from "@/lib/auditService";
 import { reactivateToken } from "@/lib/tokenService";
-import { ESTADO_ANULADO, ESTADO_EN_BORRADOR, ESTADO_ENVIADO } from "@/lib/ddEstados";
+import { ESTADO_ANULADO, ESTADO_EN_BORRADOR } from "@/lib/ddEstados";
 import {
   deleteFileFromWorkDrive,
   findFolderAdicional,
@@ -26,8 +26,27 @@ import {
 
 export { ESTADO_ANULADO };
 export const ESTADO_REACTIVADO = ESTADO_EN_BORRADOR;
-/** Estados de Zoho con los que un expediente ya no se puede eliminar ("Enviado": lo fija la sincronización al completarse el formulario). */
-const ESTADOS_NO_ELIMINABLES = [ESTADO_ENVIADO, "En revisión", "Aprobado", ESTADO_ANULADO];
+const normalizarEstado = (v: unknown) =>
+  String(v ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, " ").trim().toLowerCase();
+
+/**
+ * Un expediente solo se puede eliminar en Zoho con Estado "En borrador" (o sin
+ * Estado). Cualquier otro ("En revisión", "Aprobado", "Rechazado", "Observaciones
+ * enviadas", "Anulado", o uno que se agregue al pipeline) lo bloquea.
+ *
+ * Zoho no tiene un estado "Enviado": si el formulario se completó lo dice Prisma
+ * (Form o borrador marcado completed), no el Estado.
+ */
+export function estadoPermiteEliminar(estado: unknown): boolean {
+  const e = normalizarEstado(estado);
+  return e === "" || e === normalizarEstado(ESTADO_EN_BORRADOR);
+}
+
+/** El borrador quedó marcado como enviado (el Form se crea en la misma operación). */
+function borradorCompletado(draft: { data: unknown }): boolean {
+  const data = (draft.data || {}) as Record<string, unknown>;
+  return data.completed === true || !!data.submittedFormId;
+}
 
 const MIN_MOTIVO = 10;
 
@@ -152,6 +171,14 @@ export async function eliminarDDNoEnviado(params: {
     });
     return { ...anulado, action: "retired" as const };
   }
+  // Borrador marcado como enviado sin Form (envío interrumpido o inconsistente): el
+  // cliente completó el formulario, así que no se elimina ni se puede anular.
+  if (contact.drafts.some(borradorCompletado)) {
+    throw new BajaDDError(
+      "El formulario ya fue completado por el cliente: el expediente no se puede eliminar.",
+      "CONFLICT"
+    );
+  }
 
   // Zoho: estado y relacionado. Si Zoho falla se aborta: no se borra a ciegas.
   const registro = await zoho.service.getDDRecord(contact.crmId);
@@ -159,8 +186,11 @@ export async function eliminarDDNoEnviado(params: {
   if (expedienteRetirado(registro)) {
     throw new BajaDDError(`${MENSAJE_RETIRADO} Reactívelo antes de eliminarlo.`, "CONFLICT");
   }
-  if (ESTADOS_NO_ELIMINABLES.includes(estado)) {
-    throw new BajaDDError(`El expediente está en estado "${estado}" en Zoho: no se puede eliminar.`, "CONFLICT");
+  if (!estadoPermiteEliminar(estado)) {
+    throw new BajaDDError(
+      `El expediente está en estado "${estado}" en Zoho: solo se puede eliminar en "${ESTADO_EN_BORRADOR}".`,
+      "CONFLICT"
+    );
   }
   if (await zoho.service.getRelatedDDId(contact.crmId)) {
     throw new BajaDDError("El expediente tiene un expediente relacionado (DD_relacionado): desvincúlelo primero.", "CONFLICT");
@@ -198,8 +228,8 @@ export async function eliminarDDNoEnviado(params: {
 
 /**
  * ELIMINA un expediente que solo existe en Zoho (sin CrmContact y sin enlace de
- * formulario): no hay nada enviado que proteger, así que no se validan Estado,
- * retiro ni DD_relacionado. Se borra su carpeta /{Socio}/DD/{TIPO}-{Nombre}
+ * formulario): no hay nada enviado que proteger, así que no se valida
+ * DD_relacionado; el Estado ("En borrador") y el retiro sí. Se borra su carpeta /{Socio}/DD/{TIPO}-{Nombre}
  * (papelera de WorkDrive) y luego el registro de Zoho.
  */
 async function eliminarDDSoloZoho(params: {
@@ -210,6 +240,17 @@ async function eliminarDDSoloZoho(params: {
   ip?: string | null;
 }) {
   const { crmId, registro, reason, actor } = params;
+  // Sin portal no hay nada enviado, pero el Estado de Zoho se respeta igual
+  const estado = String(registro.Estado ?? "").trim();
+  if (expedienteRetirado(registro)) {
+    throw new BajaDDError(`${MENSAJE_RETIRADO} Reactívelo antes de eliminarlo.`, "CONFLICT");
+  }
+  if (!estadoPermiteEliminar(estado)) {
+    throw new BajaDDError(
+      `El expediente está en estado "${estado}" en Zoho: solo se puede eliminar en "${ESTADO_EN_BORRADOR}".`,
+      "CONFLICT"
+    );
+  }
   const formType = /jur/i.test(String(registro.Tipo_de_Persona ?? "")) ? "JURIDICA" : "NATURAL";
 
   // 1. Carpeta de WorkDrive (papelera). Debe resolverse antes de borrar el DD de Zoho.

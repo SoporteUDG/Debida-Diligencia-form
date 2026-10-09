@@ -16,7 +16,7 @@ estructura de filas
 | **Enlace de Formulario** | `Enlace_de_Formulario` | URL | Enlace firmado de debida diligencia |
 | **Vigencia del enlace** | `Vigencia_del_enlace` | Fecha-hora (DateTime) | Fecha de expiración de enlace |
 | **Estado del enlace** | `Estado_del_enlace` | Picklist (Lista) | Estado del link generado |
-| **Estado** | `Estado` | Picklist (Lista) | Estado del expediente: `"En borrador"` al crear; `"Enviado"` al completarse o actualizarse el formulario (salvo si está `"Anulado"`); luego `"En revisión"`, `"Aprobado"` |
+| **Estado** | `Estado` | Picklist (Lista) | Estado del expediente: `"En borrador"` al crear y al completarse o actualizarse el formulario (salvo si está `"Anulado"`); luego `"En revisión"`, `"Aprobado"`, `"Rechazado"`, `"Observaciones enviadas"`. Solo se puede eliminar en `"En borrador"`; si el formulario ya se completó lo determina Prisma (no hay estado `"Enviado"`) |
 | **Tipo de Persona** | `Tipo_de_Persona` | Picklist (`"Persona Natural"` / `"Persona Jurídica"`) | Tipo de cliente |
 
 ## 1. Datos de cabecera
