@@ -931,7 +931,6 @@ export default function PersonaJuridicaPage() {
         clientName: (formData.razonSocial || "Empresa Registrada").trim(),
         projectName: formData.nombreProyecto || "General UDG",
         submittedAt: dateNow.toISOString(),
-        status: "Enviado",
         data: { ...formData }
       };
 

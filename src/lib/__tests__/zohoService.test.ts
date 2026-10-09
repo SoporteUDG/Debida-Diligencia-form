@@ -115,7 +115,8 @@ describe("ZohoService Unit Tests", () => {
       expect(payload).not.toHaveProperty("RUC_NIT");
       expect(payload["Fecha_de_nacimiento"]).toBe("1990-04-05");
       expect(payload["Profesi_n"]).toBe("Piloto");
-      expect(payload["Patrimonio_en_la_empresa"]).toBe(true);
+      expect(payload["Participaci_n_dentro_de_esta_sociedad"]).toBe("Accionista");
+      expect(payload).not.toHaveProperty("Patrimonio_en_la_empresa");
       expect(payload["Fondos_provienen_de_la_Empresa"]).toBe(true);
       expect(payload["Porcentaje_Actividad_principal"]).toBe(80);
       expect(payload["Promedio_mensual"]).toBe(1500.5);
@@ -186,6 +187,41 @@ describe("ZohoService Unit Tests", () => {
       expect(payload["Certificado_Bancario"]).toBe(true);
       expect(payload).not.toHaveProperty("Name");
       expect(payload).not.toHaveProperty("Email");
+    });
+
+    it("marca las casillas multi-archivo con al menos un archivo en el formulario", () => {
+      const payload = mapFormToCrmPayload("NATURAL", {
+        origenFondosFile: ["", "carta_1.pdf", "carta_2.pdf"],
+        hasEstadoCuenta: ["estado_1.pdf"],
+      });
+      expect(payload["Certificaci_n_de_Ingresos"]).toBe(true);
+      expect(payload["Movimientos_Bancarios_6_Meses"]).toBe(true);
+    });
+
+    it("marca las casillas de documentos desde los archivos adjuntos aunque Form.data no los tenga", () => {
+      const documentos = [
+        { name: "Estado_1.pdf", documentType: "hasEstadoCuenta", personType: null },
+        { name: "Ingresos_1.pdf", documentType: "origenFondosFile", personType: null },
+        { name: "Cedula_RL.pdf", documentType: "copiaIdFile", personType: "RL" },
+        { name: "Cedula_GJC_1.pdf", documentType: "copiaIdFile", personType: "GJC" },
+        { name: "Cedula_GJC_2.pdf", documentType: "copiaIdFile", personType: "GJC" },
+        { name: "Cedula_BF_1.pdf", documentType: "copiaIdFile", personType: "BF" },
+      ];
+
+      const natural = mapFormToCrmPayload("NATURAL", { hasEstadoCuenta: [], origenFondosFile: [] }, { documentos });
+      expect(natural["Movimientos_Bancarios_6_Meses"]).toBe(true);
+      expect(natural["Certificaci_n_de_Ingresos"]).toBe(true);
+      expect(natural["Identificaci_n_Personal"]).toBe(false);
+
+      // personDocuments no llega a Form.data (el esquema de envío lo descarta)
+      const juridica = mapFormToCrmPayload("JURIDICA", {}, { documentos });
+      expect(juridica["C_dula_de_Representante_Legal"]).toBe(true);
+      expect(juridica["Carta_de_Junta_Directiva"]).toBe(true);
+      expect(juridica["Declaraci_n_Jurada_de_Beneficiario_Final"]).toBe(true);
+      expect(juridica["Pacto_Social"]).toBe(false);
+
+      const sinArchivos = mapFormToCrmPayload("JURIDICA", {}, { documentos: [] });
+      expect(sinArchivos["Carta_de_Junta_Directiva"]).toBe(false);
     });
   });
 

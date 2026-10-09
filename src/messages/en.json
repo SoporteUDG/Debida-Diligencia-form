@@ -616,7 +616,7 @@
         "MemberNroId": "ID No.",
         "MemberDireccion": "Address",
         "LegalRepTitle": "LEGAL REPRESENTATIVE OR ATTORNEY-IN-FACT",
-        "LegalRepSubtitle": "LR - Personal Information",
+        "LegalRepSubtitle": "Personal Information",
         "RlNombre": "First and Last Name",
         "RlFechaNacimiento": "Date of Birth",
         "RlNacionalidad": "Nationality",

@@ -133,12 +133,14 @@ export async function generateServerPDF(
       if (isNatural) {
         y = drawSectionTitle(doc, y, "1. Información del Solicitante");
         y = drawField(doc, y, "Nombre Completo", `${data.firstName || ""} ${data.lastName || ""}`);
-        y = drawFieldRow(doc, y, "Nacionalidad", data.nationality || "-", "Identificación", `${data.tipoIdentificacion || "Cédula"}: ${data.idNumber || "-"}`);
+        y = drawFieldRow(doc, y, "Estado Civil", data.estadoCivil || "-", "Identificación", `${data.tipoIdentificacion || "Cédula"}: ${data.idNumber || "-"}`);
         y = drawFieldRow(doc, y, "Fecha Nacimiento", data.fechaNacimiento || "-", "Vencimiento ID", vencimientoId(data.fechaVencimientoId));
-        y = drawField(doc, y, "País Residencia Fiscal", data.paisResidenciaFiscal || "-");
+        y = drawFieldRow(doc, y, "País Nacimiento", data.paisNacimiento || "-", "País Residencia Fiscal", data.paisResidenciaFiscal || "-");
+        y = drawFieldRow(doc, y, "Nacionalidad", data.nationality || "-", "Otra Nacionalidad", data.otraNacionalidad || "-");
+        y = drawField(doc, y, "Estatus Migratorio", data.estatusMigratorio || "-");
         y = drawFieldRow(doc, y, "Correo Electrónico", data.email || "-", "Teléfono / Celular", `${telefono(data.telefonoCodigo, data.telefono)} / ${telefono(data.celularCodigo, data.celular)}`);
-        y = drawFieldRow(doc, y, "Estado Civil", data.estadoCivil || "-", "", "");
-        y = drawField(doc, y, "Dirección Residencial", direccion(data.direccionResidencial, data.ciudad, data.provinciaEstado, data.paisResidencial));
+        y = drawField(doc, y, "Dirección Residencial", direccion(data.direccionResidencial));
+        y = drawField(doc, y, "Ubicación", direccion(data.ciudad, data.provinciaEstado, data.paisResidencial));
         y = drawField(doc, y, "Medio de Contacto", medioContacto);
 
         y += 5;
@@ -164,6 +166,7 @@ export async function generateServerPDF(
           y = drawField(doc, y, "Jurisdicción de Otra Actividad", data.jurisdiccionSecundaria || "-");
         }
         y = drawFieldRow(doc, y, "Ingresos Mensuales Promedio", data.ingresosMensuales || "-", "Fuente de Fondos", data.fuenteFondosInmueble || "-");
+        y = drawField(doc, y, "Medio de Pago", data.medioPago || "-");
         // El detalle de "Otros" acompaña a la categoría, no la reemplaza.
         if (isFieldVisible("natural", "ifOtroNombre", data)) {
           y = checkPageBreak(doc, y, 30);
@@ -195,12 +198,13 @@ export async function generateServerPDF(
         y = drawFieldRow(doc, y, "Razón Social", data.razonSocial || "-", "R.U.C. / Registro", data.numeroIdTributaria || "-");
         y = drawFieldRow(doc, y, "Tipo de Documento", data.tipoDocumentoIdentidad || "-", "Vencimiento Documento", vencimientoId(data.fechaVencimientoId));
         y = drawFieldRow(doc, y, "Fecha Constitución", data.fechaConstitucion || "-", "País de Inscripción", data.paisInscripcion || "-");
-        y = drawFieldRow(doc, y, "País donde Opera", data.paisOpera || "-", "Tipo de Sociedad", data.tipoSociedad || "-");
-        y = drawFieldRow(doc, y, "Estado de la Sociedad", data.estadoSociedad || "-", "Tipo de Cliente", data.tipoCliente || "-");
+        y = drawFieldRow(doc, y, "País donde Opera", data.paisOpera || "-", "Tipo de Cliente", data.tipoCliente || "-");
+        y = drawFieldRow(doc, y, "Tipo de Sociedad", data.tipoSociedad || "-", "Estado de la Sociedad", data.estadoSociedad || "-");
         y = drawFieldRow(doc, y, "Actividad Principal", `${data.actividadPrincipal || "-"}`, "País Tributación", data.paisTributacion || "-");
         y = drawField(doc, y, "Correo Empresa", data.empresaEmail || "-");
         y = drawFieldRow(doc, y, "Teléfono Oficina", telefono(data.empresaTelefonoCodigo, data.empresaTelefono), "Celular Contacto", telefono(data.empresaCelularCodigo, data.empresaCelular));
-        y = drawField(doc, y, "Dirección Oficina", direccion(data.empresaDireccion, data.empresaCiudad, data.empresaProvincia, data.empresaPais));
+        y = drawField(doc, y, "Dirección Oficina", direccion(data.empresaDireccion));
+        y = drawField(doc, y, "Ubicación", direccion(data.empresaCiudad, data.empresaProvincia, data.empresaPais));
         y = drawField(doc, y, "Medio de Contacto", medioContacto);
 
         y += 5;
@@ -213,16 +217,30 @@ export async function generateServerPDF(
         y = drawFieldRow(doc, y, "País Residencia", data.rlPaisResidencia || "-", "Investigado por AML", data.rlObjetoInvestigacion || "-");
         y = drawField(doc, y, "Dirección", data.rlDireccion || "-");
 
+        y += 5;
+        y = checkPageBreak(doc, y, 100);
+        y = drawSectionTitle(doc, y, "3. Representante Operativo");
+        y = drawFieldRow(doc, y, "Nombre Completo", `${data.contactoNombre || ""} ${data.contactoApellido || ""}`.trim() || "-", "Identificación", data.contactoId || "-");
+        // Sin cargo declarado ("No") no hay cargo que mostrar; formularios viejos pueden no traer ifContacto.
+        const sinCargo = String(data.ifContacto || "").trim().toLowerCase() === "no";
+        y = drawFieldRow(doc, y, "Cargo en la Sociedad", sinCargo ? "No" : data.contactoCargo || "-", "Teléfono", data.contactoTelefono || "-");
+        y = drawField(doc, y, "Correo Electrónico", data.contactoEmail || "-");
+
         // Junta Directiva
         y += 5;
         y = checkPageBreak(doc, y, 80);
-        y = drawSectionTitle(doc, y, "3. Gobierno Corporativo / Junta Directiva");
+        y = drawSectionTitle(doc, y, "4. Gobierno Corporativo / Junta Directiva");
         const gjc = Array.isArray(data.gjcMembers) ? data.gjcMembers : [];
         if (gjc.length > 0) {
-          const cols = [0.16, 0.24, 0.16, 0.16, 0.28];
-          y = drawTableHeader(doc, y, ["Cargo", "Nombre y Apellidos", "Identificación", "Nacionalidad", "Dirección"], cols);
+          const cols = [0.18, 0.28, 0.18, 0.18, 0.18];
+          y = drawTableHeader(doc, y, ["Cargo", "Nombre y Apellidos", "Identificación", "Nacionalidad", "Fecha Nacimiento"], cols);
           for (const m of gjc) {
-            y = drawTableRow(doc, y, [m.cargo || "-", nombreGjc(m), m.nroId || "-", m.nacionalidad || "-", m.direccion || "-"], cols);
+            y = drawTableRow(
+              doc, y,
+              [m.cargo || "-", nombreGjc(m), m.nroId || "-", m.nacionalidad || "-", m.fechaNacimiento || "-"],
+              cols,
+              { label: "Dirección", value: m.direccion || "-" }
+            );
           }
         } else {
           y = drawEmpty(doc, y, "Ningún miembro registrado en la Junta Directiva.");
@@ -231,18 +249,26 @@ export async function generateServerPDF(
         // Beneficiarios Finales
         y += 5;
         y = checkPageBreak(doc, y, 80);
-        y = drawSectionTitle(doc, y, "4. Beneficiarios Finales (>10% Participación)");
+        y = drawSectionTitle(doc, y, "5. Beneficiarios Finales (>10% Participación)");
         const bf = Array.isArray(data.bfMembers) ? data.bfMembers : [];
         if (bf.length > 0) {
-          const cols = [0.32, 0.2, 0.14, 0.34];
-          y = drawTableHeader(doc, y, ["Nombre Completo", "Identificación", "% Participación", "Dirección"], cols);
+          const cols = [0.24, 0.16, 0.15, 0.15, 0.16, 0.14];
+          y = drawTableHeader(doc, y, ["Nombre Completo", "Identificación", "Nacionalidad", "País Nacimiento", "Fecha Adquisición", "% Particip."], cols);
           for (const m of bf) {
-            y = drawTableRow(doc, y, [
-              m.nombreCompleto || "-",
-              m.noIdentificacion || "-",
-              `${m.porcentajeParticipacion || m.porcentaje || "-"}%`,
-              m.direccion || "-",
-            ], cols);
+            const pct = m.porcentajeParticipacion || m.porcentaje;
+            y = drawTableRow(
+              doc, y,
+              [
+                m.nombreCompleto || "-",
+                m.noIdentificacion || "-",
+                m.nacionalidad || "-",
+                m.paisNacimiento || "-",
+                m.fechaAdquisicion || "-",
+                pct ? `${pct}%` : "-",
+              ],
+              cols,
+              { label: "Dirección", value: m.direccion || "-" }
+            );
           }
         } else {
           y = drawEmpty(doc, y, "Ningún beneficiario final registrado.");
@@ -251,7 +277,7 @@ export async function generateServerPDF(
         // Perfil Financiero Empresa
         y += 5;
         y = checkPageBreak(doc, y, 80);
-        y = drawSectionTitle(doc, y, "5. Perfil Financiero y de Cumplimiento");
+        y = drawSectionTitle(doc, y, "6. Perfil Financiero y de Cumplimiento");
         y = drawField(doc, y, "Ingresos Mensuales", data.ingresosMensuales || "-");
         y = drawFieldRow(doc, y, "Medio de Pago", data.medioPago || "-", "Fondos de Adquisición", data.fuenteFondosInmueble || "-");
         if (muestraBloqueTercero("juridica", data)) {
@@ -628,20 +654,47 @@ function drawTableHeader(doc: PDFKit.PDFDocument, y: number, headers: string[], 
   return y + 16;
 }
 
-/** Fila de tabla con alto variable: crece con la celda más alta. */
-function drawTableRow(doc: PDFKit.PDFDocument, y: number, values: string[], cols: number[]): number {
+/**
+ * Fila de tabla con alto variable: crece con la celda más alta.
+ * `detalle` es un renglón opcional a todo el ancho de la tabla, bajo las
+ * columnas, para textos largos (p. ej. la dirección) que en una columna
+ * angosta se partirían en muchas líneas.
+ */
+function drawTableRow(
+  doc: PDFKit.PDFDocument,
+  y: number,
+  values: string[],
+  cols: number[],
+  detalle?: { label: string; value: string }
+): number {
   const cs = columnas(cols);
   doc.fontSize(7).font("Helvetica");
-  const alto = Math.max(
+  const altoCeldas = Math.max(
     10,
     ...values.map((v, i) => doc.heightOfString(v, { width: cs[i].w - CELL_PAD * 2 }))
-  ) + 5;
+  ) + 3;
 
+  const detalleX = TABLE_LEFT + CELL_PAD;
+  const detalleW = TABLE_WIDTH - CELL_PAD * 2;
+  const detalleTexto = detalle ? `${detalle.label}: ${detalle.value}` : "";
+  // Se mide en negrita (más ancha) para no quedarse corto por la etiqueta.
+  const altoDetalle = detalle
+    ? doc.fontSize(7).font("Helvetica-Bold").heightOfString(detalleTexto, { width: detalleW }) + 2
+    : 0;
+  const alto = altoCeldas + altoDetalle + 2;
+
+  // Fila y detalle van juntos: nunca se separan entre páginas.
   y = checkPageBreak(doc, y, alto);
   cs.forEach((c, i) => {
     doc.fontSize(7).fillColor(DARK).font(i === 0 ? "Helvetica-Bold" : "Helvetica")
       .text(values[i], c.x + CELL_PAD, y + 2, { width: c.w - CELL_PAD * 2 });
   });
+  if (detalle) {
+    doc.fontSize(7).fillColor(LABEL).font("Helvetica-Bold")
+      .text(`${detalle.label}: `, detalleX, y + 2 + altoCeldas, { width: detalleW, continued: true })
+      .fillColor(DARK).font("Helvetica")
+      .text(detalle.value);
+  }
   doc.moveTo(TABLE_LEFT, y + alto).lineTo(RIGHT, y + alto).strokeColor(BORDER).lineWidth(0.3).stroke();
   return y + alto + 2;
 }

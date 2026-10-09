@@ -134,6 +134,7 @@ const ACT_ECON_NATURAL = [
   "Asalariado", "Trabajador independiente", "Ingresos provenientes de empresas propias", "Otros",
 ];
 const FUENTE_FONDOS_NATURAL = ["Propios", "Financiamiento", "Terceros"];
+const PARTICIPACION_SOCIEDAD = ["No", "Propietario", "Accionista", "Miembro de la sociedad"];
 
 // ---------------------------------------------------------------------------
 // Mapeo inverso de mapFormToCrmPayload
@@ -232,6 +233,7 @@ const CAMPOS_NATURAL: CampoInverso[] = [
   { zoho: "Empresa_donde_labora", aForm: texto("employer") },
   { zoho: "Direcci_n_laboral", aForm: texto("direccionLaboral") },
   { zoho: "Cargo_en_la_Empresa", aForm: texto("cargoDesempena") },
+  { zoho: "Participaci_n_dentro_de_esta_sociedad", aForm: enOpciones("esPropietario", PARTICIPACION_SOCIEDAD) },
 
   { zoho: "Actividad_Persona", aForm: conOtros("actEconPrincipal", "otroActEcon", ACT_ECON_NATURAL) },
   { zoho: "Porcentaje_Actividad_principal", aForm: texto("pctDedicacionPrincipal") },

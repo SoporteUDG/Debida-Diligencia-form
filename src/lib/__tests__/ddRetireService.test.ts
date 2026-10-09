@@ -141,7 +141,6 @@ describe("eliminarDDNoEnviado", () => {
 
   it("rechaza si en Zoho ya esta Enviado (formulario completado)", async () => {
     prismaMock.crmContact.findUnique.mockResolvedValue(base);
-    zohoMock.service.getDDRecord.mockResolvedValue({ Estado: "Enviado" });
     await expect(eliminarDDNoEnviado(params)).rejects.toMatchObject({ code: "CONFLICT" });
     expect(wd.deleteFileFromWorkDrive).not.toHaveBeenCalled();
     expect(zohoMock.service.deleteDDRecord).not.toHaveBeenCalled();

@@ -1,6 +1,6 @@
 import { executeWithRetry } from "./zohoAuthService";
 import crypto from "crypto";
-import { ESTADO_ANULADO, ESTADO_EN_BORRADOR, ESTADO_ENVIADO } from "./ddEstados";
+import { ESTADO_ANULADO, ESTADO_EN_BORRADOR } from "./ddEstados";
 
 /**
  * Normalizes values returned by Zoho CRM (e.g. converting null/undefined or string "null" to "").
@@ -445,6 +445,8 @@ export const zoho = {
       options?: {
         /** Contact de Zoho vinculado al expediente: recibe los datos personales. */
         contactCrmId?: string;
+        /** Archivos adjuntos del expediente, para las casillas de documentos recibidos. */
+        documentos?: DocumentoAdjunto[];
       }
     ): Promise<{ success: boolean; crmId: string; mocked?: boolean }> => {
       const clientId = process.env.ZOHO_CLIENT_ID;
@@ -464,7 +466,10 @@ export const zoho = {
         return { success: true, crmId, mocked: true };
       }
 
-      const payload = mapFormToCrmPayload(clientType, formData, { contactoVinculado: !!options?.contactCrmId });
+      const payload = mapFormToCrmPayload(clientType, formData, {
+        contactoVinculado: !!options?.contactCrmId,
+        documentos: options?.documentos,
+      });
       const apiPayload: Record<string, unknown> = { ...payload };
 
       return executeWithRetry(async (accessToken) => {
@@ -534,7 +539,7 @@ export const zoho = {
           ddRecord.retirado === true ||
           String(ddRecord.retirado ?? "").toLowerCase() === "true" ||
           cleanValue(ddRecord.Estado) === ESTADO_ANULADO;
-        if (!anulado) apiPayload.Estado = ESTADO_ENVIADO;
+        if (!anulado) apiPayload.Estado = "En borrador";
 
         // Name: "Socio Negocio-unidad-proyecto" solo desde el Socio de Negocio.
         // Sin fallback: lo que el cliente cambie en el formulario (p. ej. el
@@ -1791,12 +1796,30 @@ function toList(v: unknown): string[] | undefined {
   return items.length ? items : undefined;
 }
 
-function hasFile(v: unknown): boolean {
-  return Array.isArray(v) ? v.some((x) => !!text(x)) : !!text(v);
+/** Archivo adjunto tal como queda en la tabla Document del expediente. */
+export interface DocumentoAdjunto {
+  name?: string | null;
+  documentType?: string | null;
+  personType?: string | null;
 }
 
-function hasPersonDoc(docs: unknown, personType: "GJC" | "BF" | "RL"): boolean {
-  return Array.isArray(docs) && docs.some((d: any) => d?.personType === personType && !!text(d?.fileName));
+/**
+ * Casilla de documento recibido: basta un archivo (de los varios que admite un
+ * campo multi-archivo) en los datos del formulario o en la tabla Document.
+ */
+function hasFile(v: unknown, docs: DocumentoAdjunto[] = [], documentType?: string): boolean {
+  const enFormulario = Array.isArray(v) ? v.some((x) => !!text(x)) : !!text(v);
+  return enFormulario || (!!documentType && docs.some((d) => !d.personType && d.documentType === documentType && !!text(d.name)));
+}
+
+/**
+ * Documentos por persona (RL / GJC / BF). El borrador los guarda en
+ * personDocuments, pero el esquema de envío descarta ese campo y no llega a
+ * Form.data: por eso se consultan también los documentos adjuntos.
+ */
+function hasPersonDoc(personDocs: unknown, personType: "GJC" | "BF" | "RL", docs: DocumentoAdjunto[] = []): boolean {
+  const enFormulario = Array.isArray(personDocs) && personDocs.some((d: any) => d?.personType === personType && !!text(d?.fileName));
+  return enFormulario || docs.some((d) => d.personType === personType && !!text(d.name));
 }
 
 function rowHasContent(row: Record<string, any>): boolean {
@@ -1818,9 +1841,15 @@ function assign(payload: Record<string, unknown>, fields: Record<string, unknown
 export function mapFormToCrmPayload(
   clientType: "NATURAL" | "JURIDICA",
   formData: any,
-  options?: { /** Los datos personales van al Contact vinculado: se omiten del DD. */ contactoVinculado?: boolean }
+  options?: {
+    /** Los datos personales van al Contact vinculado: se omiten del DD. */
+    contactoVinculado?: boolean;
+    /** Archivos adjuntos del expediente (tabla Document) para las casillas de documentos. */
+    documentos?: DocumentoAdjunto[];
+  }
 ): any {
   const d = formData || {};
+  const docs = options?.documentos ?? [];
   const payload: Record<string, unknown> = {
     "Fecha_de_Ingreso": new Date().toISOString().split("T")[0],
     "Estado_del_enlace": "Expirado / Revocado",
@@ -1908,15 +1937,15 @@ export function mapFormToCrmPayload(
       ...pep,
 
       // Documentos recibidos
-      "C_dula_de_Representante_Legal": hasPersonDoc(d.personDocuments, "RL"),
-      "Carta_de_Junta_Directiva": hasPersonDoc(d.personDocuments, "GJC"),
-      "Declaraci_n_Jurada_de_Beneficiario_Final": hasPersonDoc(d.personDocuments, "BF"),
-      "Aviso_de_Operaciones": hasFile(d.avisoOperacionesFile),
-      "Estados_Financieros": hasFile(d.origenFondosFile),
-      "Pacto_Social": hasFile(d.pactoSocialFile),
-      "Certificado_de_Registro_P_blico": hasFile(d.certRegistroFile),
-      "Certificado_Bancario": hasFile(d.certBancariaFile),
-      "Carta_de_compra_de_beneficiarios": hasFile(d.certComprasFile),
+      "C_dula_de_Representante_Legal": hasPersonDoc(d.personDocuments, "RL", docs),
+      "Carta_de_Junta_Directiva": hasPersonDoc(d.personDocuments, "GJC", docs),
+      "Declaraci_n_Jurada_de_Beneficiario_Final": hasPersonDoc(d.personDocuments, "BF", docs),
+      "Aviso_de_Operaciones": hasFile(d.avisoOperacionesFile, docs, "avisoOperacionesFile"),
+      "Estados_Financieros": hasFile(d.origenFondosFile, docs, "origenFondosFile"),
+      "Pacto_Social": hasFile(d.pactoSocialFile, docs, "pactoSocialFile"),
+      "Certificado_de_Registro_P_blico": hasFile(d.certRegistroFile, docs, "certRegistroFile"),
+      "Certificado_Bancario": hasFile(d.certBancariaFile, docs, "certBancariaFile"),
+      "Carta_de_compra_de_beneficiarios": hasFile(d.certComprasFile, docs, "certComprasFile"),
     });
 
     // Subformulario: Gobierno Corporativo / Junta Directiva
@@ -1981,7 +2010,8 @@ export function mapFormToCrmPayload(
       "Actividad_Empresa": isOtros(d.actividadLaboral) ? text(d.actividadLaboralOtros) : text(d.actividadLaboral),
       "Direcci_n_laboral": text(d.direccionLaboral),
       "Cargo_en_la_Empresa": text(d.cargoDesempena),
-      "Patrimonio_en_la_empresa": patrimonio,
+      // Picklist: No / Propietario / Accionista / Miembro de la sociedad
+      "Participaci_n_dentro_de_esta_sociedad": text(d.esPropietario),
       "Fondos_provienen_de_la_Empresa": patrimonio && isYes(d.usaFondos),
 
       // Actividades económicas o profesionales
@@ -2013,10 +2043,10 @@ export function mapFormToCrmPayload(
       ...pep,
 
       // Documentos recibidos
-      "Carta_de_Certificaci_n_Bancaria": hasFile(d.hasCertificacionBancaria),
-      "Certificaci_n_de_Ingresos": hasFile(d.origenFondosFile),
-      "Movimientos_Bancarios_6_Meses": hasFile(d.hasEstadoCuenta),
-      "Identificaci_n_Personal": hasFile(d.idFile),
+      "Carta_de_Certificaci_n_Bancaria": hasFile(d.hasCertificacionBancaria, docs, "hasCertificacionBancaria"),
+      "Certificaci_n_de_Ingresos": hasFile(d.origenFondosFile, docs, "origenFondosFile"),
+      "Movimientos_Bancarios_6_Meses": hasFile(d.hasEstadoCuenta, docs, "hasEstadoCuenta"),
+      "Identificaci_n_Personal": hasFile(d.idFile, docs, "idFile"),
     });
   }
 

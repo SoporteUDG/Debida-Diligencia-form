@@ -137,8 +137,6 @@ describe("Zoho CRM & WorkDrive Integration Mocks", () => {
       const body = JSON.parse((put[1] as any).body).data[0];
       expect(body.Raz_n_social).toBe("Mock Corp S.A.");
       expect(body).not.toHaveProperty("Name");
-      // Formulario completado / actualizado
-      expect(body.Estado).toBe("Enviado");
     });
 
     it.each([

@@ -687,7 +687,6 @@ export default function PersonaNaturalPage() {
         clientName: `${formData.firstName || ""} ${formData.lastName || ""}`.trim() || "Cliente Natural",
         projectName: formData.nombreProyecto || "General UDG",
         submittedAt: dateNow.toISOString(),
-        status: "Enviado",
         data: { ...formData }
       };
 

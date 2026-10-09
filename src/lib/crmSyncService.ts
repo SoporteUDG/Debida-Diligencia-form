@@ -15,7 +15,14 @@ export async function syncFormToCrm(formId: string) {
     // 1. Fetch form details along with CRM contact info
     form = await prisma.form.findUnique({
       where: { id: formId },
-      include: { crmContact: { include: { accountContact: true } } },
+      include: {
+        crmContact: { include: { accountContact: true } },
+        // Archivos vigentes: marcan las casillas de documentos recibidos en Zoho
+        documents: {
+          where: { deletedAt: null },
+          select: { name: true, documentType: true, personType: true },
+        },
+      },
     });
 
     if (!form) {
@@ -115,7 +122,7 @@ export async function syncFormToCrm(formId: string) {
       crmContactId,
       form.type as any,
       form.data,
-      { contactCrmId }
+      { contactCrmId, documentos: form.documents }
     );
 
     // 5. Update CrmSync to SUCCESS on success

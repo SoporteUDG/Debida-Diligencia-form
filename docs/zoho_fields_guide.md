@@ -163,7 +163,7 @@ estructura de filas
 | **Dirección laboral** | `Direcci_n_laboral` | Línea multiple (String) | direccionLaboral (FormState) |
 | **Cargo en la Empresa** | `Cargo_en_la_Empresa` | Línea única (String) | cargoDesempena (FormState) |
 
-| **Patrimonio en la empresa** | `Patrimonio_en_la_empresa` | Checkbox (Boolean) | esPropietario (FormState)|
+| **Participación dentro de esta sociedad** | `Participaci_n_dentro_de_esta_sociedad` | Picklist (Lista) (String): No / Propietario / Accionista / Miembro de la sociedad | esPropietario (FormState)|
 | **Fondos provienen de la Empresa** | `Fondos_provienen_de_la_Empresa` | Checkbox (Boolean) | usaFondos (FormState)|
 
 | ACTIVIDADES ECONÓMICAS O PROFESIONALES |

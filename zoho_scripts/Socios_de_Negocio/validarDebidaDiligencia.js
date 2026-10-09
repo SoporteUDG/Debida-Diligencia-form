@@ -43,12 +43,13 @@ function idLookup(registro, campo) {
 }
 
 function esNatural(tipo) {
-    return texto(tipo).toLowerCase() === "natural";
+    var t = texto(tipo).toLowerCase();
+    return t.includes("nat") || t === "natural";
 }
 
 function esJuridica(tipo) {
     var t = texto(tipo).toLowerCase();
-    return t === "jurídica" || t === "juridica";
+    return t.includes("jur") || t === "juridico";
 }
 
 // Retirado (anulado): no cuenta como DD principal existente

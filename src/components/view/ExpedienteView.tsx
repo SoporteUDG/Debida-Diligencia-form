@@ -52,7 +52,6 @@ interface ViewResult {
 
 const STATUS_LABEL: Record<string, string> = {
   DRAFT: "Borrador (sin enviar)",
-  SUBMITTED: "Enviado",
   REVIEWED: "Revisado",
   APPROVED: "Aprobado",
   REJECTED: "Rechazado",
