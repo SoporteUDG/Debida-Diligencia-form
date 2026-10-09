@@ -60,4 +60,14 @@ describe("prepararExpedienteRelacionado", () => {
     expect(zohoMock.service.createDebidaDiligenciaRecord.mock.calls[0][0].contactCrmId).toBeUndefined();
     expect(prismaMock.draft.upsert.mock.calls[0][0].create.data).not.toHaveProperty("Nombre_de_contacto");
   });
+
+  it("el Representante Legal va en Nombre_natural y en nombre y apellido del borrador", async () => {
+    await prepararExpedienteRelacionado({ ...base, representanteLegal: " Carlos Gómez Ruiz " });
+
+    expect(zohoMock.service.createDebidaDiligenciaRecord).toHaveBeenCalledWith(
+      expect.objectContaining({ nombreNatural: "Carlos Gómez Ruiz", contactCrmId: undefined })
+    );
+    expect(prismaMock.crmContact.create.mock.calls[0][0].data).toMatchObject({ lastName: "Carlos Gómez Ruiz" });
+    expect(prismaMock.draft.upsert.mock.calls[0][0].create.data).toMatchObject({ firstName: "Carlos Gómez", lastName: "Ruiz" });
+  });
 });

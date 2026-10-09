@@ -6,6 +6,7 @@
   var aviso = document.getElementById("aviso");
 
   var registros = [];
+  var faltanPrincipales = false;
   var puedeSolicitar = false;
   var mensaje = "";
   var cerrando = false;
@@ -50,21 +51,51 @@
     }
 
     if (!d || typeof d !== "object" || Array.isArray(d)) {
-      return { lista: Array.isArray(d) ? d : [], puede: false, mensaje: "" };
+      return { lista: Array.isArray(d) ? d : [], principales: false, puede: false, mensaje: "" };
     }
     return {
       lista: Array.isArray(d.registros) ? d.registros : [],
-      puede: d.puedeSolicitar === true || d.puedeSolicitar === "true",
+      principales: esVerdadero(d.faltanPrincipales),
+      puede: esVerdadero(d.puedeSolicitar),
       mensaje: d.mensaje || ""
     };
   }
 
+  function esVerdadero(v) {
+    return v === true || v === "true";
+  }
+
+  // Contactos marcados (los únicos que se envían)
+  function contactosMarcados() {
+    return registros
+      .filter(function (r) { return esVerdadero(campo(r, "seleccionable")) && r.seleccionado && campo(r, "contactId"); })
+      .map(function (r) { return String(campo(r, "contactId")); });
+  }
+
+  // Se puede agregar si faltan los principales (jurídica) o hay algún contacto marcado
+  function hayAlgoQueAgregar() {
+    return puedeSolicitar && (faltanPrincipales || contactosMarcados().length > 0);
+  }
+
   // ---------- Render ----------
-  function filaHtml(r) {
+  // Casilla: los contactos sin DD se pueden marcar; los ya creados quedan
+  // marcados y bloqueados; las DD principales (jurídica) no llevan casilla.
+  function casillaHtml(r, i) {
+    if (esVerdadero(campo(r, "principal"))) return '<span class="dd-principal" title="Se genera siempre que falte">—</span>';
+    var creado = esVerdadero(campo(r, "registro"));
+    var habilitada = puedeSolicitar && esVerdadero(campo(r, "seleccionable"));
+    return '<input type="checkbox" class="dd-check" data-i="' + i + '"' +
+      (creado || r.seleccionado ? " checked" : "") +
+      (habilitada ? "" : " disabled") +
+      ' title="' + (creado ? "Ya tiene su Debida Diligencia" : "Generar su Debida Diligencia") + '">';
+  }
+
+  function filaHtml(r, i) {
     var nombre = escapeHtml(campo(r, "nombre"));
     var enlace = campo(r, "enlace");
     var estado = campo(r, "estado");
-    return "<tr>" +
+    return '<tr class="' + (esVerdadero(campo(r, "principal")) ? "dd-fila-principal" : "") + '">' +
+      '<td class="dd-col-check">' + casillaHtml(r, i) + "</td>" +
       "<td>" + (enlace
         ? '<a href="' + escapeHtml(enlace) + '" target="_blank" rel="noopener">' + nombre + "</a>"
         : nombre) + "</td>" +
@@ -77,10 +108,9 @@
   function render() {
     tbody.innerHTML = registros.length
       ? registros.map(filaHtml).join("")
-      : '<tr><td colspan="4" class="dd-vacio">No hay registros para mostrar.</td></tr>';
+      : '<tr><td colspan="5" class="dd-vacio">No hay registros para mostrar.</td></tr>';
 
-    btnAgregar.disabled = !puedeSolicitar;
-    btnAgregar.title = puedeSolicitar ? "" : "No es posible solicitar en este momento";
+    actualizarBoton();
 
     if (puedeSolicitar) {
       aviso.hidden = true;
@@ -89,6 +119,24 @@
       aviso.hidden = false;
     }
   }
+
+  function actualizarBoton() {
+    var habilitado = hayAlgoQueAgregar();
+    btnAgregar.disabled = cerrando || !habilitado;
+    btnAgregar.title = habilitado
+      ? ""
+      : puedeSolicitar
+        ? "Marque al menos un contacto"
+        : "No es posible solicitar en este momento";
+  }
+
+  tbody.addEventListener("change", function (e) {
+    var el = e.target;
+    if (!el || !el.classList || !el.classList.contains("dd-check")) return;
+    var r = registros[Number(el.getAttribute("data-i"))];
+    if (r) r.seleccionado = el.checked;
+    actualizarBoton();
+  });
 
   // ---------- Cerrar popup ----------
   // Lo enviado a $Client.close() es lo que retorna `await ZDK.Client.openPopup(...)`
@@ -128,8 +176,8 @@
 
 
   btnAgregar.addEventListener("click", function () {
-    if (!puedeSolicitar) return;
-    cerrar({ accion: "agregar" });
+    if (!hayAlgoQueAgregar()) return;
+    cerrar({ accion: "agregar", contactos: contactosMarcados() });
   });
 
   // ---------- Tamaño ----------
@@ -163,7 +211,14 @@
     console.log("PageLoad payload:", payload, "$Client disponible:", typeof $Client !== "undefined");
     ajustarTamano();
     var n = normalizar(payload);
-    registros = n.lista;
+    registros = n.lista.map(function (r) {
+      // Copia: el estado de la casilla se guarda en la fila
+      var copia = {};
+      Object.keys(r || {}).forEach(function (k) { copia[k] = r[k]; });
+      copia.seleccionado = esVerdadero(campo(r, "seleccionable")) && campo(r, "seleccionado") !== false && campo(r, "seleccionado") !== "false";
+      return copia;
+    });
+    faltanPrincipales = n.principales;
     puedeSolicitar = n.puede;
     mensaje = n.mensaje;
     cerrando = false;

@@ -51,6 +51,8 @@ export default function Step2PerfilFinanciero({
   const propietaryLabel = optionLabeler(OPTIONS.PropietaryOptions, useTranslations("NaturalForm.NaturalFormStep2Options.PropietaryOptions"));
   const personalActivityLabel = optionLabeler(OPTIONS.PersonalActivityOptions, useTranslations("NaturalForm.NaturalFormStep2Options.PersonalActivityOptions"));
   const yesNoLabel = optionLabeler(es.NaturalForm.TrueFalseOptions, useTranslations("NaturalForm.TrueFalseOptions"));
+  const PHONE_CODE_OPTIONS = Array.from(new Set(PHONE_CODES.map((p) => p.code)));
+  const getPhoneCountry = (code: string) => PHONE_CODES.find((p) => p.code === code)?.country ?? code;  
 
   return (
     <div className="bg-white rounded-2xl shadow-xl border border-zinc-200">
@@ -140,7 +142,70 @@ export default function Step2PerfilFinanciero({
             )}
           </div>
 
-          <div className="flex flex-col gap-2">
+
+          <div className="flex flex-col md:col-span-3">
+            <div className="grid grid-cols-2 gap-2">
+              <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="telefono">
+                {t("TelefonoTitle")}
+              </label>
+              <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="celular">
+                {t("CelularTitle")}
+              </label>
+              <div className="flex gap-2 w-full">
+                <SearchableSelect id="telefonoCodigo"
+                  value={formData.telefonoCodigo || "+507"}
+                  onChange={(code) =>
+                    onInputChange({
+                      target: { name: "telefonoCodigo", value: code },
+                    } as React.ChangeEvent<HTMLInputElement>)
+                  }
+                  options={PHONE_CODE_OPTIONS}
+                  getLabel={getPhoneCountry}/>
+                <input
+                  type="tel"
+                  id="telefono"
+                  name="telefono"
+                  value={formData.telefono}
+                  onChange={onInputChange}
+                  placeholder={p("TelefonoPlaceholder")}
+                  className={`${errors.telefono ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-5/8`}
+                />
+              {errors.telefono && (
+                <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
+                  ⚠️ {errors.telefono}
+                </span>
+              )}
+              </div>
+              <div className="flex gap-2 w-full">
+                <SearchableSelect id="celularCodigo"
+                  value={formData.celularCodigo || "+507"}
+                  onChange={(code) =>
+                    onInputChange({
+                      target: { name: "celularCodigo", value: code },
+                    } as React.ChangeEvent<HTMLInputElement>)
+                  }
+                  options={PHONE_CODE_OPTIONS}
+                  getLabel={getPhoneCountry}/>
+                <input
+                  type="tel"
+                  id="celular"
+                  name="celular"
+                  value={formData.celular}
+                  onChange={onInputChange}
+                  placeholder={p("CelularPlaceholder")}
+                  className={`${errors.celular ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-5/8`}
+                />
+              {errors.celular && (
+                <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
+                  ⚠️ {errors.celular}
+                </span>
+              )}
+              </div>
+            </div>
+
+          </div>
+          
+          <div className="flex flex-col gap-2 md:col-span-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="email">
               {t("MailTitle")}
             </label>
@@ -157,77 +222,6 @@ export default function Step2PerfilFinanciero({
             {errors.email && (
               <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
                 ⚠️ {errors.email}
-              </span>
-            )}
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="telefono">
-              {t("TelefonoTitle")}
-            </label>
-            <div className="flex gap-1 w-full">
-              <select
-                name="telefonoCodigo"
-                value={formData.telefonoCodigo || "+507"}
-                onChange={onInputChange}
-                className="bg-[#f4f6f8] border border-zinc-300 rounded-lg px-1 py-2 text-xs focus:outline-none focus:border-[#052B48] focus:ring-1 focus:ring-[#052B48] transition text-zinc-800 w-18 shink-0"
-              >
-                {PHONE_CODES.map((item) => (
-                  <option key={item.code} value={item.code}>
-                    {item.code}
-                  </option>
-                ))}
-              </select>
-              <input
-                type="tel"
-                id="telefono"
-                name="telefono"
-                value={formData.telefono || ""}
-                onChange={onInputChange}
-                placeholder={p("TelefonoPlaceholder")}
-                className="bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20 border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 flex-1 min-w-0 w-full"
-              />
-           
-            </div>
-            {errors.telefono && (
-              <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
-                ⚠️ {errors.telefono}
-              </span>
-            )}
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="celular">
-              {t("CelularTitle")}
-            </label>
-            <div className="flex gap-1 w-full">
-              <select
-                name="celularCodigo"
-                value={formData.celularCodigo || "+507"}
-                onChange={onInputChange}
-                className="bg-[#f4f6f8] border border-zinc-300 rounded-lg px-1 py-2 text-xs focus:outline-none focus:border-[#052B48] focus:ring-1 focus:ring-[#052B48] transition text-zinc-800 w-18 shrink-0"
-              >
-                {PHONE_CODES.map((item) => (
-                  <option key={item.code} value={item.code}>
-                    {item.code}
-                  </option>
-                ))}
-              </select>
-              <input
-                type="tel"
-                id="celular"
-                name="celular"
-                value={formData.celular || ""}
-                onChange={onInputChange}
-                placeholder={p("CelularPlaceholder")}
-                className="bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20 border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 flex-1 min-w-0 w-full"
-                required
-              />
-            
-            </div>
-            {errors.celular && (
-              <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
-                ⚠️ {errors.celular}
               </span>
             )}
           </div>

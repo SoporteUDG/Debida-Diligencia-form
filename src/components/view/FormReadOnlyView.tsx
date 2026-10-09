@@ -240,7 +240,6 @@ function NaturalSections({ data }: { data: ViewData }) {
             { label: "N° de Identificación", value: data.idNumber },
             { label: "Vencimiento de ID", value: formatDate(data.fechaVencimientoId) },
             { label: "País de Residencia Fiscal", value: data.paisResidenciaFiscal },
-            { label: "NIF / ID Tributaria", value: data.idTributaria },
           ]}
         />
       </Section>
@@ -335,9 +334,8 @@ function JuridicaSections({ data }: { data: ViewData }) {
             { label: "Estado de la Sociedad", value: data.estadoSociedad },
             { label: "Tipo de Cliente", value: data.tipoCliente },
             { label: "Tipo de Documento", value: data.tipoDocumentoIdentidad },
-            { label: "R.U.C. / N° de Documento", value: data.numeroDocumento },
+            { label: "R.U.C. / N° de Documento", value: data.numeroIdTributaria },
             { label: "Vencimiento del Documento", value: formatDate(data.fechaVencimientoId) },
-            { label: "NIF / ID Tributaria", value: data.numeroIdTributaria },
             { label: "País de Tributación", value: data.paisTributacion },
             { label: "Fecha de Constitución", value: formatDate(data.fechaConstitucion) },
             { label: "País de Inscripción", value: data.paisInscripcion },

@@ -230,6 +230,61 @@ export default function Step1DatosPersonales({
             )}
           </div>
 
+          
+          <div className="flex flex-col gap-2">
+            <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="tipoIdentificacion">
+              {t("TypeIdTitle")}
+            </label>
+            <select
+              id="tipoIdentificacion"
+              name="tipoIdentificacion"
+              value={formData.tipoIdentificacion || ""}
+              onChange={onInputChange}
+              className={`w-full bg-[#f4f6f8] border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 ${
+                errors.tipoIdentificacion
+                  ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
+                  : "border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"
+              }`}
+            >
+              <option value="">{p("TypeIdPlaceholder")}</option>
+              <option value="Cédula">{typeIdLabel("Cédula")}</option>
+              <option value="Pasaporte">{typeIdLabel("Pasaporte")}</option>
+              <option value="Carné de Residente">{typeIdLabel("Carné de Residente")}</option>
+              <option value="Otro">{typeIdLabel("Otro")}</option>
+            </select>
+            {errors.tipoIdentificacion && (
+              <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
+                ⚠️ {errors.tipoIdentificacion}
+              </span>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="idNumber">
+              {t("IdTitle")}
+            </label>
+            <input
+              type="text"
+              id="idNumber"
+              name="idNumber"
+              value={formData.idNumber || ""}
+              onChange={onInputChange}
+              placeholder={p("IdPlaceholder")}
+              className={`bg-[#f4f6f8] border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 ${
+                errors.idNumber
+                  ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
+                  : "border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"
+              }`}
+              required
+            />
+            {errors.idNumber && (
+              <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
+                ⚠️ {errors.idNumber}
+              </span>
+            )}
+          </div>
+
+          
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700">
               {t("BirthCountryTitle")}
@@ -267,30 +322,6 @@ export default function Step1DatosPersonales({
           </div>
 
           <div className="flex flex-col gap-2">
-            <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="idTributaria">
-              {t("IdTributaryTitle")}
-            </label>
-            <input
-              type="text"
-              id="idTributaria"
-              name="idTributaria"
-              value={formData.idTributaria || ""}
-              onChange={onInputChange}
-              placeholder={p("IdTributaryPlaceholder")}
-              className={`bg-[#f4f6f8] border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 ${
-                errors.idTributaria
-                  ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
-                  : "border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"
-              }`}
-            />
-            {errors.idTributaria && (
-              <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
-                ⚠️ {errors.idTributaria}
-              </span>
-            )}
-          </div>
-
-          <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700">
               {t("NacionalityTitle")}
             </label>
@@ -308,33 +339,6 @@ export default function Step1DatosPersonales({
             )}
           </div>
 
-          <div className="flex flex-col gap-2">
-            <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="tipoIdentificacion">
-              {t("TypeIdTitle")}
-            </label>
-            <select
-              id="tipoIdentificacion"
-              name="tipoIdentificacion"
-              value={formData.tipoIdentificacion || ""}
-              onChange={onInputChange}
-              className={`w-full bg-[#f4f6f8] border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 ${
-                errors.tipoIdentificacion
-                  ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
-                  : "border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"
-              }`}
-            >
-              <option value="">{p("TypeIdPlaceholder")}</option>
-              <option value="Cédula">{typeIdLabel("Cédula")}</option>
-              <option value="Pasaporte">{typeIdLabel("Pasaporte")}</option>
-              <option value="Carné de Residente">{typeIdLabel("Carné de Residente")}</option>
-              <option value="Otro">{typeIdLabel("Otro")}</option>
-            </select>
-            {errors.tipoIdentificacion && (
-              <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
-                ⚠️ {errors.tipoIdentificacion}
-              </span>
-            )}
-          </div>
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700">
@@ -385,30 +389,6 @@ export default function Step1DatosPersonales({
             )}
           </div>
 
-          <div className="flex flex-col gap-2">
-            <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="idNumber">
-              {t("IdTitle")}
-            </label>
-            <input
-              type="text"
-              id="idNumber"
-              name="idNumber"
-              value={formData.idNumber || ""}
-              onChange={onInputChange}
-              placeholder={p("IdPlaceholder")}
-              className={`bg-[#f4f6f8] border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 ${
-                errors.idNumber
-                  ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
-                  : "border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"
-              }`}
-              required
-            />
-            {errors.idNumber && (
-              <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
-                ⚠️ {errors.idNumber}
-              </span>
-            )}
-          </div>
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="fechaVencimientoId">

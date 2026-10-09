@@ -39,7 +39,7 @@ import BrandFooter from "@/components/BrandFooter";
 
 const getStepForField = (field: string): number => {
   const step1Fields = [
-    "nombreProyecto", "formaContacto", "firstName", "lastName", "paisNacimiento", "paisResidenciaFiscal", "idTributaria", "nationality", "tipoIdentificacion", "otraNacionalidad", "idNumber", "estatusMigratorio", "fechaNacimiento",
+    "nombreProyecto", "formaContacto", "firstName", "lastName", "paisNacimiento", "paisResidenciaFiscal", "nationality", "tipoIdentificacion", "otraNacionalidad", "idNumber", "estatusMigratorio", "fechaNacimiento",
     "direccionResidencial", "ciudad", "provinciaEstado", "paisResidencial", "email", "telefonoCodigo", "telefono", "celularCodigo", "celular", "profession", "profesionOtros", "paisActividadLaboral", "employer", "actividadLaboral", "actividadLaboralOtros", "direccionLaboral", "cargoDesempena", "actEconPrincipal", "pctDedicacionPrincipal", "jurisdiccionPrincipal", "actEconSecundaria", "pctDedicacionSecundaria", "jurisdiccionSecundaria",
     "ingresosMensuales", "medioPago", "fuenteFondosInmueble", "montoServiciosAnuales", "adquiereNombreTercero", "destinoInmueble", "esPep", "pepNombre", "pepCargo", "pepInstitucion", "pepRelacion"
   ];
@@ -580,7 +580,6 @@ export default function PersonaNaturalPage() {
     const optionalFieldsToCheck = [
       { key: "formaContacto", label: tp("OptionalFormaContacto"), step: 1 },
       { key: "paisResidenciaFiscal", label: tp("OptionalPaisResidenciaFiscal"), step: 1 },
-      { key: "idTributaria", label: tp("OptionalIdTributaria"), step: 1 },
       { key: "otraNacionalidad", label: tp("OptionalOtraNacionalidad"), step: 1 },
       { key: "estatusMigratorio", label: tp("OptionalEstatusMigratorio"), step: 1 },
       { key: "ciudad", label: tp("OptionalCiudad"), step: 1 },

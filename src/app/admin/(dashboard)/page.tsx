@@ -177,7 +177,6 @@ export default function AdminDashboard() {
           lastName: "Pérez Miranda",
           paisNacimiento: "Panamá",
           paisResidenciaFiscal: "Panamá",
-          idTributaria: "8-752-1928",
           nationality: "Panameña",
           tipoIdentificacion: "Cédula",
           idNumber: "8-752-1928",
@@ -1768,7 +1767,7 @@ export default function AdminDashboard() {
                           </div>
                           <div>
                             <p className="text-[10px] text-zinc-500 font-semibold uppercase">R.U.C. / Documento</p>
-                            <p className="text-white font-mono mt-0.5">{selectedSub.data.numeroDocumento || "-"}</p>
+                            <p className="text-white font-mono mt-0.5">{selectedSub.data.numeroIdTributaria || "-"}</p>
                           </div>
                           <div>
                             <p className="text-[10px] text-zinc-500 font-semibold uppercase">Tipo de Sociedad</p>

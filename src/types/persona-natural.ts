@@ -11,7 +11,6 @@ export interface FormState {
   estadoCivil: string; // Estado Civil
   paisNacimiento: string;
   paisResidenciaFiscal: string;
-  idTributaria: string;
   nationality: string; // Nacionalidad
   tipoIdentificacion: string;
   otraNacionalidad: string;
@@ -105,7 +104,6 @@ export const INITIAL_FORM_STATE: FormState = {
   estadoCivil: "",
   paisNacimiento: "",
   paisResidenciaFiscal: "",
-  idTributaria: "",
   nationality: "",
   tipoIdentificacion: "",
   otraNacionalidad: "",

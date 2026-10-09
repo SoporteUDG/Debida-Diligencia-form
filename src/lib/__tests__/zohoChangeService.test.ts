@@ -129,6 +129,17 @@ describe("datosFormularioDesdeZoho", () => {
     expect(datos).toEqual({ razonSocial: "ACME S.A.", rlNombre: "Ana Díaz" });
   });
 
+  it("ID tributaria: solo la jurídica la toma (numeroIdTributaria); RUC_NIT no llena numeroDocumento", () => {
+    const registro = { ID_tributaria: "155-1-2026", RUC_NIT: "8-1-1", Numero_Identificacion: "8-2-2" };
+    const juridica = datosFormularioDesdeZoho("JURIDICA", registro);
+    expect(juridica.numeroIdTributaria).toBe("155-1-2026");
+    expect(juridica).not.toHaveProperty("numeroDocumento");
+    // Natural: su documento es idNumber; no tiene ID tributaria
+    const natural = datosFormularioDesdeZoho("NATURAL", registro);
+    expect(natural).not.toHaveProperty("idTributaria");
+    expect(natural).not.toHaveProperty("numeroIdTributaria");
+  });
+
   it("excluye documentos, sus casillas, términos y firma", () => {
     for (const campo of [
       "idFile", "origenFondosFile", "hasEstadoCuenta", "hasCertificacionBancaria", "checkedPactoSocial",

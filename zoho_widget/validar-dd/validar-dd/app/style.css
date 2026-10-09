@@ -127,3 +127,10 @@ html.dd-redimensionado .dd { height: calc(100% - 68px); }
   color: #fff;
   cursor: not-allowed;
 }
+
+/* Casilla para generar la DD de cada contacto */
+.dd-col-check { width: 64px; text-align: center !important; }
+.dd-check { width: 16px; height: 16px; cursor: pointer; accent-color: var(--primario); }
+.dd-check:disabled { cursor: not-allowed; }
+.dd-principal { color: var(--texto-suave); }
+.dd-fila-principal td { background: #fafbfc; font-weight: 600; }

@@ -9,6 +9,7 @@ const { prismaMock, zohoMock, enlaceMock, contactoMock } = vi.hoisted(() => ({
     service: {
       createDebidaDiligenciaRecord: vi.fn(),
       setRelatedDD: vi.fn(),
+      getAccountRecord: vi.fn(),
       updateClientFormLink: vi.fn(),
       createNote: vi.fn(),
     },
@@ -30,43 +31,73 @@ vi.mock("@/lib/accountContactService", () => ({ ...contactoMock, SinContactosErr
 import { POST } from "@/app/api/generar-expediente/route";
 
 const contacto = { id: "ac1", crmId: "zc1", accountCrmId: "s1", firstName: "Ana", lastName: "Paz" };
-const dd = (id: string, tipo: string, relatedCrmId = "") => ({ id, name: id, estado: "", contactCrmId: "zc1", tipo, retirado: false, relatedCrmId });
+const nuevo = { id: "ac2", crmId: "zc2", accountCrmId: "s1", firstName: "Luis", lastName: "Mora" };
+const dd = (id: string, tipo: string, relatedCrmId = "") => ({ id, name: id, estado: "", contactCrmId: "", tipo, retirado: false, relatedCrmId });
 const sinExpedientes = { juridica: null, natural: null, duplicados: false, juridicas: [], naturales: [], retirados: [] };
+const ambos = {
+  ...sinExpedientes,
+  juridica: dd("jur1", "Jurídica", "nat1"),
+  natural: dd("nat1", "Natural", "jur1"),
+  juridicas: [dd("jur1", "Jurídica", "nat1")],
+  naturales: [dd("nat1", "Natural", "jur1")],
+};
 
 const post = (body: any) =>
   POST(new NextRequest("http://localhost/api/generar-expediente", { method: "POST", body: JSON.stringify(body) }));
-const juridica = () => post({ name: "ACME", type: "juridica", socioId: "s1" });
+const juridica = (extra: any = {}) => post({ name: "ACME", type: "juridica", socioId: "s1", ...extra });
 
 beforeEach(() => {
   vi.clearAllMocks();
-  contactoMock.obtenerContactosDeCuenta.mockResolvedValue([contacto]);
+  contactoMock.obtenerContactosDeCuenta.mockResolvedValue([contacto, nuevo]);
+  contactoMock.clasificarContactosNaturales.mockResolvedValue({
+    faltantes: [nuevo],
+    existentes: [{ contact: contacto, ddCrmId: "natc1", fuente: "zoho" }],
+    eliminadosEnZoho: [],
+  });
   contactoMock.clasificarExpedientesJuridica.mockResolvedValue(sinExpedientes);
-  zohoMock.service.createDebidaDiligenciaRecord.mockResolvedValue({ success: true, debidaId: "jur-new" });
+  zohoMock.service.getAccountRecord.mockResolvedValue({ Representante_legal: "Carlos Gómez Ruiz" });
+  let n = 0;
+  zohoMock.service.createDebidaDiligenciaRecord.mockImplementation(async () => ({ success: true, debidaId: `new${++n}` }));
   prismaMock.crmContact.upsert.mockResolvedValue({ id: "cc1" });
   enlaceMock.crearEnlaceConBorrador.mockResolvedValue({ tokenUuid: "tk", clientUrl: "https://x/f?token=tk", expiresAt: new Date() });
   enlaceMock.prepararExpedienteRelacionado.mockResolvedValue({ crmId: "nat-new", clientUrl: "https://x/rel" });
 });
 
 describe("/api/generar-expediente — Persona Jurídica", () => {
-  it("sin expedientes vigentes crea el jurídico y su natural relacionado", async () => {
+  it("sin expedientes crea el jurídico y el del Representante Legal, sin contacto y con Nombre_natural", async () => {
     const res = await juridica();
     const json = await res.json();
     expect(res.status).toBe(200);
     expect(zohoMock.service.createDebidaDiligenciaRecord).toHaveBeenCalledTimes(1);
-    expect(zohoMock.service.createDebidaDiligenciaRecord.mock.calls[0][0]).not.toHaveProperty("relatedDDId");
-    expect(enlaceMock.prepararExpedienteRelacionado).toHaveBeenCalledWith(expect.objectContaining({ juridicaCrmId: "jur-new" }));
-    expect(json).toMatchObject({ crmId: "jur-new", relatedCrmId: "nat-new" });
+    const creado = zohoMock.service.createDebidaDiligenciaRecord.mock.calls[0][0];
+    expect(creado).toMatchObject({ clientType: "JURIDICA", nombreNatural: "Carlos Gómez Ruiz", contactCrmId: undefined });
+    expect(creado).not.toHaveProperty("relatedDDId");
+    expect(enlaceMock.prepararExpedienteRelacionado).toHaveBeenCalledWith(
+      expect.objectContaining({ juridicaCrmId: "new1", representanteLegal: "Carlos Gómez Ruiz", overRideName: "Representante Legal (Carlos Gómez Ruiz)" })
+    );
+    expect(enlaceMock.prepararExpedienteRelacionado.mock.calls[0][0].accountContact).toBeUndefined();
+    expect(enlaceMock.crearEnlaceConBorrador.mock.calls[0][0].draftData).toMatchObject({ rlNombre: "Carlos Gómez Ruiz" });
+    expect(enlaceMock.crearEnlaceConBorrador.mock.calls[0][0].draftData).not.toHaveProperty("Nombre_de_contacto");
+    // Sin contactos marcados no se buscan contactos
+    expect(contactoMock.obtenerContactosDeCuenta).not.toHaveBeenCalled();
+    expect(json).toMatchObject({ crmId: "new1", relatedCrmId: "nat-new" });
   });
 
-  it("con el jurídico vigente solo crea el natural y lo relaciona a él", async () => {
-    contactoMock.clasificarExpedientesJuridica.mockResolvedValue({ ...sinExpedientes, juridica: dd("jur1", "Jurídica"), juridicas: [dd("jur1", "Jurídica")] });
-    const res = await juridica();
-    const json = await res.json();
-    expect(res.status).toBe(200);
+  it("sin Representante_legal en el socio responde 422 y no crea nada", async () => {
+    zohoMock.service.getAccountRecord.mockResolvedValue({ Representante_legal: "  " });
+    const res = await juridica({ contactos: ["zc2"] });
+    expect(res.status).toBe(422);
+    expect((await res.json()).code).toBe("SIN_REPRESENTANTE_LEGAL");
     expect(zohoMock.service.createDebidaDiligenciaRecord).not.toHaveBeenCalled();
-    expect(enlaceMock.crearEnlaceConBorrador).not.toHaveBeenCalled();
+    expect(enlaceMock.prepararExpedienteRelacionado).not.toHaveBeenCalled();
+  });
+
+  it("con el jurídico vigente solo crea el del Representante Legal", async () => {
+    contactoMock.clasificarExpedientesJuridica.mockResolvedValue({ ...sinExpedientes, juridica: dd("jur1", "Jurídica"), juridicas: [dd("jur1", "Jurídica")] });
+    const json = await (await juridica()).json();
+    expect(zohoMock.service.createDebidaDiligenciaRecord).not.toHaveBeenCalled();
     expect(enlaceMock.prepararExpedienteRelacionado).toHaveBeenCalledWith(
-      expect.objectContaining({ juridicaCrmId: "jur1", socioId: "s1", accountContact: contacto, crearNuevo: false })
+      expect.objectContaining({ juridicaCrmId: "jur1", representanteLegal: "Carlos Gómez Ruiz", crearNuevo: false })
     );
     expect(json).toMatchObject({ success: true, crmId: "jur1", relatedCrmId: "nat-new" });
   });
@@ -82,31 +113,40 @@ describe("/api/generar-expediente — Persona Jurídica", () => {
     expect(enlaceMock.prepararExpedienteRelacionado).toHaveBeenCalledWith(expect.objectContaining({ crearNuevo: true }));
   });
 
-  it("con el natural vigente solo crea el jurídico, relacionado en ambos sentidos", async () => {
+  it("con el Representante Legal vigente solo crea el jurídico, relacionado en ambos sentidos", async () => {
     contactoMock.clasificarExpedientesJuridica.mockResolvedValue({ ...sinExpedientes, natural: dd("nat1", "Natural"), naturales: [dd("nat1", "Natural")] });
-    const res = await juridica();
-    const json = await res.json();
-    expect(res.status).toBe(200);
+    const json = await (await juridica()).json();
     expect(zohoMock.service.createDebidaDiligenciaRecord).toHaveBeenCalledWith(expect.objectContaining({ clientType: "JURIDICA", relatedDDId: "nat1" }));
     expect(enlaceMock.prepararExpedienteRelacionado).not.toHaveBeenCalled();
-    expect(zohoMock.service.setRelatedDD).toHaveBeenCalledWith("nat1", "jur-new");
-    expect(json).toMatchObject({ crmId: "jur-new", relatedCrmId: "nat1" });
+    expect(zohoMock.service.setRelatedDD).toHaveBeenCalledWith("nat1", "new1");
+    expect(json).toMatchObject({ crmId: "new1", relatedCrmId: "nat1" });
   });
 
-  it("con ambos vigentes no crea nada y asegura el vínculo", async () => {
-    contactoMock.clasificarExpedientesJuridica.mockResolvedValue({
-      ...sinExpedientes,
-      juridica: dd("jur1", "Jurídica", "nat1"),
-      natural: dd("nat1", "Natural"),
-      juridicas: [dd("jur1", "Jurídica", "nat1")],
-      naturales: [dd("nat1", "Natural")],
-    });
+  it("con ambos vigentes y sin contactos marcados no crea nada (no exige Representante_legal)", async () => {
+    contactoMock.clasificarExpedientesJuridica.mockResolvedValue(ambos);
+    zohoMock.service.getAccountRecord.mockResolvedValue({});
     const json = await (await juridica()).json();
-    expect(json.status).toBe("already_exists");
+    expect(json).toMatchObject({ status: "already_exists", crmId: "jur1", relatedCrmId: "nat1" });
     expect(zohoMock.service.createDebidaDiligenciaRecord).not.toHaveBeenCalled();
-    expect(enlaceMock.prepararExpedienteRelacionado).not.toHaveBeenCalled();
-    expect(zohoMock.service.setRelatedDD).toHaveBeenCalledTimes(1);
-    expect(zohoMock.service.setRelatedDD).toHaveBeenCalledWith("nat1", "jur1");
+    expect(zohoMock.service.setRelatedDD).not.toHaveBeenCalled();
+  });
+
+  it("con ambos vigentes crea solo los contactos marcados que faltan, como Persona Natural con contacto", async () => {
+    contactoMock.clasificarExpedientesJuridica.mockResolvedValue(ambos);
+    const json = await (await juridica({ contactos: ["zc1", "zc2", "otro"] })).json();
+    expect(contactoMock.obtenerContactosDeCuenta).toHaveBeenCalledWith("s1", "JURIDICA", { todos: true });
+    expect(zohoMock.service.createDebidaDiligenciaRecord).toHaveBeenCalledTimes(1);
+    expect(zohoMock.service.createDebidaDiligenciaRecord).toHaveBeenCalledWith(
+      expect.objectContaining({ clientType: "NATURAL", contactCrmId: "zc2", name: "Luis Mora" })
+    );
+    expect(json).toMatchObject({ status: "success", contactId: "zc2", contactosOmitidos: ["zc1", "otro"], principales: { crmId: "jur1" } });
+  });
+
+  it("sin expedientes y con un contacto marcado crea los principales y el del contacto", async () => {
+    const json = await (await juridica({ contactos: ["zc2"] })).json();
+    expect(zohoMock.service.createDebidaDiligenciaRecord).toHaveBeenCalledTimes(2);
+    expect(json.expedientes.map((e: any) => [e.tipo, e.crmId])).toEqual([["JURIDICA", "new1"], ["NATURAL", "new2"]]);
+    expect(json.crmId).toBe("new1");
   });
 
   it("con expedientes duplicados responde 409", async () => {
@@ -124,18 +164,29 @@ describe("/api/generar-expediente — Persona Jurídica", () => {
 });
 
 describe("/api/generar-expediente — Persona Natural", () => {
-  it("solo crea el expediente del contacto nuevo", async () => {
-    const nuevo = { ...contacto, id: "ac2", crmId: "zc2", firstName: "Luis" };
-    contactoMock.obtenerContactosDeCuenta.mockResolvedValue([contacto, nuevo]);
-    contactoMock.clasificarContactosNaturales.mockResolvedValue({
-      faltantes: [nuevo],
-      existentes: [{ contact: contacto, ddCrmId: "nat1", fuente: "zoho" }],
-      eliminadosEnZoho: [],
-    });
-    const json = await (await post({ name: "Socio", type: "natural", socioId: "s1" })).json();
+  const natural = (extra: any = {}) => post({ name: "Socio", type: "natural", socioId: "s1", ...extra });
+
+  it("sin lista de contactos crea los que faltan", async () => {
+    const json = await (await natural()).json();
     expect(zohoMock.service.createDebidaDiligenciaRecord).toHaveBeenCalledTimes(1);
     expect(zohoMock.service.createDebidaDiligenciaRecord).toHaveBeenCalledWith(expect.objectContaining({ contactCrmId: "zc2" }));
     expect(contactoMock.clasificarExpedientesJuridica).not.toHaveBeenCalled();
-    expect(json).toMatchObject({ contactId: "zc2", existentes: [{ contactId: "zc1", crmId: "nat1" }] });
+    expect(zohoMock.service.getAccountRecord).not.toHaveBeenCalled();
+    expect(json).toMatchObject({ contactId: "zc2", existentes: [{ contactId: "zc1", crmId: "natc1" }] });
+  });
+
+  it("solo crea los contactos marcados", async () => {
+    const otro = { ...nuevo, id: "ac3", crmId: "zc3", firstName: "Eva" };
+    contactoMock.clasificarContactosNaturales.mockResolvedValue({ faltantes: [nuevo, otro], existentes: [], eliminadosEnZoho: [] });
+    await natural({ contactos: ["zc3"] });
+    expect(zohoMock.service.createDebidaDiligenciaRecord).toHaveBeenCalledTimes(1);
+    expect(zohoMock.service.createDebidaDiligenciaRecord).toHaveBeenCalledWith(expect.objectContaining({ contactCrmId: "zc3" }));
+  });
+
+  it("con contactos pendientes pero ninguno marcado responde 400", async () => {
+    const res = await natural({ contactos: [] });
+    expect(res.status).toBe(400);
+    expect((await res.json()).code).toBe("SIN_SELECCION");
+    expect(zohoMock.service.createDebidaDiligenciaRecord).not.toHaveBeenCalled();
   });
 });

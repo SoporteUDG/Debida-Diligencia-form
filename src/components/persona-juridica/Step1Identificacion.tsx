@@ -30,6 +30,9 @@ export default function Step1Identificacion({
   const tipoDocumentoLabel = optionLabeler(OPTIONS.TipoDocumentoOptions, useTranslations("JuridicaForm.JuridicaFormStep1Options.TipoDocumentoOptions"));
   const yesNoLabel = optionLabeler(es.JuridicaForm.TrueFalseOptions, useTranslations("JuridicaForm.TrueFalseOptions"));
 
+  const PHONE_CODE_OPTIONS = Array.from(new Set(PHONE_CODES.map((p) => p.code)));
+  const getPhoneCountry = (code: string) => PHONE_CODES.find((p) => p.code === code)?.country ?? code;
+  
   return (
     <div className={`bg-white rounded-2xl shadow-xl border border-zinc-200`}>
       
@@ -271,42 +274,28 @@ export default function Step1Identificacion({
           </div>
 
           
-
           <div className="flex flex-col gap-2">
-            <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="actividadPrincipal">
-              {t("ActividadPrincipalTitle")}
+            <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="numeroIdTributaria">
+              {t("NumeroIdTributariaTitle")}
             </label>
             <input
               type="text"
-              id="actividadPrincipal"
-              name="actividadPrincipal"
-              value={formData.actividadPrincipal}
+              id="numeroIdTributaria"
+              name="numeroIdTributaria"
+              value={formData.numeroIdTributaria}
               onChange={onInputChange}
-              placeholder={p("ActividadPrincipalPlaceholder")}
-              className={`bg-[#f4f6f8] border border-zinc-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[#052B48] focus:ring-1 focus:ring-[#052B48] transition text-zinc-800`}
-            />
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="numeroDocumento">
-              {t("NumeroDocumentoTitle")}
-            </label>
-            <input
-              type="text"
-              id="numeroDocumento"
-              name="numeroDocumento"
-              value={formData.numeroDocumento}
-              onChange={onInputChange}
-              placeholder={p("NumeroDocumentoPlaceholder")}
-              className={`${errors.numeroDocumento ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
+              placeholder={p("NumeroIdTributariaPlaceholder")}
+              className={`${errors.numeroIdTributaria ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
               required
             />
-            {errors.numeroDocumento && (
+            {errors.numeroIdTributaria && (
               <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
-                ⚠️ {errors.numeroDocumento}
+                ⚠️ {errors.numeroIdTributaria}
               </span>
             )}
           </div>
+
+
 
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="fechaVencimientoId">
@@ -332,24 +321,20 @@ export default function Step1Identificacion({
             )}
           </div>
 
+          
           <div className="flex flex-col gap-2">
-            <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="numeroIdTributaria">
-              {t("NumeroIdTributariaTitle")}
+            <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="actividadPrincipal">
+              {t("ActividadPrincipalTitle")}
             </label>
             <input
               type="text"
-              id="numeroIdTributaria"
-              name="numeroIdTributaria"
-              value={formData.numeroIdTributaria}
+              id="actividadPrincipal"
+              name="actividadPrincipal"
+              value={formData.actividadPrincipal}
               onChange={onInputChange}
-              placeholder={p("NumeroIdTributariaPlaceholder")}
-              className={`${errors.numeroIdTributaria ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
+              placeholder={p("ActividadPrincipalPlaceholder")}
+              className={`bg-[#f4f6f8] border border-zinc-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[#052B48] focus:ring-1 focus:ring-[#052B48] transition text-zinc-800`}
             />
-            {errors.numeroIdTributaria && (
-              <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
-                ⚠️ {errors.numeroIdTributaria}
-              </span>
-            )}
           </div>
 
           <div className="flex flex-col gap-2">
@@ -672,75 +657,69 @@ export default function Step1Identificacion({
             )}
           </div>
 
-          <div className="flex flex-col gap-2">
-            <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="empresaTelefono">
-              {t("EmpresaTelefonoTitle")}
-            </label>
-            <div className="flex gap-2">
-              <select
-                name="empresaTelefonoCodigo"
-                value={formData.empresaTelefonoCodigo || "+507"}
-                onChange={onInputChange}
-                className={`bg-[#f4f6f8] border border-zinc-300 rounded-lg px-2 py-3 text-xs font-semibold text-zinc-700 focus:outline-none focus:border-[#052B48] focus:ring-1 focus:ring-[#052B48] transition text-zinc-800 cursor-pointer max-w-[90px]`}
-              >
-                {PHONE_CODES.map((p) => (
-                  <option key={p.code + p.country} value={p.code}>
-                    {p.code}
-                  </option>
-                ))}
-              </select>
-              <input
-                type="tel"
-                id="empresaTelefono"
-                name="empresaTelefono"
-                value={formData.empresaTelefono}
-                onChange={onInputChange}
-                placeholder={p("EmpresaTelefonoPlaceholder")}
-                className={`${errors.empresaTelefono ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
-              />
-            {errors.empresaTelefono && (
-              <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
-                ⚠️ {errors.empresaTelefono}
-              </span>
-            )}
+          <div className="flex flex-col md:col-span-3">
+            <div className="grid grid-cols-2 gap-2">
+              <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="empresaTelefono">
+                {t("EmpresaTelefonoTitle")}
+              </label>
+              <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="empresaCelular">
+                {t("EmpresaCelularTitle")}
+              </label>
+              <div className="flex gap-2 w-full">
+                <SearchableSelect id="empresaTelefonoCodigo"
+                  value={formData.empresaTelefonoCodigo || "+507"}
+                  onChange={(code) =>
+                    onInputChange({
+                      target: { name: "empresaTelefonoCodigo", value: code },
+                    } as React.ChangeEvent<HTMLInputElement>)
+                  }
+                  options={PHONE_CODE_OPTIONS}
+                  getLabel={getPhoneCountry}/>
+                <input
+                  type="tel"
+                  id="empresaTelefono"
+                  name="empresaTelefono"
+                  value={formData.empresaTelefono}
+                  onChange={onInputChange}
+                  placeholder={p("EmpresaTelefonoPlaceholder")}
+                  className={`${errors.empresaTelefono ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-5/8`}
+                />
+              {errors.empresaTelefono && (
+                <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
+                  ⚠️ {errors.empresaTelefono}
+                </span>
+              )}
+              </div>
+              <div className="flex gap-2 w-full">
+                <SearchableSelect id="empresaCelularCodigo"
+                  value={formData.empresaCelularCodigo || "+507"}
+                  onChange={(code) =>
+                    onInputChange({
+                      target: { name: "empresaCelularCodigo", value: code },
+                    } as React.ChangeEvent<HTMLInputElement>)
+                  }
+                  options={PHONE_CODE_OPTIONS}
+                  getLabel={getPhoneCountry}/>
+                <input
+                  type="tel"
+                  id="empresaCelular"
+                  name="empresaCelular"
+                  value={formData.empresaCelular}
+                  onChange={onInputChange}
+                  placeholder={p("EmpresaCelularPlaceholder")}
+                  className={`${errors.empresaCelular ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-5/8`}
+                />
+              {errors.empresaCelular && (
+                <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
+                  ⚠️ {errors.empresaCelular}
+                </span>
+              )}
+              </div>
             </div>
+
           </div>
 
-          <div className="flex flex-col gap-2">
-            <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="empresaCelular">
-              {t("EmpresaCelularTitle")}
-            </label>
-            <div className="flex gap-2">
-              <select
-                name="empresaCelularCodigo"
-                value={formData.empresaCelularCodigo || "+507"}
-                onChange={onInputChange}
-                className={`bg-[#f4f6f8] border border-zinc-300 rounded-lg px-2 py-3 text-xs font-semibold text-zinc-700 focus:outline-none focus:border-[#052B48] focus:ring-1 focus:ring-[#052B48] transition text-zinc-800 cursor-pointer max-w-[90px]`}
-              >
-                {PHONE_CODES.map((p) => (
-                  <option key={p.code + p.country} value={p.code}>
-                    {p.code}
-                  </option>
-                ))}
-              </select>
-              <input
-                type="tel"
-                id="empresaCelular"
-                name="empresaCelular"
-                value={formData.empresaCelular}
-                onChange={onInputChange}
-                placeholder={p("EmpresaCelularPlaceholder")}
-                className={`${errors.empresaCelular ? "bg-red-50/10 border-red-500 focus:border-red-500 focus:ring-red-500/20" : "bg-[#f4f6f8] border-zinc-300 focus:border-[#052B48] focus:ring-[#052B48]/20"} border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-1 transition text-zinc-800 w-full`}
-              />
-            {errors.empresaCelular && (
-              <span className="text-xs text-red-500 font-medium flex items-center gap-1 mt-0.5 animate-fadeIn">
-                ⚠️ {errors.empresaCelular}
-              </span>
-            )}
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-2 md:col-span-2">
             <label className="text-[11px] font-bold tracking-wider uppercase text-zinc-700" htmlFor="empresaEmail">
               {t("EmpresaEmailTitle")}
             </label>

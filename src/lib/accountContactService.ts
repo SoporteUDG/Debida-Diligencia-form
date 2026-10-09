@@ -23,28 +23,16 @@ export class SinContactosError extends Error {
 }
 
 /**
- * Crea la copia local de un Contact de Zoho vinculado a un Account.
- *
- * Una cuenta de Persona Jurídica admite un solo contacto (por ahora): la regla
- * se valida aquí, al crear, y no en el esquema.
+ * Crea la copia local de un Contact de Zoho vinculado a un Account. Una cuenta
+ * de Persona Jurídica también admite varios: cada contacto lleva su propio
+ * expediente de Persona Natural (el Representante Legal no es un contacto).
  */
 export async function createAccountContact(params: {
   accountCrmId: string;
   clientType: ClientType;
   contact: ZohoAccountContact;
 }): Promise<AccountContactRow> {
-  const { accountCrmId, clientType, contact } = params;
-
-  if (clientType === "JURIDICA") {
-    const existing = await prisma.accountContact.count({
-      where: { accountCrmId, deletedAt: null, crmId: { not: contact.id } },
-    });
-    if (existing > 0) {
-      throw new Error(
-        `El Socio de Negocio ${accountCrmId} es de Persona Jurídica y ya tiene un contacto vinculado: solo se admite uno.`
-      );
-    }
-  }
+  const { accountCrmId, contact } = params;
 
   const zohoCreatedAt = Date.parse(contact.createdTime);
   const data = {
@@ -83,9 +71,18 @@ export async function createAccountContact(params: {
  * Natural: sin contactos (o si la búsqueda en Zoho falla) lanza error, porque
  * cada expediente debe colgar de un contacto. Jurídica: si no hay contactos o la
  * búsqueda falla devuelve [] y se genera el expediente sin contacto vinculado.
+ *
+ * Con `todos` (jurídica en /api/generar-expediente) devuelve todos los contactos
+ * (cada uno puede llevar su expediente natural): sin contactos devuelve [] y si
+ * Zoho falla lanza.
  */
-export async function obtenerContactosDeCuenta(accountCrmId: string, clientType: ClientType): Promise<AccountContactRow[]> {
-  if (clientType === "JURIDICA") {
+export async function obtenerContactosDeCuenta(
+  accountCrmId: string,
+  clientType: ClientType,
+  opts?: { todos?: boolean }
+): Promise<AccountContactRow[]> {
+  const todos = clientType === "NATURAL" || !!opts?.todos;
+  if (!todos) {
     const existing = await prisma.accountContact.findFirst({
       where: { accountCrmId, deletedAt: null },
       orderBy: [{ zohoCreatedAt: "asc" }, { createdAt: "asc" }],
@@ -97,7 +94,7 @@ export async function obtenerContactosDeCuenta(accountCrmId: string, clientType:
   try {
     contactos = await zoho.service.searchAccountContacts(accountCrmId);
   } catch (err) {
-    if (clientType === "NATURAL") throw err;
+    if (todos) throw err;
     console.warn(`[Account Contacts] No se pudieron leer los contactos del Socio de Negocio ${accountCrmId}:`, err);
     return [];
   }
@@ -105,13 +102,18 @@ export async function obtenerContactosDeCuenta(accountCrmId: string, clientType:
   if (clientType === "NATURAL" && contactos.length === 0) throw new SinContactosError(accountCrmId);
 
   // searchAccountContacts los entrega del más antiguo al más reciente
-  const aGuardar = clientType === "JURIDICA" ? contactos.slice(0, 1) : contactos;
+  const aGuardar = todos ? contactos : contactos.slice(0, 1);
   const filas: AccountContactRow[] = [];
   for (const contact of aGuardar) {
     filas.push(await createAccountContact({ accountCrmId, clientType, contact }));
   }
   return filas;
 }
+
+const tipoDe = (dd: ZohoDDResumen): "NATURAL" | "JURIDICA" | null => {
+  const t = (dd.tipo ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").trim().toLowerCase();
+  return t === "natural" ? "NATURAL" : t === "juridica" ? "JURIDICA" : null;
+};
 
 export interface ContactoConDD {
   contact: AccountContactRow;
@@ -139,7 +141,9 @@ export async function clasificarContactosNaturales(
   accountCrmId: string,
   contactos: AccountContactRow[]
 ): Promise<ClasificacionContactos> {
-  const ddsZoho = await zoho.service.searchDDsByAccount(accountCrmId);
+  // Solo los expedientes naturales son de un contacto (en un socio jurídico, el
+  // expediente jurídico no cuenta)
+  const ddsZoho = (await zoho.service.searchDDsByAccount(accountCrmId)).filter((d) => tipoDe(d) !== "JURIDICA");
 
   const faltantes: AccountContactRow[] = [];
   const existentes: ContactoConDD[] = [];
@@ -197,26 +201,28 @@ export async function clasificarContactosNaturales(
 export interface ExpedientesJuridica {
   /** Expediente vigente (no retirado) de Persona Jurídica; null si falta. */
   juridica: ZohoDDResumen | null;
-  /** Expediente vigente de Persona Natural (Representante Legal); null si falta. */
+  /** Expediente vigente de Persona Natural del Representante Legal; null si falta. */
   natural: ZohoDDResumen | null;
-  /** Hay más de un expediente vigente del mismo tipo: no se sabe cuál completar. */
+  /** Más de un jurídico vigente, o varios candidatos a Representante Legal sin vínculo. */
   duplicados: boolean;
   juridicas: ZohoDDResumen[];
+  /** Candidatos a expediente del Representante Legal (ver clasificarExpedientesJuridica). */
   naturales: ZohoDDResumen[];
   /** IDs de los expedientes del socio retirados (en Zoho o en el portal). */
   retirados: string[];
 }
 
-const tipoDe = (dd: ZohoDDResumen): "NATURAL" | "JURIDICA" | null => {
-  const t = (dd.tipo ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").trim().toLowerCase();
-  return t === "natural" ? "NATURAL" : t === "juridica" ? "JURIDICA" : null;
-};
 
 /**
- * Expedientes vigentes de un Socio de Negocio Jurídico: uno de Persona Jurídica y
- * uno de Persona Natural (Representante Legal), como valida el widget de Zoho
+ * Expedientes vigentes de un Socio de Negocio Jurídico: el de Persona Jurídica y
+ * el de Persona Natural del Representante Legal, como valida el widget de Zoho
  * (validarDebidaDiligencia). Un expediente retirado (en Zoho o en el portal) no
  * cuenta: se puede volver a generar. Lanza si Zoho falla, para no duplicar.
+ *
+ * Los contactos del socio también pueden tener expedientes naturales, así que el
+ * del Representante Legal es el relacionado al jurídico por DD_relacionado (en
+ * cualquier sentido); si no hay vínculo, el natural sin contacto o que apunta a
+ * un jurídico del socio (aunque esté retirado).
  */
 export async function clasificarExpedientesJuridica(accountCrmId: string): Promise<ExpedientesJuridica> {
   const dds = await zoho.service.searchDDsByAccount(accountCrmId);
@@ -234,13 +240,23 @@ export async function clasificarExpedientesJuridica(accountCrmId: string): Promi
   const vigentes = dds.filter((d) => !d.retirado && !retiradosEnPortal.has(d.id));
 
   const juridicas = vigentes.filter((d) => tipoDe(d) === "JURIDICA");
+  const juridica = juridicas[0] ?? null;
+  const idsJuridicos = new Set(dds.filter((d) => tipoDe(d) === "JURIDICA").map((d) => d.id));
   const naturales = vigentes.filter((d) => tipoDe(d) === "NATURAL");
+
+  const vinculado = juridica
+    ? naturales.find((n) => n.id === juridica.relatedCrmId || n.relatedCrmId === juridica.id) ?? null
+    : null;
+  const candidatos = vinculado
+    ? [vinculado]
+    : naturales.filter((n) => !n.contactCrmId || idsJuridicos.has(n.relatedCrmId));
+
   return {
-    juridica: juridicas[0] ?? null,
-    natural: naturales[0] ?? null,
-    duplicados: juridicas.length > 1 || naturales.length > 1,
+    juridica,
+    natural: vinculado ?? (candidatos.length === 1 ? candidatos[0] : null),
+    duplicados: juridicas.length > 1 || candidatos.length > 1,
     juridicas,
-    naturales,
+    naturales: candidatos,
     retirados: dds.filter((d) => !vigentes.includes(d)).map((d) => d.id),
   };
 }

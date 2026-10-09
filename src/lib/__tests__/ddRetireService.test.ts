@@ -106,9 +106,45 @@ describe("eliminarDDNoEnviado", () => {
     await expect(eliminarDDNoEnviado(params)).resolves.toMatchObject({ action: "retired" });
   });
 
-  it("rechaza si no existe en Prisma", async () => {
+  it("rechaza si no existe en Prisma pero Zoho tiene enlace", async () => {
     prismaMock.crmContact.findFirst.mockResolvedValue(null);
+    zohoMock.service.getDDRecord.mockResolvedValue({ Estado: "", Enlace_de_Formulario: "https://x/form?token=a" });
     await expect(eliminarDDNoEnviado(params)).rejects.toMatchObject({ code: "NOT_FOUND" });
+    expect(zohoMock.service.deleteDDRecord).not.toHaveBeenCalled();
+  });
+
+  it("rechaza si solo existe anulado en Prisma (aunque Zoho no tenga enlace)", async () => {
+    prismaMock.crmContact.findFirst.mockResolvedValueOnce(null).mockResolvedValueOnce({ id: "c1" });
+    await expect(eliminarDDNoEnviado(params)).rejects.toMatchObject({ code: "NOT_FOUND" });
+    expect(zohoMock.service.deleteDDRecord).not.toHaveBeenCalled();
+  });
+
+  it("solo en Zoho (sin Prisma ni enlace): elimina carpeta y registro sin las demas validaciones", async () => {
+    prismaMock.crmContact.findFirst.mockResolvedValue(null);
+    zohoMock.service.getDDRecord.mockResolvedValue({ Estado: "En revisión", retirado: true, Tipo_de_Persona: "Jurídica", Enlace_de_Formulario: null });
+    zohoMock.service.getRelatedDDId.mockResolvedValue("rel");
+    const r = await eliminarDDNoEnviado(params);
+    expect(r).toMatchObject({ success: true, action: "deleted", crmId: "dd1", carpetaEliminada: true });
+    expect(wd.localizarCarpetaExpediente).toHaveBeenCalledWith("dd1", "JURIDICA", "tok");
+    expect(wd.deleteFileFromWorkDrive).toHaveBeenCalledWith("cf", "tok");
+    expect(zohoMock.service.deleteDDRecord).toHaveBeenCalledWith("dd1");
+    expect(wd.deleteFileFromWorkDrive.mock.invocationCallOrder[0]).toBeLessThan(zohoMock.service.deleteDDRecord.mock.invocationCallOrder[0]);
+    expect(prismaMock.crmContact.delete).not.toHaveBeenCalled();
+  });
+
+  it("solo en Zoho: rechaza si el registro tampoco existe en Zoho", async () => {
+    prismaMock.crmContact.findFirst.mockResolvedValue(null);
+    zohoMock.service.getDDRecord.mockResolvedValue(null);
+    await expect(eliminarDDNoEnviado(params)).rejects.toMatchObject({ code: "NOT_FOUND" });
+    expect(zohoMock.service.deleteDDRecord).not.toHaveBeenCalled();
+  });
+
+  it("rechaza si en Zoho ya esta Enviado (formulario completado)", async () => {
+    prismaMock.crmContact.findUnique.mockResolvedValue(base);
+    zohoMock.service.getDDRecord.mockResolvedValue({ Estado: "Enviado" });
+    await expect(eliminarDDNoEnviado(params)).rejects.toMatchObject({ code: "CONFLICT" });
+    expect(wd.deleteFileFromWorkDrive).not.toHaveBeenCalled();
+    expect(zohoMock.service.deleteDDRecord).not.toHaveBeenCalled();
   });
 
   it("rechaza si en Zoho ya esta en revision", async () => {

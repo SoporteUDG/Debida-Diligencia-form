@@ -16,7 +16,7 @@ estructura de filas
 | **Enlace de Formulario** | `Enlace_de_Formulario` | URL | Enlace firmado de debida diligencia |
 | **Vigencia del enlace** | `Vigencia_del_enlace` | Fecha-hora (DateTime) | Fecha de expiración de enlace |
 | **Estado del enlace** | `Estado_del_enlace` | Picklist (Lista) | Estado del link generado |
-| **Estado** | `Estado` | Picklist (Lista) | Estado del expediente (ej. `"En revisión"`, `"Aprobado"`) |
+| **Estado** | `Estado` | Picklist (Lista) | Estado del expediente: `"En borrador"` al crear; `"Enviado"` al completarse o actualizarse el formulario (salvo si está `"Anulado"`); luego `"En revisión"`, `"Aprobado"` |
 | **Tipo de Persona** | `Tipo_de_Persona` | Picklist (`"Persona Natural"` / `"Persona Jurídica"`) | Tipo de cliente |
 
 ## 1. Datos de cabecera
@@ -33,9 +33,8 @@ estructura de filas
 | **Estado de sociedad** | `Estado_sociedad` | Picklist (Lista)  {same as options} | estadoSociedad (FormState) |
 | **Tipo de identificacion** | `Tipo_de_identificacion` | Picklist (Lista)  {same as options} | tipoDocumentoIdentidad (FormState) |
 | **Actividad Principal** | `Actividad_Principal` | Línea única (String) | actividadPrincipal (FormState) |
-| **RUC / NIT** | `RUC_NIT` | Línea única (String) | numeroDocumento (FormState) |
 | **Fecha vencimiento ID** | `Fecha_vencimiento_ID` | Fecha (date) | fechaVencimientoId (FormState) |
-| **ID tributaria** | `ID_tributaria` | Línea única (String) | numeroIdTributaria (FormState) |
+| **ID tributaria** | `ID_tributaria` | Línea única (String) | numeroIdTributaria (FormState) — R.U.C. / ID tributaria de la empresa (sustituye a numeroDocumento) |
 | **País donde tributa** | `Pa_s_donde_tributa` | Picklist (Lista)  {same as options} | paisTributacion (FormState) |
 | **País donde opera** | `Pa_s_donde_opera` | Picklist (Lista)  {same as options} | paisOpera (FormState) |
 | **Fecha de constitución** | `Fecha_de_constituci_n` | Fecha (Date) | fechaConstitucion (FormState) |
@@ -146,7 +145,6 @@ estructura de filas
 | **Estado migratorio** | `Estado_migratorio` | Picklist (Lista)  {same as options} | estatusMigratorio (FormState) |
 | **Tipo de identificacion** | `Tipo_de_identificacion` | Picklist (Lista) {same as options} | tipoIdentificacion (FormState) |
 | **Pais de residencia fiscal** | `Pais_de_residencia_fiscal` | Línea única (String) | paisResidenciaFiscal (FormState) |
-| **ID tributaria** | `ID_tributaria` | Línea única (String) | idTributaria (FormState) |
 
 | JURISDICCIÓN / UBICACIÓN GEOGRÁFICA |
 | **Dirección / Calle** | `Direccion_Calle` | Multilínea (Text Area) | direccionResidencial (FormState) |

@@ -3,6 +3,7 @@ import { zoho } from "@/lib/zohoService";
 import { getAccessToken } from "@/lib/zohoAuthService";
 import { logAuditEvent } from "@/lib/auditService";
 import { reactivateToken } from "@/lib/tokenService";
+import { ESTADO_ANULADO, ESTADO_EN_BORRADOR, ESTADO_ENVIADO } from "@/lib/ddEstados";
 import {
   deleteFileFromWorkDrive,
   findFolderAdicional,
@@ -23,10 +24,10 @@ import {
  * estado del expediente: no confía en lo que mostró la interfaz.
  */
 
-export const ESTADO_ANULADO = "Anulado";
-export const ESTADO_REACTIVADO = "En borrador";
-/** Estados de Zoho con los que un expediente ya no se puede eliminar. */
-const ESTADOS_NO_ELIMINABLES = ["En revisión", "Aprobado", ESTADO_ANULADO];
+export { ESTADO_ANULADO };
+export const ESTADO_REACTIVADO = ESTADO_EN_BORRADOR;
+/** Estados de Zoho con los que un expediente ya no se puede eliminar ("Enviado": lo fija la sincronización al completarse el formulario). */
+const ESTADOS_NO_ELIMINABLES = [ESTADO_ENVIADO, "En revisión", "Aprobado", ESTADO_ANULADO];
 
 const MIN_MOTIVO = 10;
 
@@ -102,6 +103,9 @@ export function perfilPuedeEliminar(perfil: string | undefined | null): boolean 
  * PERFILES_ELIMINAR_DD; aquí se vuelve a exigir. Además no debe existir ningún
  * Form ni un Estado de Zoho posterior a borrador. El orden prioriza lo
  * recuperable: primero la carpeta (papelera), luego Zoho, al final Prisma.
+ *
+ * Si no hay registro en Prisma ni enlace en Zoho (Enlace_de_Formulario), el
+ * expediente solo existió en Zoho: se elimina directamente (eliminarDDSoloZoho).
  */
 export async function eliminarDDNoEnviado(params: {
   /** ID del registro de Debida_Diligencia en Zoho (CrmContact.crmId) */
@@ -120,7 +124,18 @@ export async function eliminarDDNoEnviado(params: {
   const reason = params.reason?.trim() || `Solicitado desde Zoho por ${actor.name || actor.email || actor.id}`;
 
   const existente = await prisma.crmContact.findFirst({ where: { crmId, deletedAt: null }, select: { id: true } });
-  if (!existente) throw new BajaDDError("Expediente no encontrado.", "NOT_FOUND");
+  if (!existente) {
+    // Sin registro en Prisma (ni siquiera anulado) y sin enlace en Zoho: el expediente solo
+    // existió en Zoho, nunca pasó por el portal. Se elimina sin las demás validaciones.
+    const enPrisma = await prisma.crmContact.findFirst({ where: { crmId }, select: { id: true } });
+    if (!enPrisma) {
+      const registro = await zoho.service.getDDRecord(crmId);
+      if (registro && !String(registro.Enlace_de_Formulario ?? "").trim()) {
+        return eliminarDDSoloZoho({ crmId, registro, reason, actor, ip: params.ip });
+      }
+    }
+    throw new BajaDDError("Expediente no encontrado.", "NOT_FOUND");
+  }
   const { contact, formType } = await cargarExpediente(existente.id);
   if (contact.retiredAt) {
     throw new BajaDDError("El expediente está anulado: reactívelo antes de eliminarlo.", "CONFLICT");
@@ -179,6 +194,50 @@ export async function eliminarDDNoEnviado(params: {
   });
 
   return { success: true, action: "deleted" as const, crmId: contact.crmId, carpetaEliminada: !!clientFolderId };
+}
+
+/**
+ * ELIMINA un expediente que solo existe en Zoho (sin CrmContact y sin enlace de
+ * formulario): no hay nada enviado que proteger, así que no se validan Estado,
+ * retiro ni DD_relacionado. Se borra su carpeta /{Socio}/DD/{TIPO}-{Nombre}
+ * (papelera de WorkDrive) y luego el registro de Zoho.
+ */
+async function eliminarDDSoloZoho(params: {
+  crmId: string;
+  registro: Record<string, any>;
+  reason: string;
+  actor: { id: string; email?: string; profile: string };
+  ip?: string | null;
+}) {
+  const { crmId, registro, reason, actor } = params;
+  const formType = /jur/i.test(String(registro.Tipo_de_Persona ?? "")) ? "JURIDICA" : "NATURAL";
+
+  // 1. Carpeta de WorkDrive (papelera). Debe resolverse antes de borrar el DD de Zoho.
+  const accessToken = await getAccessToken();
+  const { clientFolderId } = await localizarCarpetaExpediente(crmId, formType, accessToken);
+  if (clientFolderId) await deleteFileFromWorkDrive(clientFolderId, accessToken);
+
+  // 2. Zoho
+  await zoho.service.deleteDDRecord(crmId);
+
+  await logAuditEvent({
+    action: "DD_DELETE",
+    entityName: "CrmContact",
+    entityId: crmId,
+    userId: null,
+    ipAddress: params.ip ?? null,
+    details: {
+      crmId,
+      reason,
+      soloZoho: true,
+      zohoUserId: actor.id,
+      zohoUser: actor.email,
+      zohoProfile: actor.profile,
+      folderTrashed: clientFolderId,
+    },
+  });
+
+  return { success: true, action: "deleted" as const, crmId, carpetaEliminada: !!clientFolderId };
 }
 
 /**

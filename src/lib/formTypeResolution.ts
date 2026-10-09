@@ -25,7 +25,6 @@ const MARCAS_NATURAL = ["firstName", "lastName", "idNumber", "profession"] as co
 const MARCAS_JURIDICA = [
   "razonSocial",
   "tipoSociedad",
-  "numeroDocumento",
   "rlNombre",
   "gjcMembers",
   "bfMembers",

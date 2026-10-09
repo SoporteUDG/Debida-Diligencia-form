@@ -137,6 +137,36 @@ describe("Zoho CRM & WorkDrive Integration Mocks", () => {
       const body = JSON.parse((put[1] as any).body).data[0];
       expect(body.Raz_n_social).toBe("Mock Corp S.A.");
       expect(body).not.toHaveProperty("Name");
+      // Formulario completado / actualizado
+      expect(body.Estado).toBe("Enviado");
+    });
+
+    it.each([
+      ["Estado Anulado", { Estado: "Anulado" }],
+      ["retirado = true", { Estado: "En borrador", retirado: true }],
+    ])("updateContact - un expediente anulado (%s) no pasa a Enviado", async (_, marca) => {
+      const spyFetch = vi.spyOn(global, "fetch").mockImplementation(async (url, init) => {
+        const urlStr = String(url);
+        if (urlStr.includes("/oauth/v2/token")) return tokenResponse;
+        if (urlStr.includes("/Debida_Diligencia/dd-anulado") && (init as any)?.method === "GET") {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({ data: [{ id: "dd-anulado", Socio_de_Negocios: { id: "acc-1", name: "Socio" }, ...marca }] }),
+          } as any;
+        }
+        if (urlStr.includes("/Debida_Diligencia/dd-anulado")) {
+          return { ok: true, json: async () => ({ data: [{ status: "success", code: "SUCCESS", message: "ok" }] }) } as any;
+        }
+        return { ok: false, status: 404 } as any;
+      });
+
+      await zoho.service.updateContact("dd-anulado", "NATURAL", { firstName: "Ana", lastName: "Ruiz" });
+
+      const put = spyFetch.mock.calls.find(
+        ([u, init]) => String(u).includes("/Debida_Diligencia/dd-anulado") && (init as any)?.method === "PUT"
+      )!;
+      expect(JSON.parse((put[1] as any).body).data[0]).not.toHaveProperty("Estado");
     });
 
     /** Expediente dd-socio con proyecto "Proyecto Viejo" y Socio acc-1 (`socio` = registro de Accounts). */
@@ -664,7 +694,7 @@ describe("Zoho CRM & WorkDrive Integration Mocks", () => {
       const result = await zoho.service.updateContact(
         "crm-debida-id",
         "JURIDICA",
-        { razonSocial: "Inversiones S.A.", numeroDocumento: "8-999-9999" }
+        { razonSocial: "Inversiones S.A.", numeroIdTributaria: "8-999-9999" }
       );
 
       expect(result.success).toBe(true);
@@ -835,6 +865,33 @@ describe("Zoho CRM & WorkDrive Integration Mocks", () => {
       expect(body.data[0].Proyecto).toBe("Costa del Este");
       expect(body.data[0].Asesor).toBe("Adviser John");
       expect(body.data[0].Enlace_de_Formulario).toBe("https://portal.udg.com.pa/persona-natural?token=abc.xyz");
+    });
+
+    it("createDebidaDiligenciaRecord - Jurídica: la ID tributaria va a ID_tributaria, nunca a RUC_NIT", async () => {
+      const spyFetch = vi.spyOn(global, "fetch").mockImplementation(async (url) => {
+        const urlStr = String(url);
+        if (urlStr.includes("/oauth/v2/token")) {
+          return { ok: true, json: async () => ({ access_token: "token_abc", expires_in: 3600 }) } as any;
+        }
+        if (urlStr.includes("/Debida_Diligencia")) {
+          return { ok: true, json: async () => ({ data: [{ status: "success", details: { id: "jur-777" } }] }) } as any;
+        }
+        return { ok: false, status: 404, text: async () => "Not Found" } as any;
+      });
+
+      await zoho.service.createDebidaDiligenciaRecord({
+        accountCrmId: "acc-1",
+        clientType: "JURIDICA",
+        name: "ACME",
+        projectName: "Costa del Este",
+        idNumber: "155-1-2026",
+      });
+
+      const debidaPostCall = spyFetch.mock.calls.find(call => String(call[0]).endsWith("/Debida_Diligencia"));
+      const body = JSON.parse(debidaPostCall![1]?.body as string);
+      expect(body.data[0].Tipo_de_Persona).toBe("Jurídica");
+      expect(body.data[0].ID_tributaria).toBe("155-1-2026");
+      expect(body.data[0]).not.toHaveProperty("RUC_NIT");
     });
   });
 });

@@ -155,7 +155,6 @@ function naturalAJuridica(n: Datos): GrupoCampos[] {
     { valores: { rlProfesionOcupacion: resolverOtros(texto(n.profession), n.profesionOtros) } },
     { valores: { rlActividadEconomica: resolverOtros(texto(n.actEconPrincipal), n.otroActEcon) } },
     { valores: { rlPaisResidencia: texto(n.paisResidenciaFiscal) } },
-    { valores: { numeroIdTributaria: texto(n.idTributaria) } },
 
     // Dirección / contacto (Direccion_Calle, Ciudad, Provincia, Pa_s, Tel_fono, Celular, Email_corporativo)
     { valores: { empresaDireccion: texto(n.direccionResidencial) } },
@@ -231,7 +230,6 @@ function juridicaANatural(j: Datos): GrupoCampos[] {
         : {},
     },
     { valores: { paisResidenciaFiscal: texto(j.rlPaisResidencia) } },
-    { valores: { idTributaria: texto(j.numeroIdTributaria) } },
 
     { valores: { direccionResidencial: texto(j.empresaDireccion) } },
     { valores: { ciudad: texto(j.empresaCiudad) } },

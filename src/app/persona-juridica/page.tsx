@@ -44,7 +44,7 @@ import BrandFooter from "@/components/BrandFooter";
 
 const getStepForField = (field: string): number => {
   const step1Fields = [
-    "nombreProyecto", "formaContacto", "razonSocial", "tipoSociedad", "tipoCliente", "tipoDocumentoIdentidad", "actividadPrincipal", "numeroDocumento", "numeroIdTributaria", "paisTributacion", "porcentajeActividad", "fechaConstitucion", "paisOpera", "paisInscripcion", "fechaNacimiento", "contactoNombre", "contactoApellido", "contactoId", "contactoTelefono", "contactoEmail", "empresaDireccion", "empresaCiudad", "empresaProvincia", "empresaPais", "empresaTelefonoCodigo", "empresaTelefono", "empresaCelularCodigo", "empresaCelular", "empresaEmail",
+    "nombreProyecto", "formaContacto", "razonSocial", "tipoSociedad", "tipoCliente", "tipoDocumentoIdentidad", "actividadPrincipal", "numeroIdTributaria", "paisTributacion", "porcentajeActividad", "fechaConstitucion", "paisOpera", "paisInscripcion", "fechaNacimiento", "contactoNombre", "contactoApellido", "contactoId", "contactoTelefono", "contactoEmail", "empresaDireccion", "empresaCiudad", "empresaProvincia", "empresaPais", "empresaTelefonoCodigo", "empresaTelefono", "empresaCelularCodigo", "empresaCelular", "empresaEmail",
     "rlNombre", "rlFechaNacimiento", "rlNacionalidad", "rlNoIdentificacion", "rlProfesionOcupacion", "rlActividadEconomica", "rlDireccion", "rlPaisResidencia", "rlTelefono", "rlObjetoInvestigacion", "gjcMembers",
     "bfMembers", "ingresosMensuales", "medioPago", "fuenteFondosInmueble", "terceroNombre", "terceroNacionalidad", "terceroVinculo", "terceroFuenteFondos", "adquiereMasUnidades", "cantidadUnidadesInmobiliarias", "montoServiciosAnuales", "esPep", "pepNombre", "pepCargo", "pepInstitucion", "pepRelacion", "actividadComercial", "origenFondos", "destinoFondos", "volumenVentas", "bancoReferencia"
   ];
@@ -821,7 +821,6 @@ export default function PersonaJuridicaPage() {
       { key: "tipoSociedad", label: tp("OptionalFields.tipoSociedad"), step: 1 },
       { key: "tipoCliente", label: tp("OptionalFields.tipoCliente"), step: 1 },
       { key: "actividadPrincipal", label: tp("OptionalFields.actividadPrincipal"), step: 1 },
-      { key: "numeroIdTributaria", label: tp("OptionalFields.numeroIdTributaria"), step: 1 },
       { key: "paisTributacion", label: tp("OptionalFields.paisTributacion"), step: 1 },
       { key: "paisOpera", label: tp("OptionalFields.paisOpera"), step: 1 },
       { key: "paisInscripcion", label: tp("OptionalFields.paisInscripcion"), step: 1 },

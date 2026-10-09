@@ -81,6 +81,8 @@ describe("ZohoService Unit Tests", () => {
         celularCodigo: "+507",
         celular: "6111-2222",
         idNumber: "8-999-9999",
+        // Campo eliminado de la natural (borradores antiguos): no se envía
+        idTributaria: "999",
         fechaNacimiento: "1990-04-05",
         profession: "Otros",
         profesionOtros: "Piloto",
@@ -103,13 +105,14 @@ describe("ZohoService Unit Tests", () => {
 
       const payload = mapFormToCrmPayload("NATURAL", naturalForm);
 
-      expect(payload["Estado"]).toBe("En revisión");
       expect(payload["Proyecto"]).toBe("Proyecto Marina");
       expect(payload["Forma_de_contacto"]).toBe("Feria");
       expect(payload["Nombre_natural"]).toBe("Lucas Silva");
       expect(payload["Email_corporativo"]).toBe("lucas@gmail.com");
       expect(payload["Celular"]).toBe("+507 6111-2222");
       expect(payload["Numero_Identificacion"]).toBe("8-999-9999");
+      expect(payload).not.toHaveProperty("ID_tributaria");
+      expect(payload).not.toHaveProperty("RUC_NIT");
       expect(payload["Fecha_de_nacimiento"]).toBe("1990-04-05");
       expect(payload["Profesi_n"]).toBe("Piloto");
       expect(payload["Patrimonio_en_la_empresa"]).toBe(true);
@@ -136,7 +139,9 @@ describe("ZohoService Unit Tests", () => {
       const juridicaForm = {
         nombreProyecto: "Proyecto Pacific",
         razonSocial: "Desarrollo Global S.A.",
-        numeroDocumento: "123456-9-2026",
+        numeroIdTributaria: "123456-9-2026",
+        // Campo eliminado de la jurídica (borradores antiguos): no se envía
+        numeroDocumento: "viejo",
         tipoCliente: "Persona Jurídica Nacional",
         estadoSociedad: "Operativa",
         ifContacto: "Sí",
@@ -160,9 +165,9 @@ describe("ZohoService Unit Tests", () => {
 
       const payload = mapFormToCrmPayload("JURIDICA", juridicaForm);
 
-      expect(payload["Estado"]).toBe("En revisión");
       expect(payload["Raz_n_social"]).toBe("Desarrollo Global S.A.");
-      expect(payload["RUC_NIT"]).toBe("123456-9-2026");
+      expect(payload["ID_tributaria"]).toBe("123456-9-2026");
+      expect(payload).not.toHaveProperty("RUC_NIT");
       expect(payload["Tipo_de_Cliente"]).toBe("Persona Jurídica Nacional");
       expect(payload["Estado_sociedad"]).toBe("Operativa");
       expect(payload["Ocupa_cargo"]).toBe(true);

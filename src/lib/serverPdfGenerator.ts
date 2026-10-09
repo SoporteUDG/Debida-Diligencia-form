@@ -135,7 +135,7 @@ export async function generateServerPDF(
         y = drawField(doc, y, "Nombre Completo", `${data.firstName || ""} ${data.lastName || ""}`);
         y = drawFieldRow(doc, y, "Nacionalidad", data.nationality || "-", "Identificación", `${data.tipoIdentificacion || "Cédula"}: ${data.idNumber || "-"}`);
         y = drawFieldRow(doc, y, "Fecha Nacimiento", data.fechaNacimiento || "-", "Vencimiento ID", vencimientoId(data.fechaVencimientoId));
-        y = drawFieldRow(doc, y, "País Residencia Fiscal", data.paisResidenciaFiscal || "-", "NIF / ID Tributaria", data.idTributaria || "-");
+        y = drawField(doc, y, "País Residencia Fiscal", data.paisResidenciaFiscal || "-");
         y = drawFieldRow(doc, y, "Correo Electrónico", data.email || "-", "Teléfono / Celular", `${telefono(data.telefonoCodigo, data.telefono)} / ${telefono(data.celularCodigo, data.celular)}`);
         y = drawFieldRow(doc, y, "Estado Civil", data.estadoCivil || "-", "", "");
         y = drawField(doc, y, "Dirección Residencial", direccion(data.direccionResidencial, data.ciudad, data.provinciaEstado, data.paisResidencial));
@@ -192,13 +192,13 @@ export async function generateServerPDF(
       } else {
         // JURÍDICA
         y = drawSectionTitle(doc, y, "1. Información de la Empresa / Sociedad");
-        y = drawFieldRow(doc, y, "Razón Social", data.razonSocial || "-", "R.U.C. / Registro", data.numeroDocumento || "-");
+        y = drawFieldRow(doc, y, "Razón Social", data.razonSocial || "-", "R.U.C. / Registro", data.numeroIdTributaria || "-");
         y = drawFieldRow(doc, y, "Tipo de Documento", data.tipoDocumentoIdentidad || "-", "Vencimiento Documento", vencimientoId(data.fechaVencimientoId));
         y = drawFieldRow(doc, y, "Fecha Constitución", data.fechaConstitucion || "-", "País de Inscripción", data.paisInscripcion || "-");
         y = drawFieldRow(doc, y, "País donde Opera", data.paisOpera || "-", "Tipo de Sociedad", data.tipoSociedad || "-");
         y = drawFieldRow(doc, y, "Estado de la Sociedad", data.estadoSociedad || "-", "Tipo de Cliente", data.tipoCliente || "-");
         y = drawFieldRow(doc, y, "Actividad Principal", `${data.actividadPrincipal || "-"}`, "País Tributación", data.paisTributacion || "-");
-        y = drawFieldRow(doc, y, "NIF / ID Tributaria", data.numeroIdTributaria || "-", "Correo Empresa", data.empresaEmail || "-");
+        y = drawField(doc, y, "Correo Empresa", data.empresaEmail || "-");
         y = drawFieldRow(doc, y, "Teléfono Oficina", telefono(data.empresaTelefonoCodigo, data.empresaTelefono), "Celular Contacto", telefono(data.empresaCelularCodigo, data.empresaCelular));
         y = drawField(doc, y, "Dirección Oficina", direccion(data.empresaDireccion, data.empresaCiudad, data.empresaProvincia, data.empresaPais));
         y = drawField(doc, y, "Medio de Contacto", medioContacto);

@@ -820,7 +820,10 @@ export const appRouter = router({
             projectName: input.projectName,
             email,
             phone,
-            idNumber: crmData.idNumber || crmData.contactoId || "",
+            // Jurídica: ID tributaria de la empresa (va a ID_tributaria, no a RUC_NIT)
+            idNumber: isNatural
+              ? crmData.idNumber || crmData.contactoId || ""
+              : crmData.numeroIdTributaria || crmData.idNumber || "",
             estadoCivil: crmData.estadoCivil,
             razonSocial: crmData.razonSocial,
             advisorName: input.advisorName,
@@ -876,7 +879,7 @@ export const appRouter = router({
         contactoTelefono: crmData.contactoTelefono || phone,
         contactoId: crmData.contactoId || crmData.idNumber || "",
         razonSocial: crmData.razonSocial || "",
-        numeroDocumento: crmData.numeroDocumento || "",
+        numeroIdTributaria: crmData.numeroIdTributaria || "",
       };
 
       // 7. Create Draft in database

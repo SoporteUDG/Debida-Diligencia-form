@@ -29,23 +29,9 @@ beforeEach(() => {
 });
 
 describe("createAccountContact", () => {
-  it("juridica: rechaza un segundo contacto distinto en la misma cuenta", async () => {
-    prismaMock.accountContact.count.mockResolvedValue(1);
-    await expect(
-      createAccountContact({ accountCrmId: "acc1", clientType: "JURIDICA", contact: contacto("c2", "2026-02-01") })
-    ).rejects.toThrow(/solo se admite uno/);
-    expect(prismaMock.accountContact.upsert).not.toHaveBeenCalled();
-  });
-
-  it("juridica: el primer contacto (o el mismo de nuevo) se guarda", async () => {
-    prismaMock.accountContact.count.mockResolvedValue(0);
-    await createAccountContact({ accountCrmId: "acc1", clientType: "JURIDICA", contact: contacto("c1", "2026-01-01") });
-    expect(prismaMock.accountContact.upsert).toHaveBeenCalledOnce();
-  });
-
-  it("natural: admite varios sin consultar el limite", async () => {
-    await createAccountContact({ accountCrmId: "acc1", clientType: "NATURAL", contact: contacto("c1", "2026-01-01") });
-    await createAccountContact({ accountCrmId: "acc1", clientType: "NATURAL", contact: contacto("c2", "2026-02-01") });
+  it.each(["NATURAL", "JURIDICA"] as const)("%s: admite varios contactos en la misma cuenta", async (clientType) => {
+    await createAccountContact({ accountCrmId: "acc1", clientType, contact: contacto("c1", "2026-01-01") });
+    await createAccountContact({ accountCrmId: "acc1", clientType, contact: contacto("c2", "2026-02-01") });
     expect(prismaMock.accountContact.count).not.toHaveBeenCalled();
     expect(prismaMock.accountContact.upsert).toHaveBeenCalledTimes(2);
   });
@@ -85,6 +71,16 @@ describe("obtenerContactosDeCuenta", () => {
     await expect(obtenerContactosDeCuenta("acc1", "NATURAL")).rejects.toThrow("boom");
   });
 
+  it("juridica con todos: guarda todos; sin contactos devuelve [] y si Zoho falla lanza", async () => {
+    zohoMock.service.searchAccountContacts.mockResolvedValue(todos);
+    expect((await obtenerContactosDeCuenta("acc1", "JURIDICA", { todos: true })).map((f) => f.crmId)).toEqual(["c1", "c2", "c3"]);
+    expect(prismaMock.accountContact.findFirst).not.toHaveBeenCalled();
+    zohoMock.service.searchAccountContacts.mockResolvedValue([]);
+    expect(await obtenerContactosDeCuenta("acc1", "JURIDICA", { todos: true })).toEqual([]);
+    zohoMock.service.searchAccountContacts.mockRejectedValue(new Error("boom"));
+    await expect(obtenerContactosDeCuenta("acc1", "JURIDICA", { todos: true })).rejects.toThrow("boom");
+  });
+
   it("juridica: si Zoho falla devuelve [] para generar el expediente sin contacto", async () => {
     prismaMock.accountContact.findFirst.mockResolvedValue(null);
     zohoMock.service.searchAccountContacts.mockRejectedValue(new Error("boom"));
@@ -115,6 +111,14 @@ describe("clasificarContactosNaturales", () => {
       ["c1", "dd1", "zoho"], ["c2", "dd2", "zoho"], ["c3", "dd3", "prisma"],
     ]);
     expect(r.faltantes.map((c) => c.crmId)).toEqual(["c4"]);
+  });
+
+  it("un expediente jurídico con el contacto en su lookup no cuenta como el del contacto", async () => {
+    zohoMock.service.searchDDsByAccount.mockResolvedValue([
+      { id: "j1", name: "ACME", estado: "", contactCrmId: "c1", tipo: "Jurídica", retirado: false, relatedCrmId: "" },
+    ]);
+    const r = await clasificarContactosNaturales("acc1", [fila("c1")]);
+    expect(r.faltantes.map((c) => c.crmId)).toEqual(["c1"]);
   });
 
   it("tambien encuentra el expediente por el contacto guardado en form.data", async () => {
@@ -181,9 +185,32 @@ describe("clasificarExpedientesJuridica", () => {
     expect(r.retirados).toEqual(["j-old", "n-old"]);
   });
 
-  it("marca duplicados con más de un vigente del mismo tipo", async () => {
-    zohoMock.service.searchDDsByAccount.mockResolvedValue([dd("n1", "Natural"), dd("n2", "natural")]);
+  it("el Representante Legal es el natural relacionado; los naturales de contactos no cuentan", async () => {
+    zohoMock.service.searchDDsByAccount.mockResolvedValue([
+      dd("j1", "Jurídica", { relatedCrmId: "rl" }),
+      dd("rl", "Natural", { relatedCrmId: "j1" }),
+      dd("n-c1", "Natural", { contactCrmId: "c1" }),
+      dd("n-c2", "Natural", { contactCrmId: "c2" }),
+    ]);
     prismaMock.crmContact.findMany.mockResolvedValue([]);
+    const r = await clasificarExpedientesJuridica("acc1");
+    expect(r.natural?.id).toBe("rl");
+    expect(r.duplicados).toBe(false);
+  });
+
+  it("sin jurídico vigente, el natural sin contacto es el Representante Legal", async () => {
+    zohoMock.service.searchDDsByAccount.mockResolvedValue([dd("rl", "Natural"), dd("n-c1", "Natural", { contactCrmId: "c1" })]);
+    prismaMock.crmContact.findMany.mockResolvedValue([]);
+    const r = await clasificarExpedientesJuridica("acc1");
+    expect(r.juridica).toBeNull();
+    expect(r.natural?.id).toBe("rl");
+  });
+
+  it("marca duplicados con dos jurídicos, o dos naturales sin contacto ni vínculo", async () => {
+    prismaMock.crmContact.findMany.mockResolvedValue([]);
+    zohoMock.service.searchDDsByAccount.mockResolvedValue([dd("j1", "Jurídica"), dd("j2", "juridica")]);
+    expect((await clasificarExpedientesJuridica("acc1")).duplicados).toBe(true);
+    zohoMock.service.searchDDsByAccount.mockResolvedValue([dd("n1", "Natural"), dd("n2", "natural")]);
     expect((await clasificarExpedientesJuridica("acc1")).duplicados).toBe(true);
   });
 });

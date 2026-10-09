@@ -3,6 +3,13 @@
 //
 // Muestra en el widget las DD del Socio de Negocio actual y,
 // solo si faltan, permite solicitar su creación.
+//
+// - Jurídica: siempre muestra sus dos DD principales (Jurídica y la Natural
+//   del Representante Legal, del campo Representante_legal) y debajo los
+//   contactos del socio, cada uno con su casilla.
+// - Natural: los contactos del socio, cada uno con su casilla.
+// Cada contacto marcado recibe su propia DD de Persona Natural. Los que ya
+// tienen DD quedan bloqueados.
 // ==========================================
 
 var API_URL = "https://debida-diligencia.udggroup.com/api/generar-expediente";
@@ -25,6 +32,16 @@ function texto(valor) {
     return String(valor).trim();
 }
 
+// ID de un lookup: ZDK lo entrega como Campo_Lookup_Id o como { id, name }
+function idLookup(registro, campo) {
+    if (!registro) return "";
+    var plano = registro[campo + "_Lookup_Id"];
+    if (plano) return String(plano);
+    var valor = registro[campo];
+    if (valor && typeof valor === "object") return String(valor.id || "");
+    return "";
+}
+
 function esNatural(tipo) {
     return texto(tipo).toLowerCase() === "natural";
 }
@@ -32,6 +49,12 @@ function esNatural(tipo) {
 function esJuridica(tipo) {
     var t = texto(tipo).toLowerCase();
     return t === "jurídica" || t === "juridica";
+}
+
+// Retirado (anulado): no cuenta como DD principal existente
+function esRetirada(dd) {
+    var marca = dd.retirado;
+    return marca === true || String(marca).toLowerCase() === "true" || texto(dd.Estado) === "Anulado";
 }
 
 function nombreContacto(contacto, porDefecto) {
@@ -42,11 +65,12 @@ function nombreProyecto() {
     return texto($Page.record.Proyecto);
 }
 
-function obtenerDDsDelContacto(ddRecords, contactId) {
-    return (ddRecords || []).filter(function (dd) {
-        var ddContactoId = dd.Nombre_de_contacto_Lookup_Id;
-        return ddContactoId && String(ddContactoId) === String(contactId);
-    });
+function contactoDe(dd) {
+    return idLookup(dd, "Nombre_de_contacto");
+}
+
+function relacionadoDe(dd) {
+    return idLookup(dd, "DD_relacionado");
 }
 
 function enlaceDe(dd) {
@@ -55,8 +79,24 @@ function enlaceDe(dd) {
 
 function obtenerDDsDelAccount(accountId) {
     var params = new Map();
-    params.set("fields", "id,Name,Estado,Tipo_de_Persona,Nombre_de_contacto,Enlace_de_Formulario");
+    params.set("fields", "id,Name,Estado,Tipo_de_Persona,Nombre_de_contacto,Enlace_de_Formulario,retirado,DD_relacionado");
     return ZDK.Apps.CRM.Accounts.fetchRelatedRecords(accountId, RELATED_DD, params) || [];
+}
+
+function fila(dd, datos) {
+    return {
+        nombre: datos.nombre,
+        tipo: datos.tipo,
+        estado: dd ? texto(dd.Estado) || "—" : "—",
+        registro: !!dd,
+        contactId: datos.contactId || null,
+        ddId: dd ? dd.id : null,
+        enlace: enlaceDe(dd),
+        principal: !!datos.principal,
+        // Solo los contactos sin DD se pueden marcar; empiezan marcados
+        seleccionable: !datos.principal && !dd,
+        seleccionado: !datos.principal && !dd
+    };
 }
 
 // ---------- Flujo principal ----------
@@ -83,20 +123,20 @@ async function validarDebidaDiligencia() {
 
         var params = new Map();
         params.set("fields", "id,Full_Name");
-        var contactos = ZDK.Apps.CRM.Accounts.fetchRelatedRecords(accountId, "Contacts", params);
-        if (!contactos || contactos.length === 0) {
-            ZDK.Client.showAlert("Este Socio de Negocio no tiene contactos asociados.");
-            return;
-        }
+        var contactos = ZDK.Apps.CRM.Accounts.fetchRelatedRecords(accountId, "Contacts", params) || [];
 
         var socioNombre = account.Account_Name || account.Name || "Socio de Negocio";
         var ddRecords = obtenerDDsDelAccount(accountId);
 
         var popupData;
         if (esNatural(tipoPersona)) {
+            if (contactos.length === 0) {
+                ZDK.Client.showAlert("Este Socio de Negocio no tiene contactos asociados.");
+                return;
+            }
             popupData = prepararNatural(contactos, ddRecords);
         } else if (esJuridica(tipoPersona)) {
-            popupData = prepararJuridica(contactos, ddRecords);
+            popupData = prepararJuridica(socioNombre, texto(account.Representante_legal), contactos, ddRecords);
         } else {
             ZDK.Client.showAlert("Tipo de persona no reconocido: " + texto(tipoPersona));
             return;
@@ -114,7 +154,8 @@ async function validarDebidaDiligencia() {
             await enviarSolicitud({
                 name: socioNombre,
                 tipo: popupData.tipoPersona,
-                accountId: accountId
+                accountId: accountId,
+                contactos: Array.isArray(resultado.contactos) ? resultado.contactos : []
             });
         } else {
             // "cancelar", o el popup se cerró con la X
@@ -126,40 +167,34 @@ async function validarDebidaDiligencia() {
     }
 }
 
-// ---------- Persona Natural ----------
-// Una DD por contacto. Un contacto con DD (con o sin enlace) ya está creado.
+// ---------- Contactos (natural y jurídica) ----------
+// Una DD de Persona Natural por contacto. Un contacto con DD (con o sin
+// enlace, aunque esté retirada) ya está creado.
 
-function prepararNatural(contactos, ddRecords) {
-    var registros = [];
-    var faltantes = [];
-
-    contactos.forEach(function (contacto, i) {
+function filasDeContactos(contactos, ddNaturales) {
+    return contactos.map(function (contacto, i) {
         var contactId = contacto.id || contacto._id;
-        var nombre = nombreContacto(contacto, "Contacto " + (i + 1));
-        var dds = obtenerDDsDelContacto(ddRecords, contactId);
-
+        var dds = ddNaturales.filter(function (dd) {
+            return contactoDe(dd) === String(contactId);
+        });
         // Preferimos la DD que ya tiene enlace de formulario
         var dd = dds.find(function (d) { return enlaceDe(d); }) || dds[0] || null;
-
-        registros.push({
-            nombre: nombre,
-            tipo: dd ? texto(dd.Tipo_de_Persona) || "Natural" : "Natural",
-            estado: dd ? texto(dd.Estado) || "—" : "—",
-            registro: !!dd,
-            contactId: contactId,
-            ddId: dd ? dd.id : null,
-            enlace: enlaceDe(dd)
+        return fila(dd, {
+            nombre: nombreContacto(contacto, "Contacto " + (i + 1)),
+            tipo: "Natural (Contacto)",
+            contactId: contactId
         });
-
-        if (!dd) faltantes.push({ id: contactId, nombre: nombre });
     });
+}
 
-    var puedeSolicitar = faltantes.length > 0;
+function prepararNatural(contactos, ddRecords) {
+    var registros = filasDeContactos(contactos, ddRecords);
+    var puedeSolicitar = registros.some(function (r) { return r.seleccionable; });
 
     return {
         tipoPersona: "natural",
         registros: registros,
-        faltantes: faltantes,
+        faltanPrincipales: false,
         puedeSolicitar: puedeSolicitar,
         mensaje: puedeSolicitar
             ? ""
@@ -168,75 +203,74 @@ function prepararNatural(contactos, ddRecords) {
 }
 
 // ---------- Persona Jurídica ----------
-// Un único contacto con dos DD: una Natural y una Jurídica.
-// Se crean juntas, así que solo se puede solicitar si no existe ninguna.
+// Dos DD principales: la Jurídica y la Natural del Representante Legal
+// (relacionadas por DD_relacionado, sin contacto). Las retiradas no cuentan.
 
-function prepararJuridica(contactos, ddRecords) {
-    if (contactos.length > 1) {
-        ZDK.Client.showAlert(
-            "El Socio de Negocio tiene " + contactos.length + " contactos asociados.\n\n" +
-            "El proceso para Personas Jurídicas solo está disponible cuando existe un único contacto."
-        );
-        return null;
-    }
+function prepararJuridica(socioNombre, representanteLegal, contactos, ddRecords) {
+    var vigentes = ddRecords.filter(function (dd) { return !esRetirada(dd); });
+    var juridicas = vigentes.filter(function (dd) { return esJuridica(dd.Tipo_de_Persona); });
+    var naturales = vigentes.filter(function (dd) { return esNatural(dd.Tipo_de_Persona); });
+    var idsJuridicas = ddRecords
+        .filter(function (dd) { return esJuridica(dd.Tipo_de_Persona); })
+        .map(function (dd) { return String(dd.id); });
 
-    var contacto = contactos[0];
-    var contactId = contacto.id || contacto._id;
-    var nombre = nombreContacto(contacto, "Contacto");
-    var dds = obtenerDDsDelContacto(ddRecords, contactId);
-
-    var naturales = dds.filter(function (dd) { return esNatural(dd.Tipo_de_Persona); });
-    var juridicas = dds.filter(function (dd) { return esJuridica(dd.Tipo_de_Persona); });
-
-    if (dds.length > 2 || naturales.length > 1 || juridicas.length > 1) {
-        ZDK.Client.showAlert(
-            "Se encontraron " + dds.length + " registros de Debida Diligencia " +
-            "para el contacto \"" + nombre + "\" " +
-            "(" + naturales.length + " Natural, " + juridicas.length + " Jurídica).\n\n" +
-            "Para una Persona Jurídica solo deben existir dos registros: uno Natural y uno Jurídica."
-        );
-        return null;
-    }
-
-    var ddNatural = naturales[0] || null;
     var ddJuridica = juridicas[0] || null;
 
-    function fila(dd, tipo, nombreFila) {
-        return {
-            nombre: nombreFila,
-            tipo: tipo,
-            estado: dd ? texto(dd.Estado) || "—" : "—",
-            registro: !!dd,
-            contactId: contactId,
-            ddId: dd ? dd.id : null,
-            enlace: enlaceDe(dd)
-        };
+    // Representante Legal: la natural relacionada a la jurídica (en cualquier
+    // sentido); si no hay vínculo, la natural sin contacto o que apunta a una
+    // jurídica del socio
+    var vinculada = ddJuridica
+        ? naturales.find(function (n) {
+            return String(n.id) === relacionadoDe(ddJuridica) || relacionadoDe(n) === String(ddJuridica.id);
+        }) || null
+        : null;
+    var candidatas = vinculada
+        ? [vinculada]
+        : naturales.filter(function (n) {
+            return !contactoDe(n) || idsJuridicas.indexOf(relacionadoDe(n)) !== -1;
+        });
+
+    if (juridicas.length > 1 || candidatas.length > 1) {
+        ZDK.Client.showAlert(
+            "Se encontraron " + juridicas.length + " registros de Debida Diligencia Jurídica y " +
+            candidatas.length + " del Representante Legal vigentes.\n\n" +
+            "Para una Persona Jurídica solo debe existir uno de cada uno."
+        );
+        return null;
     }
+    var ddRepresentante = candidatas[0] || null;
 
     var registros = [
-        fila(ddNatural, "Natural", nombre),
-        fila(ddJuridica, "Jurídica", nombre + " (Representante Legal)")
+        fila(ddJuridica, { nombre: socioNombre, tipo: "Jurídica", principal: true }),
+        fila(ddRepresentante, {
+            nombre: representanteLegal || "(Sin Representante Legal)",
+            tipo: "Natural (Representante Legal)",
+            principal: true
+        })
     ];
 
-    var faltantes = registros
-        .filter(function (r) { return !r.registro; })
-        .map(function (r) { return { id: contactId, nombre: nombre, tipo: r.tipo }; });
+    // Contactos: sus DD naturales (la jurídica no es de un contacto)
+    var ddNaturales = ddRecords.filter(function (dd) { return !esJuridica(dd.Tipo_de_Persona); });
+    registros = registros.concat(filasDeContactos(contactos, ddNaturales));
 
-    var puedeSolicitar = !ddNatural && !ddJuridica;
-    puedeSolicitar = faltantes.length > 0 ? true : false;
+    var faltanPrincipales = !ddJuridica || !ddRepresentante;
+    var hayContactos = registros.some(function (r) { return r.seleccionable; });
 
+    var puedeSolicitar = faltanPrincipales || hayContactos;
     var mensaje = "";
-    if (!puedeSolicitar) {
-        mensaje = faltantes.length === 0
-            ? "Los registros de Debida Diligencia ya fueron creados."
-            : "Ya existe un registro de Debida Diligencia para este contacto; " +
-              "no se pueden crear más. Falta el registro " + faltantes[0].tipo + ".";
+    if (faltanPrincipales && !representanteLegal) {
+        // Sin Representante Legal no se puede crear su DD: se bloquea la solicitud
+        puedeSolicitar = false;
+        mensaje = "El Socio de Negocio no tiene Representante Legal: complete el campo " +
+            "\"Representante legal\" para generar sus Debidas Diligencias.";
+    } else if (!puedeSolicitar) {
+        mensaje = "Los registros de Debida Diligencia ya fueron creados.";
     }
 
     return {
         tipoPersona: "juridica",
         registros: registros,
-        faltantes: faltantes,
+        faltanPrincipales: faltanPrincipales,
         puedeSolicitar: puedeSolicitar,
         mensaje: mensaje
     };
@@ -280,7 +314,9 @@ async function enviarSolicitud(data) {
         name: String(data.name).trim(),
         type: data.tipo,
         socioId: String(data.accountId).trim(),
-        proyecto: nombreProyecto()
+        proyecto: nombreProyecto(),
+        // Contactos marcados en el widget: cada uno recibe su DD de Persona Natural
+        contactos: data.contactos
     };
 
     ZDK.Client.showLoader({
@@ -299,14 +335,23 @@ async function enviarSolicitud(data) {
         ZDK.Client.hideLoader();
 
         var statusCode = await response.getStatusCode();
+        var respuesta = await response.getResponse();
         log("HTTP Status: " + statusCode);
-        log("Response Body: " + await response.getResponse());
+        log("Response Body: " + respuesta);
 
         if (statusCode === 200 || statusCode === 201) {
             ZDK.Client.showMessage("¡Documentos de Debida diligencia generados exitosamente!", { type: "success" });
             $Client.refresh();
         } else {
-            ZDK.Client.showMessage("El servidor devolvió status: " + statusCode, { type: "error" });
+            // El servidor explica el motivo en "error" (p. ej. falta el Representante Legal)
+            var detalle = "";
+            try {
+                var json = typeof respuesta === "string" ? JSON.parse(respuesta) : respuesta;
+                detalle = (json && json.error) || "";
+            } catch (e) {
+                // Respuesta no JSON
+            }
+            ZDK.Client.showMessage(detalle || "El servidor devolvió status: " + statusCode, { type: "error" });
         }
     } catch (error) {
         ZDK.Client.hideLoader();

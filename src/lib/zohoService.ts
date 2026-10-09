@@ -1,5 +1,6 @@
 import { executeWithRetry } from "./zohoAuthService";
 import crypto from "crypto";
+import { ESTADO_ANULADO, ESTADO_EN_BORRADOR, ESTADO_ENVIADO } from "./ddEstados";
 
 /**
  * Normalizes values returned by Zoho CRM (e.g. converting null/undefined or string "null" to "").
@@ -177,7 +178,8 @@ export interface MappedCrmData {
   estadoCivil?: string;
   
   razonSocial?: string;
-  numeroDocumento?: string;
+  /** Jurídica: R.U.C. / ID tributaria de la empresa (la natural usa idNumber). */
+  numeroIdTributaria?: string;
   contactoNombre?: string;
   contactoApellido?: string;
   contactoEmail?: string;
@@ -263,7 +265,7 @@ export function mapAccountRecord(record: any): MappedCrmData {
       type: "JURIDICA",
       nombreProyecto,
       razonSocial: accountName || "Empresa Registrada",
-      numeroDocumento: idNumber,
+      numeroIdTributaria: idNumber,
       email,
       celular: phone,
       contactoNombre: accountName,
@@ -334,7 +336,7 @@ export const zoho = {
             type: "JURIDICA",
             nombreProyecto: "Proyecto Edificio Mock",
             razonSocial: "Inversiones Tecnológicas S.A.",
-            numeroDocumento: "1554627-1-657482 DV 80",
+            numeroIdTributaria: "1554627-1-657482 DV 80",
             contactoNombre: "Ana",
             contactoApellido: "Martínez",
             contactoEmail: "contacto@inversionesmock.com",
@@ -415,7 +417,8 @@ export const zoho = {
                 celular: phone,
                 idNumber,
                 razonSocial: record.Raz_n_social || record.Razon_Social || "",
-                numeroDocumento: idNumber,
+                // Jurídica: su ID tributaria (ID_tributaria); RUC_NIT solo en expedientes antiguos
+                ...(type === "JURIDICA" ? { numeroIdTributaria: findValue(record, ["ID_tributaria"]) || idNumber } : {}),
                 contactoNombre: firstName && lastName ? `${firstName} ${lastName}`.trim() : (firstName || ""),
                 contactoApellido: lastName || "",
                 contactoEmail: email,
@@ -524,6 +527,14 @@ export const zoho = {
         if (!socioIdDe(ddRecord)) {
           throw new Error(`El expediente ${crmId} no tiene Socio de Negocio (Socio_de_Negocios): no se actualiza.`);
         }
+
+        // Estado: el formulario se completó o se actualizó -> "Enviado" (desde aquí ya no
+        // se puede eliminar). Un expediente anulado conserva su estado: solo se reactiva.
+        const anulado =
+          ddRecord.retirado === true ||
+          String(ddRecord.retirado ?? "").toLowerCase() === "true" ||
+          cleanValue(ddRecord.Estado) === ESTADO_ANULADO;
+        if (!anulado) apiPayload.Estado = ESTADO_ENVIADO;
 
         // Name: "Socio Negocio-unidad-proyecto" solo desde el Socio de Negocio.
         // Sin fallback: lo que el cliente cambie en el formulario (p. ej. el
@@ -697,6 +708,8 @@ export const zoho = {
       razonSocial?: string;
       advisorName?: string;
       relatedDDId?: string;
+      /** Nombre_natural: la persona natural o, en la jurídica, el representante legal. */
+      nombreNatural?: string;
       /** Sustituye el nombre del Socio de Negocio en el Name del expediente. */
       overRideName?: string;
       /** Contact de Zoho del expediente (se escribe en el lookup Nombre_de_contacto). */
@@ -744,7 +757,7 @@ export const zoho = {
         const recordPayload: any = {
           Tipo_de_Persona: params.clientType === "NATURAL" ? "Natural" : "Jurídica",
           Estado_del_enlace: "Activo",
-          Estado: "En borrador",
+          Estado: ESTADO_EN_BORRADOR,
         };
 
         if (params.formLink) {
@@ -770,7 +783,9 @@ export const zoho = {
         }
 
         if (params.idNumber) {
-          recordPayload.RUC_NIT = params.idNumber;
+          // Jurídica: su ID tributaria va en ID_tributaria (RUC_NIT ya no se usa)
+          if (params.clientType === "JURIDICA") recordPayload.ID_tributaria = params.idNumber;
+          else recordPayload.RUC_NIT = params.idNumber;
           recordPayload.Identificacion = params.idNumber;
         }
 
@@ -789,6 +804,10 @@ export const zoho = {
 
         if (params.advisorName) {
           recordPayload.Asesor = params.advisorName;
+        }
+
+        if (params.nombreNatural) {
+          recordPayload.Nombre_natural = params.nombreNatural;
         }
 
         // Vincula el expediente a su Socio de Negocio: de ahí se obtiene la
@@ -1466,6 +1485,25 @@ export const zoho = {
     },
 
     /** Registro crudo de un Contact de Zoho, o null si no existe o Zoho está simulado. */
+    /** Registro del Socio de Negocio (Accounts). null si no existe; lanza si Zoho falla. */
+    getAccountRecord: async (accountId: string): Promise<Record<string, any> | null> => {
+      if (zohoSimulado(accountId)) return null;
+
+      return executeWithRetry(async (accessToken) => {
+        const crmBaseUrl = process.env.ZOHO_CRM_BASE_URL || "https://www.zohoapis.com/crm/v2";
+        const response = await fetch(`${crmBaseUrl}/Accounts/${accountId}`, {
+          method: "GET",
+          headers: { Authorization: `Zoho-oauthtoken ${accessToken}` },
+        });
+        if (response.status === 204) return null;
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Zoho CRM Accounts/${accountId} respondió HTTP ${response.status}: ${errorText}`);
+        }
+        return (await response.json()).data?.[0] ?? null;
+      });
+    },
+
     getAccountContactRecord: async (contactId: string): Promise<Record<string, any> | null> => {
       if (zohoSimulado(contactId)) return null;
 
@@ -1784,7 +1822,6 @@ export function mapFormToCrmPayload(
 ): any {
   const d = formData || {};
   const payload: Record<string, unknown> = {
-    "Estado": "En revisión",
     "Fecha_de_Ingreso": new Date().toISOString().split("T")[0],
     "Estado_del_enlace": "Expirado / Revocado",
   };
@@ -1818,7 +1855,6 @@ export function mapFormToCrmPayload(
       "Estado_sociedad": text(d.estadoSociedad),
       "Tipo_de_identificacion": text(d.tipoDocumentoIdentidad),
       "Actividad_Principal": text(d.actividadPrincipal),
-      "RUC_NIT": text(d.numeroDocumento),
       "Fecha_vencimiento_ID": toDate(d.fechaVencimientoId),
       "ID_tributaria": text(d.numeroIdTributaria),
       "Pa_s_donde_tributa": text(d.paisTributacion),
@@ -1920,7 +1956,6 @@ export function mapFormToCrmPayload(
       "Nombre_natural": text(`${d.firstName || ""} ${d.lastName || ""}`),
       "Pais_de_nacimiento": text(d.paisNacimiento),
       "Pais_de_residencia_fiscal": text(d.paisResidenciaFiscal),
-      "ID_tributaria": text(d.idTributaria),
       "Nacionalidad": text(d.nationality),
       "Tipo_de_identificacion": text(d.tipoIdentificacion),
       "Otra_nacionalidad": text(d.otraNacionalidad),

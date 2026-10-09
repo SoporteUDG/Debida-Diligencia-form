@@ -67,6 +67,13 @@ export async function crearEnlaceConBorrador(params: {
   return { tokenUuid, clientUrl, expiresAt };
 }
 
+/** Nombre completo -> nombre y apellido (mitad y mitad, como al precargar desde Zoho). */
+function partirNombre(full?: string): { firstName: string; lastName: string } {
+  const partes = (full ?? "").split(/\s+/).filter(Boolean);
+  const mitad = Math.ceil(partes.length / 2);
+  return { firstName: partes.slice(0, mitad).join(" "), lastName: partes.slice(mitad).join(" ") };
+}
+
 /**
  * Crea (o reutiliza) el expediente de Persona Natural relacionado a un
  * expediente de Persona Jurídica: registro en Zoho CRM con DD_relacionado en
@@ -79,6 +86,10 @@ export async function crearEnlaceConBorrador(params: {
  * `socioId` evita volver a leer el Socio de Negocio del jurídico cuando quien
  * llama ya lo conoce; `overRideName` sustituye al socio en el Name del
  * expediente natural.
+ *
+ * `representanteLegal` (campo Representante_legal del Socio de Negocio) es el
+ * Nombre_natural del expediente natural y precarga nombre y apellido del borrador.
+ * Sin `accountContact` sus datos quedan en los campos del expediente (no en un Contact).
  */
 export async function prepararExpedienteRelacionado(params: {
   juridicaCrmId: string;
@@ -91,8 +102,11 @@ export async function prepararExpedienteRelacionado(params: {
   accountContact?: { id: string; crmId: string };
   /** Crea siempre un expediente natural nuevo (el DD_relacionado actual está retirado). */
   crearNuevo?: boolean;
+  /** Nombre del Representante Legal (Representante_legal del Socio de Negocio). */
+  representanteLegal?: string;
 }): Promise<{ crmId: string; clientUrl: string | null }> {
   const { juridicaCrmId, clientName, projectName, appUrl, overRideName, accountContact } = params;
+  const representanteLegal = params.representanteLegal?.trim() || undefined;
   const esSimulado = juridicaCrmId.startsWith("mock-") || juridicaCrmId === "simulated-crm-contact-id";
 
   // 1. Expediente relacionado existente (enlace regenerado)
@@ -124,6 +138,7 @@ export async function prepararExpedienteRelacionado(params: {
       projectName,
       relatedDDId: juridicaCrmId,
       overRideName,
+      nombreNatural: representanteLegal,
       // El Representante Legal es el mismo Contact de la cuenta: se vincula al crear el registro
       contactCrmId: accountContact?.crmId,
     });
@@ -142,7 +157,7 @@ export async function prepararExpedienteRelacionado(params: {
       data: {
         crmId: relatedCrmId,
         firstName: "Representante Legal",
-        lastName: clientName,
+        lastName: representanteLegal ?? clientName,
         email: `cliente@udg.com`,
         accountContactId: accountContact?.id,
       },
@@ -173,8 +188,7 @@ export async function prepararExpedienteRelacionado(params: {
     draftData: {
       crmContactId: relatedCrmId,
       nombreProyecto: projectName,
-      firstName: "",
-      lastName: "",
+      ...partirNombre(representanteLegal),
       email: "",
       // Contact de Zoho (lookup Nombre_de_contacto): al completarse el formulario también
       // lo fija en el expediente si el registro ya existía sin él

@@ -19,6 +19,7 @@ describe("calcularAutocompletado", () => {
     profesionOtros: "Piloto",
     actEconPrincipal: "Asalariado",
     paisResidenciaFiscal: "Panamá",
+    // Campo eliminado de la natural: un borrador antiguo puede traerlo, no se copia
     idTributaria: "123",
     direccionResidencial: "Calle 50",
     telefonoCodigo: "+1",
@@ -46,7 +47,8 @@ describe("calcularAutocompletado", () => {
     expect(cambios.rlNoIdentificacion).toBe("8-888-8888");
     expect(cambios.rlProfesionOcupacion).toBe("Piloto");
     expect(cambios.rlActividadEconomica).toBe("Asalariado");
-    expect(cambios.numeroIdTributaria).toBe("123");
+    // La ID tributaria es solo de la jurídica: no sale de la natural
+    expect(cambios.numeroIdTributaria).toBeUndefined();
     expect(cambios.empresaTelefonoCodigo).toBe("+1");
     expect(cambios.empresaTelefono).toBe("5551234");
     expect(cambios.fuenteFondosInmueble).toBe("Recursos propios");
@@ -78,6 +80,7 @@ describe("calcularAutocompletado", () => {
       "JURIDICA",
       {
         rlNombre: "María José Pérez Ruiz",
+        numeroIdTributaria: "155-1-2026",
         rlProfesionOcupacion: "Abogado",
         rlActividadEconomica: "Comercio al por mayor",
         fuenteFondosInmueble: "Ambos",
@@ -101,5 +104,7 @@ describe("calcularAutocompletado", () => {
     expect(cambios.formaContacto).toBeUndefined();
     expect(cambios.pepRelacion).toBeUndefined();
     expect(cambios.esPep).toBe("Sí");
+    // La natural no tiene ID tributaria: su documento es idNumber (del RL)
+    expect(cambios).not.toHaveProperty("idTributaria");
   });
 });
