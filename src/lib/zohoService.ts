@@ -164,6 +164,21 @@ async function resolveDDName(
   );
 }
 
+/** Etiqueta (campo Tag) que marca los expedientes creados o actualizados desde el formulario. */
+export const DD_DIGITAL_TAG = "DD digital enviada";
+
+/**
+ * Tags del registro más la etiqueta del formulario. Un PUT con Tag reemplaza
+ * la lista completa, así que se conservan las etiquetas que ya tenía.
+ */
+function tagsConDDDigital(record?: any): Array<{ name: string }> {
+  const nombres = (Array.isArray(record?.Tag) ? record.Tag : [])
+    .map((t: any) => cleanValue(t?.name))
+    .filter(Boolean);
+  if (!nombres.includes(DD_DIGITAL_TAG)) nombres.push(DD_DIGITAL_TAG);
+  return nombres.map((name: string) => ({ name }));
+}
+
 /** Módulos de Zoho CRM con los que trabaja el portal. */
 export type CrmModule = "Accounts" | "Debida_Diligencia";
 
@@ -542,6 +557,8 @@ export const zoho = {
           cleanValue(ddRecord.Estado) === ESTADO_ANULADO;
         if (!anulado) apiPayload.Estado = "En borrador";
 
+        apiPayload.Tag = tagsConDDDigital(ddRecord);
+
         // Name: "Socio Negocio-unidad-proyecto" solo desde el Socio de Negocio.
         // Sin fallback: lo que el cliente cambie en el formulario (p. ej. el
         // proyecto) no renombra el expediente; si no se resuelve, se conserva.
@@ -764,6 +781,7 @@ export const zoho = {
           Tipo_de_Persona: params.clientType === "NATURAL" ? "Natural" : "Jurídica",
           Estado_del_enlace: "Activo",
           Estado: ESTADO_EN_BORRADOR,
+          Tag: tagsConDDDigital(),
         };
 
         if (params.formLink) {
