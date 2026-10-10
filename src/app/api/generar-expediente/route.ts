@@ -134,7 +134,7 @@ export async function POST(request: NextRequest) {
         );
       }
       if (!principales.juridica || !principales.natural) {
-        representanteLegal = texto((await zoho.service.getAccountRecord(socioId))?.Representante_legal);
+        representanteLegal = texto((await zoho.service.getAccountRecord(socioId))?.Nombre_Extranjero_No_en_Peachtree);
         if (!representanteLegal) {
           return NextResponse.json(
             {

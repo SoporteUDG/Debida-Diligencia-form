@@ -137,7 +137,7 @@ async function validarDebidaDiligencia() {
             }
             popupData = prepararNatural(contactos, ddRecords);
         } else if (esJuridica(tipoPersona)) {
-            popupData = prepararJuridica(socioNombre, texto(account.Representante_legal), contactos, ddRecords);
+            popupData = prepararJuridica(socioNombre, texto(account.Nombre_Extranjero_No_en_Peachtree), contactos, ddRecords);
         } else {
             ZDK.Client.showAlert("Tipo de persona no reconocido: " + texto(tipoPersona));
             return;

@@ -55,7 +55,7 @@ beforeEach(() => {
     eliminadosEnZoho: [],
   });
   contactoMock.clasificarExpedientesJuridica.mockResolvedValue(sinExpedientes);
-  zohoMock.service.getAccountRecord.mockResolvedValue({ Representante_legal: "Carlos Gómez Ruiz" });
+  zohoMock.service.getAccountRecord.mockResolvedValue({ Nombre_Extranjero_No_en_Peachtree: "Carlos Gómez Ruiz" });
   let n = 0;
   zohoMock.service.createDebidaDiligenciaRecord.mockImplementation(async () => ({ success: true, debidaId: `new${++n}` }));
   prismaMock.crmContact.upsert.mockResolvedValue({ id: "cc1" });
@@ -84,7 +84,7 @@ describe("/api/generar-expediente — Persona Jurídica", () => {
   });
 
   it("sin Representante_legal en el socio responde 422 y no crea nada", async () => {
-    zohoMock.service.getAccountRecord.mockResolvedValue({ Representante_legal: "  " });
+    zohoMock.service.getAccountRecord.mockResolvedValue({ Nombre_Extranjero_No_en_Peachtree: "  " });
     const res = await juridica({ contactos: ["zc2"] });
     expect(res.status).toBe(422);
     expect((await res.json()).code).toBe("SIN_REPRESENTANTE_LEGAL");
