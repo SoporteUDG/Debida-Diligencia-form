@@ -794,7 +794,6 @@ export const zoho = {
           Tipo_de_Persona: params.clientType === "NATURAL" ? "Natural" : "Jurídica",
           Estado_del_enlace: "Activo",
           Estado: ESTADO_EN_BORRADOR,
-          Tag: tagsConDDDigital(),
         };
 
         if (params.formLink) {
