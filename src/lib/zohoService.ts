@@ -34,7 +34,7 @@ function findValue(record: any, keys: string[]): string {
 // ==========================================
 
 /** Posibles nombres de API del campo Unidad (Debida_Diligencia y Accounts). */
-const UNIDAD_KEYS = ["Unidad_Vendida1", "Unidades", "Unidad_Inmobiliaria", "N_mero_de_Unidad", "Numero_de_Unidad"];
+const UNIDAD_KEYS = ["Unidad_Vendida1", "Unidad_Vendida", "Unidades", "Unidad_Inmobiliaria", "N_mero_de_Unidad", "Numero_de_Unidad"];
 const PROYECTO_KEYS = ["Proyecto", "Nombre_Proyecto"];
 
 /** Lookup Unidad_Vendida1 tal como lo devuelve Zoho (Accounts / Debida_Diligencia). */
@@ -880,7 +880,7 @@ export const zoho = {
         // Unidad del Socio de Negocio: el lookup va por id y el texto Unidad se
         // llena aquí mismo, por si la creación vía API no dispara su relleno.
         if (unidad?.id) {
-          recordPayload.Unidad_Vendida1 = { id: unidad.id };
+          recordPayload.Unidad_Vendida = { id: unidad.id };
           const texto = nombreDeUnidad(unidad);
           if (texto) recordPayload.Unidad = texto;
         }
