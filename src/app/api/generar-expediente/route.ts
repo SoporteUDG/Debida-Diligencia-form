@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
     );
 
     // URL base del portal (enlace principal y enlace del relacionado)
-    const host = request.headers.get("host") || "debida-diligencia.duckdns.org";
+    const host = request.headers.get("host");
     const protocol = request.headers.get("x-forwarded-proto") || "https";
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || `${protocol}://${host}`;
 
@@ -173,6 +173,8 @@ export async function POST(request: NextRequest) {
 
     // ---------- 2. Creación ----------
 
+    const Unidad = (await zoho.service.getAccountRecord(socioId))?.Unidad_Vendida;
+
     async function generarExpediente(opts: {
       tipo: ClientType;
       accountContact: AccountContactRow | null;
@@ -188,6 +190,7 @@ export async function POST(request: NextRequest) {
         accountCrmId: socioId,
         clientType: tipo,
         name: nombre,
+        unidad: Unidad,
         projectName,
         overRideName: nombre,
         contactCrmId: accountContact?.crmId,

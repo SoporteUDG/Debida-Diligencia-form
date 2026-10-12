@@ -34,8 +34,19 @@ function findValue(record: any, keys: string[]): string {
 // ==========================================
 
 /** Posibles nombres de API del campo Unidad (Debida_Diligencia y Accounts). */
-const UNIDAD_KEYS = ["Unidad", "Unidades", "Unidad_Inmobiliaria", "N_mero_de_Unidad", "Numero_de_Unidad"];
+const UNIDAD_KEYS = ["Unidad_Vendida", "Unidades", "Unidad_Inmobiliaria", "N_mero_de_Unidad", "Numero_de_Unidad"];
 const PROYECTO_KEYS = ["Proyecto", "Nombre_Proyecto"];
+
+/** Lookup Unidad_Vendida tal como lo devuelve Zoho (Accounts / Debida_Diligencia). */
+export interface UnidadLookup {
+  id: string;
+  /** Nombre del inventario (lo que va en el campo de texto Unidad). */
+  name?: string;
+}
+
+function nombreDeUnidad(unidad: UnidadLookup | null | undefined): string {
+  return cleanValue(unidad?.name);
+}
 const SOCIO_KEYS = ["Account_Name", "Name"];
 
 /** Primer valor no vacío entre las claves dadas. */
@@ -722,6 +733,8 @@ export const zoho = {
       clientType: "NATURAL" | "JURIDICA";
       name: string;
       projectName?: string;
+      /** Lookup Unidad_Vendida del Socio de Negocio (Accounts); se escribe por su id. */
+      unidad?: UnidadLookup | null;
       formLink?: string;
       expiresAt?: Date;
       email?: string;
@@ -820,6 +833,7 @@ export const zoho = {
         if (params.projectName) {
           recordPayload.Proyecto = params.projectName;
         }
+  
 
         if (params.razonSocial) {
           recordPayload.Raz_n_social = params.razonSocial;
@@ -849,24 +863,27 @@ export const zoho = {
         if (params.relatedDDId) {
           recordPayload.DD_relacionado = { id: params.relatedDDId };
         }
-
         // Name: "Socio Negocio-unidad-proyecto" desde el Socio de Negocio; sin socio,
         // con los datos con que se genera el expediente (no los del formulario)
-        let socioUnidad = "";
+        // Sin lookup recibido se toma el del Socio de Negocio, que ya se lee para el Name.
+        let unidad = params.unidad?.id ? params.unidad : null;
         const ddName = await resolveDDName(accessToken, {
           socioId: params.accountCrmId,
-          fallback: { nombre: params.name, proyecto: params.projectName },
+          fallback: { nombre: params.name, unidad: nombreDeUnidad(unidad), proyecto: params.projectName },
           overRideName: params.overRideName,
           onSocioRecord: (socioRecord) => {
-            socioUnidad = firstValue(socioRecord, UNIDAD_KEYS);
+            if (!unidad && socioRecord?.Unidad_Vendida?.id) unidad = socioRecord.Unidad_Vendida;
           },
         });
         if (ddName) {
           recordPayload.Name = ddName;
         }
-        // Unidad del Socio de Negocio (Accounts) al crear el expediente
-        if (socioUnidad) {
-          recordPayload.Unidad = socioUnidad;
+        // Unidad del Socio de Negocio: el lookup va por id y el texto Unidad se
+        // llena aquí mismo, por si la creación vía API no dispara su relleno.
+        if (unidad?.id) {
+          recordPayload.Unidad_Vendida = { id: unidad.id };
+          const texto = nombreDeUnidad(unidad);
+          if (texto) recordPayload.Unidad = texto;
         }
 
         console.log(`[Zoho Service] Creando registro en Debida_Diligencia...`);
