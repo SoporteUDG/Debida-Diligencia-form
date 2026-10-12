@@ -173,7 +173,7 @@ export async function POST(request: NextRequest) {
 
     // ---------- 2. Creación ----------
 
-    const Unidad = (await zoho.service.getAccountRecord(socioId))?.Unidad_Vendida;
+    const Unidad = (await zoho.service.getAccountRecord(socioId))?.Unidad_Vendida1;
 
     async function generarExpediente(opts: {
       tipo: ClientType;

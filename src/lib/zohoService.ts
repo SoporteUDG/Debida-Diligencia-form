@@ -34,10 +34,10 @@ function findValue(record: any, keys: string[]): string {
 // ==========================================
 
 /** Posibles nombres de API del campo Unidad (Debida_Diligencia y Accounts). */
-const UNIDAD_KEYS = ["Unidad_Vendida", "Unidades", "Unidad_Inmobiliaria", "N_mero_de_Unidad", "Numero_de_Unidad"];
+const UNIDAD_KEYS = ["Unidad_Vendida1", "Unidades", "Unidad_Inmobiliaria", "N_mero_de_Unidad", "Numero_de_Unidad"];
 const PROYECTO_KEYS = ["Proyecto", "Nombre_Proyecto"];
 
-/** Lookup Unidad_Vendida tal como lo devuelve Zoho (Accounts / Debida_Diligencia). */
+/** Lookup Unidad_Vendida1 tal como lo devuelve Zoho (Accounts / Debida_Diligencia). */
 export interface UnidadLookup {
   id: string;
   /** Nombre del inventario (lo que va en el campo de texto Unidad). */
@@ -733,7 +733,7 @@ export const zoho = {
       clientType: "NATURAL" | "JURIDICA";
       name: string;
       projectName?: string;
-      /** Lookup Unidad_Vendida del Socio de Negocio (Accounts); se escribe por su id. */
+      /** Lookup Unidad_Vendida1 del Socio de Negocio (Accounts); se escribe por su id. */
       unidad?: UnidadLookup | null;
       formLink?: string;
       expiresAt?: Date;
@@ -871,7 +871,7 @@ export const zoho = {
           fallback: { nombre: params.name, unidad: nombreDeUnidad(unidad), proyecto: params.projectName },
           overRideName: params.overRideName,
           onSocioRecord: (socioRecord) => {
-            if (!unidad && socioRecord?.Unidad_Vendida?.id) unidad = socioRecord.Unidad_Vendida;
+            if (!unidad && socioRecord?.Unidad_Vendida1?.id) unidad = socioRecord.Unidad_Vendida1;
           },
         });
         if (ddName) {
@@ -880,7 +880,7 @@ export const zoho = {
         // Unidad del Socio de Negocio: el lookup va por id y el texto Unidad se
         // llena aquí mismo, por si la creación vía API no dispara su relleno.
         if (unidad?.id) {
-          recordPayload.Unidad_Vendida = { id: unidad.id };
+          recordPayload.Unidad_Vendida1 = { id: unidad.id };
           const texto = nombreDeUnidad(unidad);
           if (texto) recordPayload.Unidad = texto;
         }
