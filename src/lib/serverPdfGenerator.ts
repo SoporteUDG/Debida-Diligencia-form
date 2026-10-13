@@ -36,8 +36,58 @@ const FAIL = "#dc2626";
 const LEFT = 40;
 const RIGHT = 555;
 const WIDTH = RIGHT - LEFT;
+const PAGE_HEIGHT = 841.89;
 const PAGE_BOTTOM = 770;
 const FOOTER_Y = 800;
+
+// ===== TEXTOS DEL FORMULARIO =====
+// Copiados de src/messages/es.json para que el PDF diga lo mismo que vio el cliente.
+
+const LEY_TITULO = "EN CUMPLIMIENTO DE LA LEY 23 DEL 27 DE ABRIL DE 2015";
+const LEY_TEXTO =
+  "Este formulario y la documentación solicitada constituyen los requisitos legales mínimos de debida diligencia para perfilarlo como cliente y establecer una relación comercial con nuestra empresa. Tenga en cuenta que en el proceso podríamos requerir información o documentos adicionales a los aquí presentados.";
+
+const PREGUNTA_PROPIETARIO = "¿Es propietario, accionista o mantiene participación dentro de esta sociedad?";
+const PREGUNTA_FONDOS_SOCIEDAD = "¿Los fondos utilizados en la relación comercial provendrán de dicha sociedad?";
+const PREGUNTA_MAS_UNIDADES = "¿Tiene previsto adquirir más de una unidad inmobiliaria durante los próximos 12 meses?";
+const PREGUNTA_NOMBRE_TERCERO = "¿Está adquiriendo el bien inmueble a nombre de otra persona?";
+const PREGUNTA_AML =
+  "Indique si el Representante Legal, Apoderado o la Sociedad misma son o han sido objeto de investigación, indagación, condena por actividad ilícita, delitos de blanqueo de capitales o financiamiento de terrorismo, fraude o corrupción pública o algunos de los delitos establecidos en el ART.254-A del código penal.";
+const PREGUNTA_PEP =
+  "¿Alguna de las personas naturales mencionadas anteriormente en este formulario desempeña, o ha desempeñado en los últimos 2 años, algún cargo público que la catalogue como Persona Expuesta Políticamente (PEP) según el artículo 4, numeral 18, de la Ley 23 de 2015? Asimismo, ¿es cónyuge, mantiene un parentesco dentro del segundo grado de consanguinidad o primero de afinidad, o tiene una relación estrecha con una PEP?";
+
+const pepDefinicion = (persona: string) =>
+  `La legislación de Panamá define como Persona Políticamente Expuesta (PEP) a toda persona ${persona} nacional o extranjera que desempeñe o haya desempeñado funciones públicas de alto nivel o con mando y jurisdicción en un Estado, como son: Los Jefes de Estado o de un gobierno; políticos de alto perfil; funcionarios gubernamentales, judiciales o militares de alta jerarquía; los altos ejecutivos de corporaciones que pertenecen al Estado; los funcionarios públicos que ocupen cargos de elección popular, entre otros que ejerzan la toma de decisiones en las entidades públicas. También aquellas personas que cumplen o a quienes se les ha confiado funciones importantes por una organización internacional, como los miembros de la alta gerencia, es decir, directores, subdirectores y miembros de la junta directiva o funciones equivalentes. El concepto de PEP debe extenderse a sus familiares cercanos entendiéndose por estos el cónyuge, los padres, los hermanos y los hijos del PEP; y a sus estrechos colaboradores, entendiéndose por estos, las personas conocidas por su íntima relación con respecto al PEP, incluyendo a quienes están en posición de realizar transacciones financieras, comerciales o de cualquier naturaleza, ya sea locales e internacionales, en nombre del PEP. Lo anteriormente expuesto no persigue cubrir personas de rango medio o más bajo que las categorías señaladas.`;
+const PEP_DEFINICION_NATURAL = pepDefinicion("natural");
+const PEP_DEFINICION_JURIDICA = pepDefinicion("Jurídica");
+
+/** Declaración del último paso del formulario (DeclarationStep / SignatureStep). */
+const DECLARACION: { texto: string; titulo?: boolean; sangria?: boolean }[] = [
+  { texto: "Declaro de manera voluntaria, libre de cualquier error, fuerza o dolo que todas las afirmaciones y respuestas que he manifestado en este documento son correctas, veraces, completas y autorizo a URBAN DEVELOPMENT GROUP a verificar toda la información detallada. Además, me obligo a informar a URBAN DEVELOPMENT GROUP de cualquier cambio o actualización de información que pueda afectar las afirmaciones y respuestas anotadas en este formulario:" },
+  { sangria: true, texto: "1. Declaro y certifico que toda la información brindada en este formulario es correcta, verdadera y que las fotocopias de pasaportes, documentos de identidad personal y otros documentos requeridos en esta solicitud son verdaderos." },
+  { sangria: true, texto: "2. Declara el firmante que acepta que nuestra empresa puede verificar la información proporcionada en este formulario, en cualquier momento de la relación comercial." },
+  { sangria: true, texto: "3. Declara el firmante que, de acuerdo con lo dispuesto en la Ley 23 del 27 de abril de 2015 y sus reglamentaciones, emitidas por la Superintendencia de Sujetos no Financieros, nuestra empresa solicitará la actualización de esta información anualmente, mientras dure la relación comercial." },
+  { sangria: true, texto: "4. Declara el firmante que no ha estado involucrado o no ha sido condenado en Panamá, ni en ningún otro país por la comisión de delitos relacionados al lavado de dinero, tráfico de drogas, terrorismo, fraude o delitos de cualquier naturaleza." },
+  { sangria: true, texto: "5. Declara el firmante que los servicios o bienes solicitados a nuestra empresa solo serán utilizados para fines lícitos." },
+  { sangria: true, texto: "6. Declara el firmante que reconoce que esta empresa está autorizada a suministrar cualquier información requerida por la Autoridad Competente." },
+  { sangria: true, texto: "7. Declara el firmante que exonera a nuestra empresa de cualquier responsabilidad en caso de que una Autoridad competente nos requiera información relacionada con la relación comercial." },
+  { sangria: true, texto: "8. Declara el firmante que se compromete a informar a nuestra empresa de cualquier cambio de la información suministrada en el formulario. URBAN DEVELOPMENT GROUP y sus empresas asociadas, de ahora en adelante denominadas El Grupo, manejará los datos personales proporcionados por usted a través de la página web, formularios digitales o físicos, correos electrónicos, aplicaciones móviles o cualquier medio en el cual usted proporcionen sus datos conforme a lo siguiente:" },
+  { titulo: true, texto: "a) FINALIDAD DEL TRATAMIENTO DE DATOS PERSONALES:" },
+  { sangria: true, texto: "Que mis datos personales serán tratados por UDG, para las siguientes finalidades: a) Remisión de información referente a nuestros proyectos; el trámite de mi solicitud de vinculación como contraparte contractual ii) el proceso de negociación del contrato de compra, iii) la ejecución y el cumplimiento de los contratos que celebre, iv) el control y la prevención del fraude, v) relación con el banco del CLIENTE vi) Efectuar las gestiones pertinentes para el desarrollo del objeto social y actividades empresariales de EL CLIENTE, así como para el giro de sus negocios, proyectos, campañas, contacto, información, ventas, ofertas, e iniciativas de innovación, entre otras;" },
+  { sangria: true, texto: "(b) Efectuar las gestiones pertinentes para permitir la completa ejecución de los procesos y deberes precontractuales, contractuales y post contractuales con EL CLIENTE, respecto de cualquiera de los productos, servicios u obligaciones ofrecidos por UDG, que haya o no adquirido, o respecto de cualquier relación negoció subyacente que tenga con ella, incluyendo cobros prejudiciales y judiciales;" },
+  { sangria: true, texto: "(c) Realizar campañas, concursos, evaluaciones de calidad de servicios, encuestas de satisfacción, comunicaciones y envío de información al titular relativa a eventos, productos, servicios, ofertas, promociones, publicidad, mercadeo, alianzas, concursos, de desarrollo de servicios, comerciales y contenidos propios, de terceros y/o de sus aliados comerciales, directamente o a través de terceros;" },
+  { sangria: true, texto: "(d) Implementar estrategias de relacionamiento con clientes, proveedores, accionistas y otros terceros con los cuales UDG tenga relaciones contractuales o legales;" },
+  { sangria: true, texto: "(e) Invitar a eventos, ofertar nuevos productos, y la realización de todas aquellas actividades asociadas a la relación comercial o vínculo existente con UDG o aquel que llegare a tener;" },
+  { sangria: true, texto: "(f) Acceder, consultar, comparar, evaluar y reportar toda la información que sobre EL CLIENTE que se encuentre almacenada en las bases de datos de cualquier central de riesgo crediticio, financiero, de antecedentes judiciales o de seguridad, de naturaleza estatal o privada, nacional o extranjera, o cualquier base de datos comercial o de servicios, que permita establecer de manera integral e histórica completa, el comportamiento que como deudor, usuario, cliente, garante, endosante, afiliado, beneficiario, suscriptor, contribuyente, empleado, contratista y/o como titular de servicios financieros, comerciales o de cualquier otra índole, así como listas y bases de datos nacionales e internacionales, propias y de terceros, para la prevención de actividades ilícitas como el lavado de activos y la financiación del terrorismo. Todo lo anterior se realizará en beneficio propio o de terceros aliados;" },
+  { sangria: true, texto: "(g) Responder requerimientos judiciales o administrativos y el cumplimiento de mandatos judiciales o legales;" },
+  { sangria: true, texto: "(i) Controlar el acceso a las instalaciones, establecer medidas de seguridad, incluyendo la videovigilancia y la grabación de circuito cerrado de televisión y medidas de bioseguridad obligatorias, para proteger la integridad y seguridad de las personas y bienes, el cumplimiento de horarios y obligaciones laborales, entre otros. Estos datos son aquellos: (i) recolectados directamente en las garitas, puntos de seguridad y de atención, (ii) tomados de los documentos que suministran las personas al personal de seguridad y (iii) obtenidos de las videograbaciones que se realizan." },
+  { texto: "Declaro de manera voluntaria, libre de cualquier error, fuerza o dolo que todas las afirmaciones y respuestas que he manifestado en este documento son correctas, veraces, completas y autorizo a La Empresa., a verificar toda la información detallada. Además, me obligo a informar a La Empresa, de cualquier cambio o actualización de información que pueda afectar las afirmaciones y respuestas anotadas en este formulario, en un término no mayor a 30 días." },
+];
+
+const CASILLA_TERMINOS =
+  "Doy consentimiento legal expreso, certifico que la información declarada es verídica e íntegra, y autorizo el análisis conforme a la Ley de Prevención de Capitales.";
+const CASILLA_FIRMA =
+  "Confirmo que los datos son correctos, acepto la validez de mi firma digital en este acto y me comprometo a proporcionar mi firma física cuando sea requerida.";
 
 export async function generateServerPDF(
   type: "NATURAL" | "JURIDICA",
@@ -54,7 +104,9 @@ export async function generateServerPDF(
       data = data || {};
       const doc = new PDFDocument({
         size: "A4",
-        margins: { top: 40, bottom: 40, left: LEFT, right: 40 },
+        // El margen inferior coincide con PAGE_BOTTOM: si un texto largo se parte
+        // solo, PDFKit cambia de página antes de llegar al pie, no encima de él.
+        margins: { top: 40, bottom: PAGE_HEIGHT - PAGE_BOTTOM, left: LEFT, right: 40 },
         bufferPages: true,
         info: {
           Title: `Expediente Debida Diligencia - ${formId}${version ? ` (v${version})` : ""}`,
@@ -102,10 +154,12 @@ export async function generateServerPDF(
       const dividerY = Math.max(80, headerBottom + 5);
       doc.moveTo(LEFT, dividerY).lineTo(RIGHT, dividerY).strokeColor(NAVY).lineWidth(2).stroke();
 
+      // ===== LEY 23 (mismo aviso que la pantalla de políticas del formulario) =====
+      let y = drawLeyBlock(doc, dividerY + 10);
+
       // ===== INFO BLOCK =====
       // El recuadro se mide antes de pintarlo: un valor largo (p. ej. varios
       // medios de pago) lo agranda en lugar de salirse por debajo.
-      let y = dividerY + 10;
       const filasInfo: [string, string, string, string][] = [
         ["Cliente:", clientName, "Proyecto:", data.nombreProyecto || "General UDG"],
         ["Tipo:", `Persona ${isNatural ? "Natural" : "Jurídica"}`, "Medio de Pago:", data.medioPago || "-"],
@@ -149,12 +203,10 @@ export async function generateServerPDF(
         y = drawFieldRow(doc, y, "Profesión / Ocupación", conOtros(data.profession, data.profesionOtros), "Jurisdicción Donde Opera", data.paisActividadLaboral || "-");
         y = drawFieldRow(doc, y, "Patrono / Empleador", data.employer || "-", "Actividad del Patrono", conOtros(data.actividadLaboral, data.actividadLaboralOtros));
         y = drawFieldRow(doc, y, "Dirección Laboral", data.direccionLaboral || "-", "Cargo en la Entidad", data.cargoDesempena || "-");
-        y = drawFieldRow(
-          doc, y,
-          "Participación en la Entidad", data.esPropietario || "-",
-          isFieldVisible("natural", "usaFondos", data) ? "Fondos de la Entidad" : "",
-          data.usaFondos || "-"
-        );
+        y = drawQuestion(doc, y, PREGUNTA_PROPIETARIO, data.esPropietario || "-");
+        if (isFieldVisible("natural", "usaFondos", data)) {
+          y = drawQuestion(doc, y, PREGUNTA_FONDOS_SOCIEDAD, data.usaFondos || "-");
+        }
 
         y += 5;
         y = checkPageBreak(doc, y, 100);
@@ -165,7 +217,7 @@ export async function generateServerPDF(
           y = drawFieldRow(doc, y, "Otra Actividad Económica", data.actEconSecundaria, "% Dedicación", `${data.pctDedicacionSecundaria || "0"}%`);
           y = drawField(doc, y, "Jurisdicción de Otra Actividad", data.jurisdiccionSecundaria || "-");
         }
-        y = drawFieldRow(doc, y, "Ingresos Mensuales Promedio", data.ingresosMensuales || "-", "Fuente de Fondos", data.fuenteFondosInmueble || "-");
+        y = drawFieldRow(doc, y, "Ingresos Mensuales Promedio",`B/.${data.ingresosMensuales}`|| "-", "Fuente de Fondos", data.fuenteFondosInmueble || "-");
         y = drawField(doc, y, "Medio de Pago", data.medioPago || "-");
         // El detalle de "Otros" acompaña a la categoría, no la reemplaza.
         if (isFieldVisible("natural", "ifOtroNombre", data)) {
@@ -179,19 +231,17 @@ export async function generateServerPDF(
             `Nombre: ${data.ifTerceroNombre || "-"} | Nac: ${data.ifTerceroNacionalidad || "-"} | Fuente: ${data.ifTerceroFuenteDeIngresos || "-"} | Relación: ${data.ifTerceroRelacion || "-"}`
           );
         }
-        y = drawField(
-          doc, y, "¿Previsto >1 Unidad (12m)?",
-          `${data.montoServiciosAnuales || "No"}${isFieldVisible("natural", "cantidadServiciosAnuales", data) && data.cantidadServiciosAnuales ? ` (${data.cantidadServiciosAnuales} unidades)` : ""}`
-        );
-        y = drawFieldRow(doc, y, "¿A Nombre de Tercero?", data.adquiereNombreTercero || "No", "Propósito del Inmueble", data.destinoInmueble || "-");
+        y = drawQuestion(doc, y, PREGUNTA_MAS_UNIDADES, data.montoServiciosAnuales || "No");
+        if (isFieldVisible("natural", "cantidadServiciosAnuales", data) && data.cantidadServiciosAnuales) {
+          y = drawField(doc, y, "Cantidad Aprox. de Unidades", String(data.cantidadServiciosAnuales));
+        }
+        y = drawQuestion(doc, y, PREGUNTA_NOMBRE_TERCERO, data.adquiereNombreTercero || "No");
         if (isFieldVisible("natural", "nombreTercero", data)) {
-          y = checkPageBreak(doc, y, 30);
-          y = drawField(doc, y, "Nombre del Tercero", data.nombreTercero || "-");
+          y = drawField(doc, y, "Nombre de la Persona", data.nombreTercero || "-");
         }
-        y = drawField(doc, y, "¿Persona PEP?", data.esPep || "No");
-        if (muestraBloquePep(data)) {
-          y = drawField(doc, y, "Detalles PEP", detallesPep(data));
-        }
+        y = drawField(doc, y, "Propósito del Inmueble", data.destinoInmueble || "-");
+
+        y = drawPepSubsection(doc, y, data, PEP_DEFINICION_NATURAL);
       } else {
         // JURÍDICA
         y = drawSectionTitle(doc, y, "1. Información de la Empresa / Sociedad");
@@ -214,8 +264,13 @@ export async function generateServerPDF(
         y = drawFieldRow(doc, y, "Nacionalidad", data.rlNacionalidad || "-", "Fecha Nacimiento", data.rlFechaNacimiento || "-");
         y = drawFieldRow(doc, y, "Estado Civil", data.rlEstadoCivil || "-", "Profesión", data.rlProfesionOcupacion || "-");
         y = drawFieldRow(doc, y, "Actividad Económica", data.rlActividadEconomica || "-", "Teléfono", data.rlTelefono || "-");
-        y = drawFieldRow(doc, y, "País Residencia", data.rlPaisResidencia || "-", "Investigado por AML", data.rlObjetoInvestigacion || "-");
+        y = drawField(doc, y, "País Residencia", data.rlPaisResidencia || "-");
         y = drawField(doc, y, "Dirección", data.rlDireccion || "-");
+
+        // Pregunta legal AML: subsección sin número, con el texto del formulario.
+        y += 4;
+        y = drawSubsectionTitle(doc, y, "Pregunta Legal AML");
+        y = drawQuestion(doc, y, PREGUNTA_AML, data.rlObjetoInvestigacion || "-");
 
         y += 5;
         y = checkPageBreak(doc, y, 100);
@@ -278,54 +333,56 @@ export async function generateServerPDF(
         y += 5;
         y = checkPageBreak(doc, y, 80);
         y = drawSectionTitle(doc, y, "6. Perfil Financiero y de Cumplimiento");
-        y = drawField(doc, y, "Ingresos Mensuales", data.ingresosMensuales || "-");
+        y = drawField(doc, y, "Ingresos Mensuales", `B/.${data.ingresosMensuales}` || "-");
         y = drawFieldRow(doc, y, "Medio de Pago", data.medioPago || "-", "Fondos de Adquisición", data.fuenteFondosInmueble || "-");
         if (muestraBloqueTercero("juridica", data)) {
           y = drawField(doc, y, "Aportante Tercero", `Nombre: ${data.terceroNombre || "-"} | Nac: ${data.terceroNacionalidad || "-"} | Vínculo: ${data.terceroVinculo || "-"} | Fuente: ${data.terceroFuenteFondos || "-"}`);
         }
-        y = drawField(doc, y, "¿Previsto >1 Unidad (12m)?", `${data.adquiereMasUnidades || "No"}${isFieldVisible("juridica", "cantidadUnidadesInmobiliarias", data) && data.cantidadUnidadesInmobiliarias ? ` (${data.cantidadUnidadesInmobiliarias} unidades)` : ""}`);
-        y = drawField(doc, y, "¿Persona PEP? (Junta/Propietarios)", data.esPep || "No");
-        if (muestraBloquePep(data)) {
-          y = drawField(doc, y, "Detalles PEP", detallesPep(data));
+        y = drawQuestion(doc, y, PREGUNTA_MAS_UNIDADES, data.adquiereMasUnidades || "No");
+        if (isFieldVisible("juridica", "cantidadUnidadesInmobiliarias", data) && data.cantidadUnidadesInmobiliarias) {
+          y = drawField(doc, y, "Cantidad Aprox. de Unidades", String(data.cantidadUnidadesInmobiliarias));
         }
+
+        y = drawPepSubsection(doc, y, data, PEP_DEFINICION_JURIDICA);
       }
 
       // ===== DOCUMENTS SECTION =====
-      // El listado de documentos siempre arranca en página nueva: evita que el
-      // índice de anexos quede partido justo antes de los anexos combinados.
-      y = forcePageBreak(doc);
+      // Continúa en la misma página si cabe el título, la cabecera de la tabla y
+      // al menos la primera fila; si no, pasa entero a la página siguiente.
+      y += 5;
+      y = checkPageBreak(doc, y, 70);
       y = drawSectionTitle(doc, y, "Documentos Adjuntados y Verificados");
 
       const requisitos = requisitosDocumentales(type, data, documents || []);
       const cols = [0.45, 0.12, 0.43];
-      y = drawTableHeader(doc, y, ["Requisito Documental", "Adjuntado", "Nombre de Archivo"], cols);
+      const encabezados = ["Requisito Documental", "Adjuntado", "Nombre de Archivo"];
+      y = drawTableHeader(doc, y, encabezados, cols);
       for (const req of requisitos) {
-        y = drawDocumentRow(doc, y, req, cols);
+        y = drawDocumentRow(doc, y, req, cols, encabezados);
       }
 
       // ===== CONCLUSIONS =====
+      // Título y texto se miden juntos para no dejar el título solo al pie.
+      const conclusiones = data.conclusionesVerificacion || "Registro formalizado y archivado satisfactoriamente por el oficial de cumplimiento.";
+      const altoConclusiones = doc.fontSize(8).font("Helvetica").heightOfString(conclusiones, { width: 500 });
       y += 10;
-      y = checkPageBreak(doc, y, 60);
+      y = checkPageBreak(doc, y, Math.min(altoConclusiones, PAGE_BOTTOM - 40 - 30) + 30);
       y = drawSectionTitle(doc, y, "Conclusiones de Cumplimiento (Solo Oficial de Cumplimiento)");
-      doc.fontSize(8).fillColor(DARK).font("Helvetica")
-        .text(data.conclusionesVerificacion || "Registro formalizado y archivado satisfactoriamente por el oficial de cumplimiento.", 48, y, { width: 500 });
-      y = doc.y + 12;
+      doc.fontSize(8).fillColor(DARK).font("Helvetica").text(conclusiones, 48, y, { width: 500 });
 
-      // ===== SIGNATURE =====
-      const SIG_H = 100;
-      y = checkPageBreak(doc, y, SIG_H + 10);
+      // ===== FIRMA Y DECLARACIÓN DEL CLIENTE =====
+      // Página propia: la declaración completa del último paso del formulario,
+      // las casillas aceptadas y el recuadro de firma, todo en una sola hoja.
+      const SIG_H = 90;
+      y = forcePageBreak(doc);
+      y = drawDeclaracion(doc, y, data, PAGE_BOTTOM - SIG_H - 8);
+
       const boxTop = y;
       doc.roundedRect(LEFT, boxTop, WIDTH, SIG_H, 4).lineWidth(0.8).strokeColor(BORDER).stroke();
       y += 8;
       doc.fontSize(9).fillColor(NAVY).font("Helvetica-Bold")
-        .text("DECLARACIÓN JURADA Y FIRMA ELECTRÓNICA", 48, y, { width: 500 });
-      y += 13;
-      doc.fontSize(7).fillColor(GRAY).font("Helvetica")
-        .text(
-          "El firmante comprador o representante debidamente acreditado declara solemnemente bajo fe de juramento que todas las informaciones entregadas para este registro son veraces y correctas. Autoriza expresamente a UDG Group a realizar los análisis de cumplimiento necesarios.",
-          48, y, { width: 500, align: "justify" }
-        );
-      y = doc.y + 8;
+        .text("FIRMA ELECTRÓNICA", 48, y, { width: 500 });
+      y += 15;
 
       // Izquierda: firmante y fecha. Derecha: recuadro con la firma.
       doc.fontSize(7).fillColor(LABEL).font("Helvetica-Bold").text("Nombre del Firmante:", 48, y);
@@ -410,10 +467,6 @@ function vencimientoId(fecha: unknown): string {
   if (!f) return "No registrada";
   const d = new Date(f);
   return !isNaN(d.getTime()) && d < new Date() ? `${f} (VENCIDO)` : f;
-}
-
-function detallesPep(data: any): string {
-  return `Nombre: ${data.pepNombre || "-"} | Cargo: ${data.pepCargo || "-"} | Institución: ${data.pepInstitucion || "-"} | Relación: ${data.pepRelacion || "-"}`;
 }
 
 /** Los miembros de gobierno corporativo se nombran con nombre + apellidos. */
@@ -574,6 +627,124 @@ function drawSectionTitle(doc: PDFKit.PDFDocument, y: number, title: string): nu
   return y + 6;
 }
 
+/** Subsección sin número dentro de una sección (p. ej. Pregunta Legal AML, PEP). */
+function drawSubsectionTitle(doc: PDFKit.PDFDocument, y: number, title: string): number {
+  y = checkPageBreak(doc, y, 40);
+  doc.rect(48, y, 2.5, 10).fill(GOLD);
+  doc.fontSize(8).fillColor(NAVY).font("Helvetica-Bold").text(title.toUpperCase(), 55, y + 1.5, { width: RIGHT - 55 });
+  return doc.y + 5;
+}
+
+/** Párrafo explicativo tal como aparece en el formulario. */
+function drawParrafo(doc: PDFKit.PDFDocument, y: number, texto: string): number {
+  doc.fontSize(7.5).font("Helvetica");
+  const alto = doc.heightOfString(texto, { width: RIGHT - 48, align: "justify" });
+  y = checkPageBreak(doc, y, alto);
+  doc.fillColor(GRAY).text(texto, 48, y, { width: RIGHT - 48, align: "justify" });
+  return doc.y + 5;
+}
+
+/** Pregunta del formulario a la izquierda y la respuesta del cliente a la derecha. */
+function drawQuestion(doc: PDFKit.PDFDocument, y: number, pregunta: string, respuesta: string): number {
+  const anchoPregunta = 400;
+  const xRespuesta = 48 + anchoPregunta + 12;
+  doc.fontSize(8).font("Helvetica");
+  const alto = Math.max(ALTO_FILA, doc.heightOfString(pregunta, { width: anchoPregunta }) + SEPARACION_FILA);
+  y = checkPageBreak(doc, y, alto);
+  doc.fillColor(DARK).text(pregunta, 48, y, { width: anchoPregunta });
+  doc.fillColor(LABEL).font("Helvetica-Bold").text("Respuesta:", xRespuesta, y, { width: RIGHT - xRespuesta, continued: true })
+    .fillColor(NAVY).text(` ${respuesta}`);
+  return Math.max(y + alto, doc.y + SEPARACION_FILA);
+}
+
+/** Subsección PEP: definición, pregunta, respuesta y, si aplica, los datos de la PEP. */
+function drawPepSubsection(doc: PDFKit.PDFDocument, y: number, data: any, definicion: string): number {
+  y += 4;
+  y = drawSubsectionTitle(doc, y, "Persona Expuesta Políticamente (PEP)");
+  y = drawParrafo(doc, y, `DEFINICIÓN – ${definicion}`);
+  // Pregunta y detalles van juntos: los detalles no quedan solos en otra página.
+  const conDetalles = muestraBloquePep(data);
+  if (conDetalles) {
+    const altoPregunta = doc.fontSize(8).font("Helvetica").heightOfString(PREGUNTA_PEP, { width: 400 });
+    y = checkPageBreak(doc, y, altoPregunta + 50);
+  }
+  y = drawQuestion(doc, y, PREGUNTA_PEP, data.esPep || "No");
+  if (conDetalles) {
+    doc.fontSize(8).fillColor(NAVY).font("Helvetica-Bold").text("Detalles PEP", 48, y + 2, { width: 300 });
+    y = doc.y + 3;
+    y = drawFieldRow(doc, y, "Nombre Completo", data.pepNombre || "-", "Cargo Desempeñado", data.pepCargo || "-");
+    y = drawFieldRow(doc, y, "Institución o Entidad", data.pepInstitucion || "-", "Relación o Parentesco", data.pepRelacion || "-");
+  }
+  return y;
+}
+
+/** Aviso de la Ley 23 bajo el encabezado, como en la pantalla de políticas. */
+function drawLeyBlock(doc: PDFKit.PDFDocument, y: number): number {
+  const ancho = WIDTH - 16;
+  doc.fontSize(7.5).font("Helvetica");
+  const altoTexto = doc.heightOfString(LEY_TEXTO, { width: ancho, align: "justify" });
+  const alto = 8 + 11 + altoTexto + 8;
+  doc.roundedRect(LEFT, y, WIDTH, alto, 3).lineWidth(0.8).strokeColor(GOLD).stroke();
+  doc.fontSize(8).fillColor(NAVY).font("Helvetica-Bold").text(LEY_TITULO, 48, y + 8, { width: ancho });
+  doc.fontSize(7.5).fillColor(DARK).font("Helvetica").text(LEY_TEXTO, 48, y + 19, { width: ancho, align: "justify" });
+  return y + alto + 8;
+}
+
+/** Casilla marcada (o vacía) dibujada a mano: Helvetica no trae el glifo ✓. */
+function drawCasilla(doc: PDFKit.PDFDocument, x: number, y: number, marcada: boolean): void {
+  doc.rect(x, y, 8, 8).lineWidth(0.8).strokeColor(marcada ? NAVY : "#9ca3af").stroke();
+  if (marcada) {
+    doc.moveTo(x + 1.8, y + 4.2).lineTo(x + 3.4, y + 6).lineTo(x + 6.4, y + 2)
+      .lineWidth(1.2).strokeColor(NAVY).stroke();
+  }
+}
+
+/**
+ * Página de "Firma y Declaración del Cliente": título, declaración completa y
+ * las dos casillas del último paso. El tamaño de letra se reduce lo necesario
+ * para que todo quepa por encima de `limite` y la firma quede en la misma hoja.
+ */
+function drawDeclaracion(doc: PDFKit.PDFDocument, y: number, data: any, limite: number): number {
+  const SANGRIA = 10;
+  const casillas: [string, boolean][] = [
+    [CASILLA_TERMINOS, data.termsAccepted !== false],
+    [CASILLA_FIRMA, data.signatureConfirmed !== false],
+  ];
+  const xCasilla = 48 + 14;
+  const anchoCasilla = RIGHT - xCasilla;
+
+  const medir = (fs: number) => {
+    let alto = 0;
+    for (const p of DECLARACION) {
+      const ancho = RIGHT - 48 - (p.sangria ? SANGRIA : 0);
+      doc.fontSize(fs).font(p.titulo ? "Helvetica-Bold" : "Helvetica");
+      alto += doc.heightOfString(p.texto, { width: ancho, align: "justify" }) + fs * 0.45;
+    }
+    doc.fontSize(fs + 0.5).font("Helvetica");
+    for (const [texto] of casillas) alto += Math.max(10, doc.heightOfString(texto, { width: anchoCasilla })) + 4;
+    return alto + 8;
+  };
+
+  y = drawSectionTitle(doc, y, "Firma y Declaración del Cliente");
+  let fs = 7.5;
+  while (fs > 5.5 && y + medir(fs) > limite) fs -= 0.25;
+
+  for (const p of DECLARACION) {
+    const x = 48 + (p.sangria ? SANGRIA : 0);
+    doc.fontSize(fs).fillColor(p.titulo ? NAVY : DARK).font(p.titulo ? "Helvetica-Bold" : "Helvetica")
+      .text(p.texto, x, y, { width: RIGHT - x, align: "justify" });
+    y = doc.y + fs * 0.45;
+  }
+
+  y += 4;
+  for (const [texto, marcada] of casillas) {
+    drawCasilla(doc, 48, y, marcada);
+    doc.fontSize(fs + 0.5).fillColor(DARK).font("Helvetica").text(texto, xCasilla, y, { width: anchoCasilla });
+    y = Math.max(y + 10, doc.y) + 4;
+  }
+  return y + 4;
+}
+
 function drawEmpty(doc: PDFKit.PDFDocument, y: number, texto: string): number {
   doc.fontSize(8).fillColor(GRAY).font("Helvetica-Oblique").text(texto, 48, y, { width: 500 });
   return y + 14;
@@ -700,7 +871,14 @@ function drawTableRow(
 }
 
 /** Fila del índice de documentos: requisito, SÍ/NO y los archivos numerados. */
-function drawDocumentRow(doc: PDFKit.PDFDocument, y: number, req: RequisitoDocumental, cols: number[]): number {
+function drawDocumentRow(
+  doc: PDFKit.PDFDocument,
+  y: number,
+  req: RequisitoDocumental,
+  cols: number[],
+  /** Si la fila pasa a otra página, la cabecera de la tabla se repite arriba. */
+  encabezados?: string[]
+): number {
   const [cReq, cOk, cArch] = columnas(cols);
   const adjuntado = req.archivos.length > 0;
   const archivos = !adjuntado
@@ -716,7 +894,9 @@ function drawDocumentRow(doc: PDFKit.PDFDocument, y: number, req: RequisitoDocum
     doc.fontSize(7).heightOfString(archivos, { width: cArch.w - CELL_PAD * 2 })
   ) + 6;
 
+  const yAntes = y;
   y = checkPageBreak(doc, y, alto);
+  if (encabezados && y < yAntes) y = drawTableHeader(doc, y, encabezados, cols);
   doc.fontSize(7.5).fillColor(DARK).font("Helvetica")
     .text(req.titulo, cReq.x + CELL_PAD, y + 3, { width: cReq.w - CELL_PAD * 2 });
   doc.fontSize(7.5).fillColor(adjuntado ? OK : req.opcional ? GRAY : FAIL).font("Helvetica-Bold")

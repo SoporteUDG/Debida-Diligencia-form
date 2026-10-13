@@ -109,7 +109,7 @@ describe("generateServerPDF · campos condicionales", () => {
       fuenteFondosInmueble: "Aporte de Terceros",
       ifTerceroNombre: "Marta Aportante", ifTerceroNacionalidad: "Colombiana",
     }, "form-1"));
-    expect(t).toContain("Nombre del Tercero");
+    expect(t).toContain("Nombre de la Persona");
     expect(t).toContain("Pedro Tercero");
     expect(t).toContain("Aportante Tercero");
     // El valor largo lo parte PDFKit en varias líneas: basta con el primer nombre.
@@ -122,7 +122,7 @@ describe("generateServerPDF · campos condicionales", () => {
       fuenteFondosInmueble: "Ahorros propios",
     }, "form-2"));
     expect(t).toContain("Ingresos Mensuales");
-    expect(t).not.toContain("Nombre del Tercero");
+    expect(t).not.toContain("Nombre de la Persona");
     expect(t).not.toContain("Residuo Viejo");
     expect(t).not.toContain("Aportante Tercero");
   }, 30000);
@@ -210,7 +210,7 @@ describe("generateServerPDF · valores que ocupan varias líneas", () => {
   }, 30000);
 
   it("los valores cortos conservan el alto de fila de siempre", async () => {
-    const r = renglonesDelPdf(await hacer({ profession: "Analista", employer: "UDG" }, "form-11"));
-    expect(yMasBaja(r, "Analista") - yMasBaja(r, "UDG")).toBeCloseTo(13, 1);
+    const r = renglonesDelPdf(await hacer({ profession: "Analista", employer: "PatronoXYZ" }, "form-11"));
+    expect(yMasBaja(r, "Analista") - yMasBaja(r, "PatronoXYZ")).toBeCloseTo(13, 1);
   }, 30000);
 });
