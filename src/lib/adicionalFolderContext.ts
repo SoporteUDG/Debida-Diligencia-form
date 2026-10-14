@@ -1,13 +1,14 @@
 import prisma from "@/lib/prisma";
-import type { AdicionalCarpeta } from "@/lib/workdriveService";
+import type { AdicionalCarpeta, RolCarpeta } from "@/lib/workdriveService";
 
 /**
- * Datos para ubicar la carpeta de WorkDrive de un expediente adicional, que vive
- * dentro de la carpeta del expediente principal (ver AdicionalCarpeta).
+ * Datos para ubicar la carpeta de WorkDrive de un enlace no principal
+ * (relacionado, Representante Legal o adicional), que vive al lado de la del
+ * expediente principal, en /{Socio}/DD (ver AdicionalCarpeta).
  *
  * - `formType`: tipo del expediente PRINCIPAL; es el que da nombre a su carpeta
- *   ({FORMTYPE}-{DD}). Un adicional puede ser de otro tipo que el principal.
- * - `adicional`: token, nombre dado y tipo del adicional.
+ *   (Principal-{FORMTYPE}-{DD}). Un enlace puede ser de otro tipo que el principal.
+ * - `adicional`: token, nombre dado, tipo y rol del enlace (según su borrador).
  */
 export async function contextoCarpetaAdicional(params: {
   crmContactId: string | null | undefined;
@@ -40,8 +41,16 @@ export async function contextoCarpetaAdicional(params: {
       }))?.type;
   }
 
+  // Rol del enlace: RELATED con contacto = relacionado; sin contacto = Representante Legal
+  const borrador = await prisma.draft.findUnique({
+    where: { token: params.token },
+    select: { role: true, accountContactId: true },
+  });
+  const rol: RolCarpeta =
+    borrador?.role === "RELATED" ? (borrador.accountContactId ? "Relacionado" : "Representante Legal") : "Adicional";
+
   return {
     formType: principal ?? params.tipo,
-    adicional: { token: params.token, nombre, tipo: params.tipo },
+    adicional: { token: params.token, nombre, tipo: params.tipo, rol },
   };
 }

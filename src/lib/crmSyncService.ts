@@ -1,6 +1,6 @@
 import prisma from "@/lib/prisma";
 import { logAuditEvent } from "./auditService";
-import { zoho } from "./zohoService";
+import { zoho, mapRepresentanteToDDPayload, CAMPOS_EXCLUSIVOS_REPRESENTANTE } from "./zohoService";
 
 /**
  * Triggers Zoho CRM contact synchronization for a submitted Form.
@@ -17,6 +17,8 @@ export async function syncFormToCrm(formId: string) {
       where: { id: formId },
       include: {
         crmContact: { include: { accountContact: true } },
+        // Contacto relacionado (role RELATED) que llenó el formulario
+        accountContact: true,
         // Archivos vigentes: marcan las casillas de documentos recibidos en Zoho
         documents: {
           where: { deletedAt: null },
@@ -30,8 +32,15 @@ export async function syncFormToCrm(formId: string) {
       return { success: false, error: "Formulario no encontrado" };
     }
 
+    // Enlace de un contacto relacionado: solo actualiza los datos básicos de su
+    // Contact de Zoho; el expediente de Debida_Diligencia es del contacto estándar.
+    // Sin contacto es el Representante Legal (jurídica): solo escribe sus campos
+    // exclusivos en el expediente jurídico, nunca los compartidos con Persona Natural.
+    const representante = form.role === "RELATED" && !form.accountContactId;
+    const soloContacto = form.role === "RELATED" && !representante;
+
     // Un expediente adicional no vincula su información de cliente a Zoho
-    if (form.isAditional) {
+    if (form.isAditional && !soloContacto && !representante) {
       console.log(`[CRM Sync] El formulario ${formId} es adicional; no se sincroniza con Zoho CRM.`);
       return { success: true, skipped: true };
     }
@@ -107,23 +116,32 @@ export async function syncFormToCrm(formId: string) {
       return { success: true, mocked: true };
     }
 
-    const crmContactId = form.crmContact?.crmId;
+    // Relacionado: el registro sincronizado es su Contact; principal: el expediente
+    const crmContactId = soloContacto ? form.accountContact?.crmId : form.crmContact?.crmId;
     if (!crmContactId) {
-      throw new Error("No se encontró un crmId (ID de contacto de Zoho CRM) asociado a este formulario.");
+      throw new Error(
+        soloContacto
+          ? "El formulario del contacto relacionado no tiene un Contact de Zoho vinculado."
+          : "No se encontró un crmId (ID de contacto de Zoho CRM) asociado a este formulario."
+      );
     }
 
     // 4. Trigger Zoho CRM contact/lead update with the mapped form data
-    console.log(`[CRM Sync] Iniciando petición PUT de actualización para contacto CRM: ${crmContactId}`);
+    console.log(`[CRM Sync] Iniciando petición PUT de actualización para ${soloContacto ? "el Contact relacionado" : "contacto CRM"}: ${crmContactId}`);
 
     // Con contacto vinculado, los datos personales se escriben en el Contact
     // de Zoho y no en el expediente de Debida_Diligencia.
     const contactCrmId = form.crmContact?.accountContact?.crmId as string | undefined;
-    const syncResult = await zoho.service.updateContact(
-      crmContactId,
-      form.type as any,
-      form.data,
-      { contactCrmId, documentos: form.documents }
-    );
+    const syncResult = representante
+      ? await zoho.service.updateDDFields(crmContactId, mapRepresentanteToDDPayload(form.data))
+      : soloContacto
+      ? await zoho.service.updateAccountContact(crmContactId, form.type as any, form.data)
+      : await zoho.service.updateContact(
+          crmContactId,
+          form.type as any,
+          form.data,
+          { contactCrmId, documentos: form.documents }
+        );
 
     // 5. Update CrmSync to SUCCESS on success
     await prisma.crmSync.update({
@@ -149,12 +167,21 @@ export async function syncFormToCrm(formId: string) {
 
     console.log(`[CRM Sync Success] Formulario ${formId} sincronizado con éxito en Zoho CRM.`);
 
-    // Log success note in Zoho CRM
+    // Log success note in Zoho CRM (relacionado: en el expediente, solo como nota)
     try {
+      const relacionado = soloContacto
+        ? `${form.accountContact?.firstName ?? ""} ${form.accountContact?.lastName ?? ""}`.trim() || crmContactId
+        : "";
       await zoho.service.createNote(
-        crmContactId,
-        "Formulario Completado",
-        `El cliente completó y envió el formulario de Debida Diligencia.\n\n` +
+        soloContacto ? form.crmContact?.crmId ?? crmContactId : crmContactId,
+        representante
+          ? "Formulario del Representante Legal Completado"
+          : soloContacto ? "Formulario de Contacto Relacionado Completado" : "Formulario Completado",
+        (representante
+          ? `El Representante Legal completó su formulario. Solo se actualizaron sus campos exclusivos (${CAMPOS_EXCLUSIVOS_REPRESENTANTE.join(", ")}).\n\n`
+          : soloContacto
+          ? `El contacto relacionado ${relacionado} (${crmContactId}) completó su formulario. Se actualizaron solo los datos de su Contact; este expediente no se modificó.\n\n`
+          : `El cliente completó y envió el formulario de Debida Diligencia.\n\n`) +
         `Referencia del Formulario: ${formId}\n` +
         `Proyecto: ${form.projectName || "General UDG"}\n` +
         `Actor: Cliente (Portal)\n` +

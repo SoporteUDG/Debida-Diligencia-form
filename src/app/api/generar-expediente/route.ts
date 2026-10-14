@@ -1,15 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { zoho, DD_CONTACT_FIELD, type ZohoDDResumen } from "@/lib/zohoService";
+import { zoho, DD_CONTACT_FIELD } from "@/lib/zohoService";
 import { logAuditEvent } from "@/lib/auditService";
-import { crearEnlaceConBorrador, prepararExpedienteRelacionado } from "@/lib/enlaceService";
+import { crearEnlaceConBorrador } from "@/lib/enlaceService";
+import {
+  planificarEnlaces,
+  generarEnlacesRelacionados,
+  vincularContactosDelSocio,
+  mensajeEnlaces,
+  nombreDe,
+} from "@/lib/enlacesSocioService";
+import { expedienteRetirado, MENSAJE_RETIRADO } from "@/lib/ddRetireService";
 import {
   obtenerContactosDeCuenta,
   clasificarContactosNaturales,
   clasificarExpedientesJuridica,
+  contactoPrincipal,
+  ContactoEstandarError,
   SinContactosError,
   type AccountContactRow,
-  type ClasificacionContactos,
 } from "@/lib/accountContactService";
 
 export const dynamic = "force-dynamic";
@@ -38,31 +47,42 @@ const texto = (v: any): string =>
   String((v && typeof v === "object" ? v.name ?? v.display_value ?? v.value : v) ?? "").trim();
 
 /**
- * Crea los expedientes de Debida_Diligencia que le faltan a un Socio de Negocio,
- * con su enlace al formulario. Solo se crea lo que falta (como valida el widget
- * validarDebidaDiligencia).
+ * Crea el expediente de Debida_Diligencia de un Socio de Negocio (si falta) y
+ * los enlaces de sus contactos sobre él. Solo se crea lo que falta (como valida
+ * el widget validarDebidaDiligencia). Un Socio de Negocio tiene UN solo
+ * expediente; cada enlace tiene un rol (ver LinkRole):
+ *
+ * - PRINCIPAL: el del expediente. Natural: el del contacto estándar
+ *   (Contacto_est_ndar; debe haber exactamente uno, si no 422 CONTACTO_ESTANDAR),
+ *   vinculado por Nombre_de_contacto. Jurídica: el de la empresa.
+ * - RELATED: uno por cada otro contacto del socio (en la natural, todos menos el
+ *   estándar; en la jurídica, todos). Al completarse solo actualizan su Contact.
+ * - Jurídica: el Representante Legal (campo Representante_legal del socio) recibe
+ *   un enlace RELATED SIN contacto sobre el mismo expediente: ya no se crea un
+ *   expediente natural aparte. Al completarse solo escribe los campos exclusivos
+ *   del representante (ver mapRepresentanteToDDPayload).
+ *
+ * Además cada contacto queda atado al expediente en Zoho (lookup
+ * Contacts.Debida_Diligencia), también cuando ya existía todo.
  *
  * Body:
  * - name (requerido): nombre que sustituye al del Socio de Negocio en el Name
- *   del expediente ("name-unidad-proyecto"), para que no quede igual al socio.
+ *   del expediente ("name-unidad-proyecto"). En la natural el Name lleva el
+ *   nombre del contacto estándar.
  * - type (requerido): "natural" o "juridica".
  * - socioId / recordId (requerido): Socio de Negocio (Accounts) al que se
  *   vincula; de él salen la unidad, el proyecto y la carpeta de documentos.
  * - proyecto (opcional): proyecto a usar si el Socio de Negocio no tiene uno.
- * - contactos (opcional): IDs de los Contacts de Zoho del socio marcados en el
- *   widget. A cada uno (si aún no lo tiene) se le crea un expediente de Persona
- *   Natural vinculado por Nombre_de_contacto. Sin la lista: en la natural se
- *   generan todos los que falten; en la jurídica, ninguno.
+ * - contactos (opcional): IDs de los Contacts de Zoho marcados en el widget: los
+ *   que reciben su enlace relacionado. Sin la lista, todos los que falten.
  *
- * Persona Jurídica: sus dos expedientes principales son el jurídico y el natural
- * del Representante Legal (campo de texto Representante_legal del socio, que se
- * escribe en Nombre_natural de ambos), relacionados por DD_relacionado. Ninguno
- * lleva Contact: los datos del representante quedan en los campos del expediente.
- * Se buscan los vigentes (no retirados):
- *   · Falta el jurídico y/o el natural: se crea solo lo que falta, relacionado
- *     al existente. Sin Representante_legal en el socio: 422.
- *   · Existen ambos: no se crean (se asegura el DD_relacionado).
- *   · Más de un jurídico, o varios naturales sin vínculo: 409 (DUPLICADOS).
+ * Respuestas:
+ *   · Contactos con su propio expediente (anterior a este esquema) se respetan
+ *     y no reciben enlace. Lo mismo un Representante Legal con expediente natural
+ *     relacionado (DD_relacionado) de antes.
+ *   · Jurídica sin Representante_legal y su enlace falta: 422 SIN_REPRESENTANTE_LEGAL.
+ *   · Más de un expediente jurídico vigente: 409 DUPLICADOS.
+ *   · Expediente anulado y hay enlaces por crear: 409 RETIRADO.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -107,99 +127,142 @@ export async function POST(request: NextRequest) {
       `[API Generar Expediente] Solicitud: name="${name}", tipo=${clientType}, socio=${socioId}, contactos=${seleccion ? seleccion.join(",") || "(ninguno)" : "(todos)"}`
     );
 
-    // URL base del portal (enlace principal y enlace del relacionado)
+    // URL base del portal
     const host = request.headers.get("host");
     const protocol = request.headers.get("x-forwarded-proto") || "https";
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || `${protocol}://${host}`;
 
     // ---------- 1. Validación: qué existe y qué falta (antes de crear nada) ----------
 
-    // Jurídica: expedientes principales (jurídico + Representante Legal)
-    let principales: Awaited<ReturnType<typeof clasificarExpedientesJuridica>> | null = null;
-    let representanteLegal = "";
-    if (!isNatural) {
-      principales = await clasificarExpedientesJuridica(socioId);
-      if (principales.duplicados) {
+    const account = await zoho.service.getAccountRecord(socioId);
+
+    // Contactos del socio (natural: sin contactos lanza SinContactosError) y,
+    // en la natural, su contacto estándar (lanza ContactoEstandarError)
+    const contactos = await obtenerContactosDeCuenta(socioId, clientType, { todos: true });
+    const principal = isNatural ? contactoPrincipal(socioId, contactos) : null;
+    const clasif = await clasificarContactosNaturales(socioId, contactos);
+
+    // Expediente del socio que ya existe
+    let existenteCrmId: string | null = null;
+    let ddRepresentanteAnterior: string | null = null;
+    if (principal) {
+      existenteCrmId = clasif.existentes.find((e) => e.contact.id === principal.id)?.ddCrmId ?? null;
+    } else {
+      const juridica = await clasificarExpedientesJuridica(socioId);
+      if (juridica.juridicas.length > 1) {
         return NextResponse.json(
           {
             success: false,
             code: "DUPLICADOS",
             error:
-              `El Socio de Negocio tiene ${principales.juridicas.length} expediente(s) Jurídica y ${principales.naturales.length} de Representante Legal vigentes: ` +
-              "para una Persona Jurídica solo debe existir uno de cada uno.",
-            juridicas: principales.juridicas.map((d) => d.id),
-            naturales: principales.naturales.map((d) => d.id),
+              `El Socio de Negocio tiene ${juridica.juridicas.length} expedientes Jurídica vigentes: ` +
+              "para una Persona Jurídica solo debe existir uno.",
+            juridicas: juridica.juridicas.map((d) => d.id),
           },
           { status: 409, headers: corsHeaders }
         );
       }
-      if (!principales.juridica || !principales.natural) {
-        representanteLegal = texto((await zoho.service.getAccountRecord(socioId))?.Nombre_Extranjero_No_en_Peachtree);
-        if (!representanteLegal) {
-          return NextResponse.json(
-            {
-              success: false,
-              code: "SIN_REPRESENTANTE_LEGAL",
-              error: "El Socio de Negocio no tiene Representante Legal: complete el campo Representante legal para generar sus expedientes.",
-              socioId,
-            },
-            { status: 422, headers: corsHeaders }
-          );
-        }
-      }
+      existenteCrmId = juridica.juridica?.id ?? null;
+      // Esquema anterior: expediente natural del Representante Legal (DD_relacionado)
+      ddRepresentanteAnterior = juridica.natural?.id ?? null;
     }
 
-    // Contactos del socio: un expediente natural por contacto (solo los que no lo tienen)
-    let clasif: ClasificacionContactos = { faltantes: [], existentes: [], eliminadosEnZoho: [] };
-    if (isNatural || seleccion?.length) {
-      const contactos = await obtenerContactosDeCuenta(socioId, clientType, { todos: true });
-      clasif = await clasificarContactosNaturales(socioId, contactos);
-    }
-    const porContacto = seleccion ? clasif.faltantes.filter((c) => seleccion.includes(c.crmId)) : clasif.faltantes;
-    // Marcados que no se generan: ya tienen expediente o no son contactos del socio
-    const omitidos = (seleccion ?? []).filter((id) => !porContacto.some((c) => c.crmId === id));
+    let crmContact = existenteCrmId ? await prisma.crmContact.findUnique({ where: { crmId: existenteCrmId } }) : null;
 
-    if (isNatural && !porContacto.length && clasif.faltantes.length) {
+    // Qué enlaces faltan (Representante Legal y contactos relacionados)
+    const plan = await planificarEnlaces({
+      isNatural,
+      contactos,
+      principal,
+      clasif,
+      existenteCrmId,
+      crmContact,
+      ddRepresentanteAnterior,
+      seleccion,
+    });
+    const representanteLegal = isNatural ? "" : texto(account?.Nombre_Extranjero_No_en_Peachtree);
+    if (plan.faltaRepresentante && !representanteLegal) {
       return NextResponse.json(
         {
           success: false,
-          code: "SIN_SELECCION",
-          error: "No se seleccionó ningún contacto pendiente de Debida Diligencia.",
-          ...(omitidos.length ? { contactosOmitidos: omitidos } : {}),
+          code: "SIN_REPRESENTANTE_LEGAL",
+          error: "El Socio de Negocio no tiene Representante Legal: complete el campo Representante legal para generar su enlace.",
+          socioId,
         },
-        { status: 400, headers: corsHeaders }
+        { status: 422, headers: corsHeaders }
       );
+    }
+
+    // Contactos atados a cada expediente en Zoho (Contacts.Debida_Diligencia)
+    const vincularContactos = (ddCrmId: string) => vincularContactosDelSocio({ ddCrmId, plan, contactos, principal });
+    const extra = plan.extra;
+
+    // Nada que crear
+    if (existenteCrmId && !plan.faltaRepresentante && !plan.porRelacionar.length) {
+      if (seleccion && plan.pendientes.length) {
+        return NextResponse.json(
+          {
+            success: false,
+            code: "SIN_SELECCION",
+            error: "No se seleccionó ningún contacto pendiente de su enlace de Debida Diligencia.",
+            ...extra,
+          },
+          { status: 400, headers: corsHeaders }
+        );
+      }
+      const contactosVinculados = await vincularContactos(existenteCrmId);
+      return NextResponse.json(
+        {
+          success: true,
+          status: "already_exists",
+          message: isNatural
+            ? "El expediente principal ya existe y todos los contactos del Socio de Negocio tienen su enlace."
+            : "El expediente jurídico ya existe, con el enlace del Representante Legal y de todos los contactos.",
+          crmId: existenteCrmId,
+          contactosVinculados,
+          ...extra,
+        },
+        { headers: corsHeaders }
+      );
+    }
+
+    // Expediente existente: no admite enlaces nuevos si está anulado
+    if (existenteCrmId) {
+      let ddRecord: Record<string, any> | null = null;
+      try {
+        ddRecord = await zoho.service.getDDRecord(existenteCrmId);
+      } catch (err) {
+        console.warn(`[API Generar Expediente] No se pudo leer el expediente ${existenteCrmId} en Zoho; se usa solo el estado del portal:`, err);
+      }
+      if (expedienteRetirado(ddRecord, crmContact)) {
+        return NextResponse.json(
+          { success: false, code: "RETIRADO", error: MENSAJE_RETIRADO, crmId: existenteCrmId, ...extra },
+          { status: 409, headers: corsHeaders }
+        );
+      }
     }
 
     // ---------- 2. Creación ----------
 
-    const Unidad = (await zoho.service.getAccountRecord(socioId))?.Unidad_Vendida1;
+    const Unidad = account?.Unidad_Vendida1;
+    const esNatural = isNatural;
 
-    async function generarExpediente(opts: {
-      tipo: ClientType;
-      accountContact: AccountContactRow | null;
-      nombre: string;
-      /** Jurídica: natural del Representante Legal que ya existe (solo se relaciona). */
-      naturalExistenteId?: string;
-    }) {
-      const { tipo, accountContact, nombre, naturalExistenteId } = opts;
-      const esNatural = tipo === "NATURAL";
-
+    /** Registro en Zoho, contacto local, enlace PRINCIPAL y nota. */
+    async function generarExpediente(accountContact: AccountContactRow | null, nombre: string) {
       // 1. Registro en Zoho CRM con el Name "nombre-unidad-proyecto"
       const created = await zoho.service.createDebidaDiligenciaRecord({
         accountCrmId: socioId,
-        clientType: tipo,
+        clientType,
         name: nombre,
         unidad: Unidad,
         projectName,
         overRideName: nombre,
         contactCrmId: accountContact?.crmId,
         ...(esNatural ? {} : { razonSocial: name, nombreNatural: representanteLegal }),
-        ...(naturalExistenteId ? { relatedDDId: naturalExistenteId } : {}),
       });
       if (!created.debidaId) throw new Error("Zoho CRM no devolvió el ID del expediente creado");
       const crmId = created.debidaId;
-      console.log(`[API Generar Expediente] Expediente ${crmId} (${tipo}) creado.`);
+      console.log(`[API Generar Expediente] Expediente ${crmId} (${clientType}) creado.`);
 
       // 2. Contacto local, vinculado al Contact de Zoho (la jurídica no lleva)
       const contact = await prisma.crmContact.upsert({
@@ -215,34 +278,7 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      // 3. Jurídica: expediente natural del Representante Legal, enlazado en ambos
-      // sentidos por DD_relacionado. Si ya existía solo se relaciona (el jurídico ya
-      // nació apuntándolo).
-      let related: { crmId: string; clientUrl: string | null } | null = null;
-      if (naturalExistenteId) {
-        related = { crmId: naturalExistenteId, clientUrl: null };
-        try {
-          await zoho.service.setRelatedDD(naturalExistenteId, crmId);
-        } catch (relErr) {
-          console.error(`[API Generar Expediente Warning] No se pudo relacionar el natural ${naturalExistenteId} con ${crmId}:`, relErr);
-        }
-      } else if (!esNatural) {
-        try {
-          related = await prepararExpedienteRelacionado({
-            juridicaCrmId: crmId,
-            clientName: nombre,
-            projectName,
-            appUrl,
-            socioId,
-            overRideName: `Representante Legal (${representanteLegal})`,
-            representanteLegal,
-          });
-        } catch (relErr) {
-          console.error(`[API Generar Expediente Warning] Error al crear el expediente natural relacionado de ${crmId}:`, relErr);
-        }
-      }
-
-      // 4. Token de 30 días, URL del formulario y borrador
+      // 3. Token de 30 días, URL del formulario y borrador
       const { tokenUuid, clientUrl, expiresAt } = await crearEnlaceConBorrador({
         contactId: contact.id,
         crmId,
@@ -258,7 +294,7 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      // 5. Enlace en Zoho CRM
+      // 4. Enlace en Zoho CRM
       try {
         await zoho.service.updateClientFormLink(crmId, "Debida_Diligencia", clientUrl, expiresAt, "Activo");
         await zoho.service.createNote(
@@ -266,180 +302,82 @@ export async function POST(request: NextRequest) {
           `Enlace Generado (${esNatural ? "Persona Natural" : "Persona Jurídica"})`,
           `Se ha generado un nuevo expediente con su enlace de acceso.\n\n` +
           `Tipo de Formulario: ${esNatural ? "Persona Natural" : "Persona Jurídica"}\n` +
-          (accountContact ? `Contacto: ${accountContact.firstName} ${accountContact.lastName} (${accountContact.crmId})\n` : "") +
+          (accountContact ? `Contacto: ${nombreDe(accountContact)} (${accountContact.crmId})\n` : "") +
           (esNatural ? "" : `Representante Legal: ${representanteLegal}\n`) +
           `Enlace del Formulario: ${clientUrl}\n` +
           `Vigencia del Enlace: ${expiresAt.toLocaleString()}\n` +
           `Estado del Enlace: Activo\n` +
-          (related
-            ? `Expediente Relacionado (Persona Natural): ${related.crmId}\n` +
-              (related.clientUrl ? `Enlace del Relacionado: ${related.clientUrl}\n` : "")
-            : "") +
           `Timestamp: ${new Date().toLocaleString()}`
         );
       } catch (crmErr) {
         console.error(`[API Generar Expediente Warning] Error al actualizar el enlace de ${crmId}:`, crmErr);
       }
 
-      // 6. Auditoría
       await logAuditEvent({
         action: "LINK_GENERATE_ZDK",
         entityName: "Token",
         entityId: tokenUuid,
         details: {
           crmId,
-          type: tipo,
+          type: clientType,
           clientUrl,
           name: nombre,
           socioId,
           ...(accountContact ? { contactCrmId: accountContact.crmId } : {}),
           ...(esNatural ? {} : { representanteLegal }),
-          ...(related ? { relatedCrmId: related.crmId, relatedClientUrl: related.clientUrl } : {}),
         },
       });
 
-      return {
-        crmId,
-        tipo,
-        clientUrl,
-        expiresAt,
-        ...(accountContact ? { contactId: accountContact.crmId } : {}),
-        ...(related ? { relatedCrmId: related.crmId, relatedClientUrl: related.clientUrl } : {}),
-      };
+      return { contact, resultado: { crmId, tipo: clientType, clientUrl, expiresAt, ...(accountContact ? { contactId: accountContact.crmId } : {}) } };
     }
 
-    /** Jurídica existente sin Representante Legal: solo se crea el natural, relacionado a ella. */
-    async function generarSoloRepresentante(juridica: ZohoDDResumen) {
-      const related = await prepararExpedienteRelacionado({
-        juridicaCrmId: juridica.id,
-        clientName: name,
-        projectName,
-        appUrl,
-        socioId,
-        overRideName: `Representante Legal (${representanteLegal})`,
-        representanteLegal,
-        // Su DD_relacionado actual (si lo hay) está retirado: no se reutiliza
-        crearNuevo: !!juridica.relatedCrmId && principales!.retirados.includes(juridica.relatedCrmId),
-      });
-      console.log(`[API Generar Expediente] Natural ${related.crmId} creado para el jurídico existente ${juridica.id}.`);
-
-      try {
-        await zoho.service.createNote(
-          juridica.id,
-          "Expediente Relacionado Generado (Persona Natural)",
-          `Se ha generado el expediente del Representante Legal relacionado a este expediente.\n\n` +
-          `Representante Legal: ${representanteLegal}\n` +
-          `Expediente Relacionado (Persona Natural): ${related.crmId}\n` +
-          (related.clientUrl ? `Enlace del Relacionado: ${related.clientUrl}\n` : "") +
-          `Timestamp: ${new Date().toLocaleString()}`
-        );
-      } catch (crmErr) {
-        console.error(`[API Generar Expediente Warning] Error al crear la nota en ${juridica.id}:`, crmErr);
-      }
-
-      await logAuditEvent({
-        action: "LINK_GENERATE_ZDK",
-        entityName: "CrmContact",
-        entityId: related.crmId,
-        details: {
-          crmId: juridica.id,
-          type: clientType,
-          socioId,
-          representanteLegal,
-          relatedCrmId: related.crmId,
-          relatedClientUrl: related.clientUrl,
-          soloRelacionado: true,
+    // 1. Expediente (si falta)
+    let principalCreado: Awaited<ReturnType<typeof generarExpediente>>["resultado"] | null = null;
+    if (!existenteCrmId) {
+      const generado = await generarExpediente(principal, principal ? nombreDe(principal) || name : name);
+      principalCreado = generado.resultado;
+      crmContact = generado.contact;
+    } else if (!crmContact) {
+      // Existe en Zoho pero nunca pasó por el portal: se registra para colgarle los enlaces
+      crmContact = await prisma.crmContact.create({
+        data: {
+          crmId: existenteCrmId,
+          firstName: principal ? principal.firstName || name : name,
+          lastName: principal?.lastName ?? "",
+          email: `cliente@udg.com`,
+          accountCrmId: socioId,
+          accountContactId: principal?.id,
         },
       });
-
-      return { crmId: juridica.id, tipo: "JURIDICA" as const, relatedCrmId: related.crmId, relatedClientUrl: related.clientUrl };
     }
+    const crmId = crmContact.crmId;
 
-    const expedientes: any[] = [];
-    let principalesExistentes: { crmId: string; relatedCrmId: string } | null = null;
+    // 2. Enlaces del Representante Legal (jurídica) y de los contactos relacionados
+    const generados = await generarEnlacesRelacionados({
+      crmContact,
+      plan,
+      representanteLegal,
+      principal,
+      appUrl,
+      projectName,
+      socioId,
+    });
 
-    // Jurídica: primero los principales (jurídico + Representante Legal)
-    if (principales) {
-      const { juridica, natural } = principales;
-      if (juridica && natural) {
-        // Ambos existen: solo se asegura el vínculo en ambos sentidos
-        try {
-          if (juridica.relatedCrmId !== natural.id) await zoho.service.setRelatedDD(juridica.id, natural.id);
-          if (natural.relatedCrmId !== juridica.id) await zoho.service.setRelatedDD(natural.id, juridica.id);
-        } catch (relErr) {
-          console.error(`[API Generar Expediente Warning] No se pudo relacionar ${juridica.id} con ${natural.id}:`, relErr);
-        }
-        principalesExistentes = { crmId: juridica.id, relatedCrmId: natural.id };
-      } else if (juridica) {
-        expedientes.push(await generarSoloRepresentante(juridica));
-      } else {
-        // Falta el jurídico (y el natural, si tampoco existe)
-        expedientes.push(
-          await generarExpediente({ tipo: "JURIDICA", accountContact: null, nombre: name, naturalExistenteId: natural?.id })
-        );
-      }
-    }
+    // 3. Contactos atados al expediente en Zoho
+    const contactosVinculados = await vincularContactos(crmId);
 
-    // Contactos marcados: un expediente natural cada uno, con el nombre del contacto
-    for (const accountContact of porContacto) {
-      expedientes.push(
-        await generarExpediente({
-          tipo: "NATURAL",
-          accountContact,
-          nombre: `${accountContact.firstName} ${accountContact.lastName}`.trim() || name,
-        })
-      );
-    }
-
-    // Información de lo que no se generó
-    const extra = {
-      ...(principalesExistentes ? { principales: principalesExistentes } : {}),
-      ...(clasif.existentes.length
-        ? {
-            existentes: clasif.existentes.map((e) => ({ contactId: e.contact.crmId, crmId: e.ddCrmId, fuente: e.fuente })),
-          }
-        : {}),
-      ...(omitidos.length ? { contactosOmitidos: omitidos } : {}),
-      ...(clasif.eliminadosEnZoho.length
-        ? { contactosEliminadosEnZoho: clasif.eliminadosEnZoho.map((c) => c.crmId) }
-        : {}),
-    };
-
-    // Todo existía ya: no se crea nada
-    if (expedientes.length === 0) {
-      return NextResponse.json(
-        {
-          success: true,
-          status: "already_exists",
-          message: isNatural
-            ? "Todos los contactos del Socio de Negocio ya tienen su expediente de Debida Diligencia."
-            : "Los expedientes de Persona Jurídica y del Representante Legal ya existen, y no se seleccionó ningún contacto pendiente.",
-          ...(principalesExistentes ?? {}),
-          ...extra,
-        },
-        { headers: corsHeaders }
-      );
-    }
-
-    // El primero (en la jurídica, el principal si se generó) va en la raíz como
-    // siempre; con varios, además la lista completa en "expedientes".
-    const [primero] = expedientes;
-    const deContacto = porContacto.length;
-    const mensajePrincipal = !principales || principalesExistentes
-      ? ""
-      : principales.juridica
-        ? "Expediente del Representante Legal generado y relacionado al expediente jurídico existente"
-        : "Expediente de Persona Jurídica generado";
-    const mensajeContactos = deContacto
-      ? `${deContacto} expediente${deContacto > 1 ? "s" : ""} de Persona Natural de contacto${deContacto > 1 ? "s" : ""} generado${deContacto > 1 ? "s" : ""}`
-      : "";
     return NextResponse.json(
       {
         success: true,
         status: "success",
-        message: `¡${[mensajePrincipal, mensajeContactos].filter(Boolean).join(" y ")} exitosamente!`,
-        ...primero,
-        ...(expedientes.length > 1 ? { expedientes } : {}),
+        message: mensajeEnlaces({
+          principal: principalCreado ? `Expediente de ${isNatural ? "Persona Natural" : "Persona Jurídica"} generado` : undefined,
+          generados,
+        }),
+        ...(principalCreado ?? { crmId, tipo: clientType }),
+        ...(generados.representante ? { representante: generados.representante } : {}),
+        ...(generados.relacionados.length ? { relacionados: generados.relacionados } : {}),
+        contactosVinculados,
         ...extra,
       },
       { headers: corsHeaders }
@@ -449,6 +387,18 @@ export async function POST(request: NextRequest) {
     if (error instanceof SinContactosError) {
       return NextResponse.json(
         { success: false, error: error.message, code: "SIN_CONTACTOS", socioId: error.accountCrmId },
+        { status: 422, headers: corsHeaders }
+      );
+    }
+    if (error instanceof ContactoEstandarError) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: error.message,
+          code: "CONTACTO_ESTANDAR",
+          socioId: error.accountCrmId,
+          estandares: error.estandares.map((c) => c.crmId),
+        },
         { status: 422, headers: corsHeaders }
       );
     }

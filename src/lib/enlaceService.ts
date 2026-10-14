@@ -1,6 +1,7 @@
 import prisma from "@/lib/prisma";
+import type { LinkRole } from "@prisma/client";
 import { generateToken } from "@/lib/tokenService";
-import { zoho, contactRecordToFormData, DD_CONTACT_FIELD } from "@/lib/zohoService";
+import { zoho, contactRecordToFormData } from "@/lib/zohoService";
 import { datosFormularioDesdeZoho } from "@/lib/zohoChangeService";
 
 /**
@@ -12,8 +13,12 @@ import { datosFormularioDesdeZoho } from "@/lib/zohoChangeService";
  * El borrador nace con los campos que ya existan en el registro de Zoho CRM
  * (salvo documentos, sus casillas, términos y firma).
  *
- * Con `isAditional` el borrador no se precarga desde Zoho CRM y queda marcado
- * como adicional (su información de cliente no se vincula a Zoho).
+ * `role` (ver LinkRole; `isAditional` equivale a ADITIONAL):
+ * - PRINCIPAL: se precarga desde el registro de Zoho y el Contact vinculado.
+ * - RELATED: enlace de otro contacto del Socio de Negocio sobre el mismo
+ *   expediente; solo se precarga desde su Contact. Queda como adicional
+ *   (isAditional): su información no se escribe en el registro de Zoho.
+ * - ADITIONAL: no se precarga desde Zoho CRM y queda marcado como adicional.
  */
 export async function crearEnlaceConBorrador(params: {
   contactId: string;
@@ -22,9 +27,13 @@ export async function crearEnlaceConBorrador(params: {
   appUrl: string;
   draftData: Record<string, any>;
   isAditional?: boolean;
+  role?: LinkRole;
   /** Contact de Zoho vinculado: sus datos personales también precargan el borrador. */
   contactCrmId?: string;
+  /** AccountContact del enlace RELATED. */
+  accountContactId?: string;
 }): Promise<{ tokenUuid: string; clientUrl: string; expiresAt: Date }> {
+  const role: LinkRole = params.role ?? (params.isAditional ? "ADITIONAL" : "PRINCIPAL");
   const tokenUuid = await generateToken(params.contactId, "ACCESS", 30);
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + 30);
@@ -35,7 +44,7 @@ export async function crearEnlaceConBorrador(params: {
 
   let desdeZoho: Record<string, any> = {};
   try {
-    const registro = params.isAditional ? null : await zoho.service.getDDRecord(params.crmId);
+    const registro = role !== "PRINCIPAL" ? null : await zoho.service.getDDRecord(params.crmId);
     if (registro) desdeZoho = datosFormularioDesdeZoho(formType, registro);
   } catch (err) {
     console.warn(`[Enlace Service] No se pudo precargar el borrador desde el registro ${params.crmId}:`, err);
@@ -43,7 +52,7 @@ export async function crearEnlaceConBorrador(params: {
 
   let desdeContacto: Record<string, any> = {};
   try {
-    const contacto = params.isAditional || !params.contactCrmId ? null : await zoho.service.getAccountContactRecord(params.contactCrmId);
+    const contacto = role === "ADITIONAL" || !params.contactCrmId ? null : await zoho.service.getAccountContactRecord(params.contactCrmId);
     if (contacto) desdeContacto = contactRecordToFormData(formType, contacto);
   } catch (err) {
     console.warn(`[Enlace Service] No se pudo precargar el borrador desde el contacto ${params.contactCrmId}:`, err);
@@ -55,7 +64,9 @@ export async function crearEnlaceConBorrador(params: {
       token: tokenUuid,
       type: formType,
       crmContactId: params.contactId,
-      isAditional: params.isAditional ?? false,
+      isAditional: role !== "PRINCIPAL",
+      role,
+      accountContactId: params.accountContactId ?? null,
       data: { ...params.draftData, ...desdeZoho, ...desdeContacto },
     },
     update: {
@@ -65,152 +76,4 @@ export async function crearEnlaceConBorrador(params: {
   });
 
   return { tokenUuid, clientUrl, expiresAt };
-}
-
-/** Nombre completo -> nombre y apellido (mitad y mitad, como al precargar desde Zoho). */
-function partirNombre(full?: string): { firstName: string; lastName: string } {
-  const partes = (full ?? "").split(/\s+/).filter(Boolean);
-  const mitad = Math.ceil(partes.length / 2);
-  return { firstName: partes.slice(0, mitad).join(" "), lastName: partes.slice(mitad).join(" ") };
-}
-
-/**
- * Crea (o reutiliza) el expediente de Persona Natural relacionado a un
- * expediente de Persona Jurídica: registro en Zoho CRM con DD_relacionado en
- * ambos sentidos, contacto local, token, URL y borrador.
- *
- * Si el expediente jurídico ya tiene DD_relacionado se reutiliza en lugar de
- * crear otro registro. Si el relacionado ya envió su formulario no se genera un
- * nuevo enlace (clientUrl = null).
- *
- * `socioId` evita volver a leer el Socio de Negocio del jurídico cuando quien
- * llama ya lo conoce; `overRideName` sustituye al socio en el Name del
- * expediente natural.
- *
- * `representanteLegal` (campo Representante_legal del Socio de Negocio) es el
- * Nombre_natural del expediente natural y precarga nombre y apellido del borrador.
- * Sin `accountContact` sus datos quedan en los campos del expediente (no en un Contact).
- */
-export async function prepararExpedienteRelacionado(params: {
-  juridicaCrmId: string;
-  clientName: string;
-  projectName?: string;
-  appUrl: string;
-  socioId?: string;
-  overRideName?: string;
-  /** Contacto de la cuenta (el único de la jurídica): también es el del Representante Legal. */
-  accountContact?: { id: string; crmId: string };
-  /** Crea siempre un expediente natural nuevo (el DD_relacionado actual está retirado). */
-  crearNuevo?: boolean;
-  /** Nombre del Representante Legal (Representante_legal del Socio de Negocio). */
-  representanteLegal?: string;
-}): Promise<{ crmId: string; clientUrl: string | null }> {
-  const { juridicaCrmId, clientName, projectName, appUrl, overRideName, accountContact } = params;
-  const representanteLegal = params.representanteLegal?.trim() || undefined;
-  const esSimulado = juridicaCrmId.startsWith("mock-") || juridicaCrmId === "simulated-crm-contact-id";
-
-  // 1. Expediente relacionado existente (enlace regenerado)
-  let relatedCrmId: string | null = null;
-  if (!esSimulado && !params.crearNuevo) {
-    try {
-      relatedCrmId = await zoho.service.getRelatedDDId(juridicaCrmId);
-    } catch (err) {
-      console.warn(`[Enlace Service] No se pudo leer DD_relacionado de ${juridicaCrmId}:`, err);
-    }
-  }
-
-  // 2. Crear el expediente natural en Zoho, ya apuntando al jurídico
-  if (!relatedCrmId || relatedCrmId === juridicaCrmId) {
-    // Mismo Socio de Negocio que el jurídico (define el Name y la carpeta de documentos)
-    let socioId = params.socioId;
-    if (!socioId && !esSimulado) {
-      try {
-        socioId = (await zoho.service.getSocioDocumentsLink(juridicaCrmId)).socioId || undefined;
-      } catch (err) {
-        console.warn(`[Enlace Service] No se pudo leer el Socio de Negocio de ${juridicaCrmId}:`, err);
-      }
-    }
-
-    const created = await zoho.service.createDebidaDiligenciaRecord({
-      accountCrmId: socioId,
-      clientType: "NATURAL",
-      name: `Representante Legal ${clientName}`,
-      projectName,
-      relatedDDId: juridicaCrmId,
-      overRideName,
-      nombreNatural: representanteLegal,
-      // El Representante Legal es el mismo Contact de la cuenta: se vincula al crear el registro
-      contactCrmId: accountContact?.crmId,
-    });
-    if (!created.debidaId) throw new Error("Zoho CRM no devolvió el ID del expediente natural creado");
-    relatedCrmId = created.debidaId;
-    console.log(`[Enlace Service] Expediente natural ${relatedCrmId} creado para el jurídico ${juridicaCrmId}.`);
-  }
-
-  // 3. El jurídico apunta al natural
-  await zoho.service.setRelatedDD(juridicaCrmId, relatedCrmId);
-
-  // 4. Contacto local del relacionado
-  let relatedContact = await prisma.crmContact.findUnique({ where: { crmId: relatedCrmId } });
-  if (!relatedContact) {
-    relatedContact = await prisma.crmContact.create({
-      data: {
-        crmId: relatedCrmId,
-        firstName: "Representante Legal",
-        lastName: representanteLegal ?? clientName,
-        email: `cliente@udg.com`,
-        accountContactId: accountContact?.id,
-      },
-    });
-  } else if (accountContact && !relatedContact.accountContactId) {
-    relatedContact = await prisma.crmContact.update({
-      where: { id: relatedContact.id },
-      data: { accountContactId: accountContact.id },
-    });
-  }
-
-  const yaEnviado = await prisma.form.findFirst({
-    where: { crmContactId: relatedContact.id, deletedAt: null },
-    select: { id: true },
-  });
-  if (yaEnviado) {
-    console.log(`[Enlace Service] El expediente relacionado ${relatedCrmId} ya fue completado; no se genera enlace.`);
-    return { crmId: relatedCrmId, clientUrl: null };
-  }
-
-  // 5. Token, URL y borrador del relacionado
-  const { clientUrl, expiresAt } = await crearEnlaceConBorrador({
-    contactId: relatedContact.id,
-    crmId: relatedCrmId,
-    isNatural: true,
-    appUrl,
-    contactCrmId: accountContact?.crmId,
-    draftData: {
-      crmContactId: relatedCrmId,
-      nombreProyecto: projectName,
-      ...partirNombre(representanteLegal),
-      email: "",
-      // Contact de Zoho (lookup Nombre_de_contacto): al completarse el formulario también
-      // lo fija en el expediente si el registro ya existía sin él
-      ...(accountContact ? { [DD_CONTACT_FIELD]: accountContact.crmId } : {}),
-    },
-  });
-
-  // 6. Enlace del relacionado en Zoho
-  try {
-    await zoho.service.updateClientFormLink(relatedCrmId, "Debida_Diligencia", clientUrl, expiresAt, "Activo");
-    await zoho.service.createNote(
-      relatedCrmId,
-      "Enlace Generado (Persona Natural)",
-      `Se ha generado el enlace del Representante Legal relacionado al expediente jurídico ${juridicaCrmId}.\n\n` +
-      `Enlace del Formulario: ${clientUrl}\n` +
-      `Vigencia del Enlace: ${expiresAt.toLocaleString()}\n` +
-      `Estado del Enlace: Activo\n` +
-      `Timestamp: ${new Date().toLocaleString()}`
-    );
-  } catch (crmErr) {
-    console.error(`[Enlace Service Warning] Error al actualizar el enlace del relacionado ${relatedCrmId}:`, crmErr);
-  }
-
-  return { crmId: relatedCrmId, clientUrl };
 }

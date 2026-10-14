@@ -41,35 +41,31 @@ async function mostrarDocumentosAdicionales() {
             return;
             }
 
-        var linkList = []
-        data.links.map((link) => {
-            const fechatp = new Date(link.expiresAt);
-            const fecha = fechatp.toLocaleDateString('es-ES'); 
-
-            const newLink = {
+        // Fila del widget a partir de un enlace del portal
+        function aFila(link) {
+            return {
+                nombre: link.name,
                 enlace: link.clientUrl,
                 estado: link.linkStatus,
-                vigencia: fecha,
+                vigencia: link.expiresAt ? new Date(link.expiresAt).toLocaleDateString('es-ES') : "",
                 token: link.token,
-            }
-            linkList.push(newLink);
-        });
-        data.forms.map((form) => {
-            const fechatp = new Date(form.expiresAt);
-            const fecha = fechatp.toLocaleDateString('es-ES'); 
-            const newLink = {
-                enlace: form.clientUrl,
-                estado: form.linkStatus,
-                vigencia: fecha,
-                token: form.token,
-            }
-            linkList.push(newLink);
-        });
+                rol: link.role === "PRINCIPAL" ? "principal"
+                    : link.representante ? "representante"
+                    : link.role === "RELATED" ? "relacionado" : "adicional",
+            };
+        }
+
+        // "Enlaces de Contactos": principal + relacionados. "Enlaces adicionales": los de generar-adicional.
+        // (data.forms son los mismos enlaces ya enviados: no se agregan otra vez)
+        var contactos = (data.contactLinks || []).map(aFila);
+        var adicionales = (data.links || []).map(aFila);
+        var linkList = contactos.concat(adicionales);
 
         log(linkList);
         var resultadoPopup = null;
         try {
-            resultadoPopup = ZDK.Client.openPopup({
+            // openPopup puede devolver una promesa: se espera (sin await la acción elegida se perdería)
+            resultadoPopup = await ZDK.Client.openPopup({
                 api_name: "Adicionales_Debida_Diligencia",
                 type: "popup",
                 type: "widget",
@@ -80,7 +76,7 @@ async function mostrarDocumentosAdicionales() {
                 left: "center"
             }, {
 
-                data: linkList
+                data: { contactos: contactos, adicionales: adicionales }
 
             });
         } catch (e) {
@@ -100,7 +96,8 @@ async function mostrarDocumentosAdicionales() {
         switch (resultadoPopup && resultadoPopup.type) {
 
             case "reactivar": {
-                await reactivarDocumentoAdicional(resultadoPopup.token);
+                // El enlace principal se reactiva como el expediente (sin token: su último enlace)
+                await reactivarDocumentoAdicional(resultadoPopup.rol === "principal" ? null : resultadoPopup.token);
 
             } break;
             case "ver": {
@@ -109,6 +106,8 @@ async function mostrarDocumentosAdicionales() {
                 $Client.openURL("https://debida-diligencia.udggroup.com/expediente?link=" + getLink.enlace);
             } break;
             case "delete": {
+                // El widget no ofrece borrar el principal (se elimina con el expediente)
+                if (resultadoPopup.rol === "principal") return;
                 await eliminarDocumentoAdicional(resultadoPopup.token);
             } break;
             default: return;
@@ -152,9 +151,9 @@ async function eliminarDocumentoAdicional(token) {
         var userId = $Crm.user.id;
 
         var ok = ZDK.Client.showConfirmation(
-            "¿Eliminar este documento adicional de Debida Diligencia?\n\n" +
-            "Se eliminarán el registro, su carpeta de WorkDrive y los archivos subidos. " +
-            "Solo es posible si el formulario nunca fue enviado."
+            "¿Eliminar este enlace de Debida Diligencia?\n\n" +
+            "Si el formulario nunca fue enviado se eliminan el enlace, su carpeta de WorkDrive y los archivos subidos. " +
+            "Si ya fue enviado se anula y su carpeta pasa a Eliminados."
         );
 
         if (ok) {
@@ -196,8 +195,8 @@ async function reactivarDocumentoAdicional(token) {
             recordId: $Page.record_id,
             modulo: "Debida_Diligencia",
             usuario: usuarioCompleto.profile.name,
-            token: token,
         };
+        if (token) payload.token = token;
 
         const response = await ZDK.HTTP.request({
             url: "https://debida-diligencia.udggroup.com/api/reactivar", 

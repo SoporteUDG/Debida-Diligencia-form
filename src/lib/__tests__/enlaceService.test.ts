@@ -2,72 +2,63 @@ import { vi, describe, it, expect, beforeEach } from "vitest";
 
 const { prismaMock, zohoMock } = vi.hoisted(() => ({
   prismaMock: {
-    crmContact: { findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
-    form: { findFirst: vi.fn() },
     draft: { upsert: vi.fn() },
   },
   zohoMock: {
     service: {
-      getRelatedDDId: vi.fn(),
-      createDebidaDiligenciaRecord: vi.fn(),
-      setRelatedDD: vi.fn(),
       getDDRecord: vi.fn(),
       getAccountContactRecord: vi.fn(),
-      updateClientFormLink: vi.fn(),
-      createNote: vi.fn(),
     },
   },
 }));
 
 vi.mock("@/lib/prisma", () => ({ default: prismaMock }));
 vi.mock("@/lib/tokenService", () => ({ generateToken: vi.fn(async () => "tok-uuid") }));
-vi.mock("@/lib/zohoChangeService", () => ({ datosFormularioDesdeZoho: vi.fn(() => ({})) }));
+vi.mock("@/lib/zohoChangeService", () => ({ datosFormularioDesdeZoho: vi.fn(() => ({ desdeDD: "si" })) }));
 vi.mock("@/lib/zohoService", () => ({
   zoho: zohoMock,
-  contactRecordToFormData: vi.fn(() => ({})),
-  DD_CONTACT_FIELD: "Nombre_de_contacto",
+  contactRecordToFormData: vi.fn(() => ({ desdeContacto: "si" })),
 }));
 
-import { prepararExpedienteRelacionado } from "../enlaceService";
+import { crearEnlaceConBorrador } from "../enlaceService";
+
+const base = { contactId: "cc1", crmId: "dd1", isNatural: true, appUrl: "https://x", draftData: { nombreProyecto: "P" } };
+const creado = () => prismaMock.draft.upsert.mock.calls[0][0].create;
 
 beforeEach(() => {
   vi.clearAllMocks();
-  zohoMock.service.getRelatedDDId.mockResolvedValue(null);
-  zohoMock.service.createDebidaDiligenciaRecord.mockResolvedValue({ debidaId: "nat1" });
-  zohoMock.service.getDDRecord.mockResolvedValue(null);
-  zohoMock.service.getAccountContactRecord.mockResolvedValue(null);
-  prismaMock.crmContact.findUnique.mockResolvedValue(null);
-  prismaMock.crmContact.create.mockResolvedValue({ id: "cc1", crmId: "nat1" });
-  prismaMock.form.findFirst.mockResolvedValue(null);
+  zohoMock.service.getDDRecord.mockResolvedValue({ id: "dd1" });
+  zohoMock.service.getAccountContactRecord.mockResolvedValue({ id: "zc1" });
 });
 
-describe("prepararExpedienteRelacionado", () => {
-  const base = { juridicaCrmId: "jur1", clientName: "ACME", appUrl: "https://x", socioId: "s1" };
-
-  it("vincula el Contact de la cuenta al expediente natural relacionado (registro, Prisma y borrador)", async () => {
-    await prepararExpedienteRelacionado({ ...base, accountContact: { id: "ac1", crmId: "zc1" } });
-
-    expect(zohoMock.service.createDebidaDiligenciaRecord).toHaveBeenCalledWith(
-      expect.objectContaining({ clientType: "NATURAL", relatedDDId: "jur1", contactCrmId: "zc1" })
-    );
-    expect(prismaMock.crmContact.create.mock.calls[0][0].data).toMatchObject({ accountContactId: "ac1" });
-    expect(prismaMock.draft.upsert.mock.calls[0][0].create.data).toMatchObject({ Nombre_de_contacto: "zc1" });
+describe("crearEnlaceConBorrador", () => {
+  it("PRINCIPAL (por defecto): precarga del expediente y del Contact, no es adicional", async () => {
+    const r = await crearEnlaceConBorrador({ ...base, contactCrmId: "zc1" });
+    expect(r.clientUrl).toBe("https://x/persona-natural?token=tok-uuid");
+    expect(creado()).toMatchObject({ role: "PRINCIPAL", isAditional: false, accountContactId: null });
+    expect(creado().data).toMatchObject({ nombreProyecto: "P", desdeDD: "si", desdeContacto: "si" });
   });
 
-  it("sin contacto de cuenta no envía el lookup", async () => {
-    await prepararExpedienteRelacionado(base);
-
-    expect(zohoMock.service.createDebidaDiligenciaRecord.mock.calls[0][0].contactCrmId).toBeUndefined();
-    expect(prismaMock.draft.upsert.mock.calls[0][0].create.data).not.toHaveProperty("Nombre_de_contacto");
+  it("RELATED: solo se precarga desde su Contact (nunca desde el expediente) y queda como adicional", async () => {
+    await crearEnlaceConBorrador({ ...base, role: "RELATED", contactCrmId: "zc2", accountContactId: "ac2" });
+    expect(zohoMock.service.getDDRecord).not.toHaveBeenCalled();
+    expect(zohoMock.service.getAccountContactRecord).toHaveBeenCalledWith("zc2");
+    expect(creado()).toMatchObject({ role: "RELATED", isAditional: true, accountContactId: "ac2" });
+    expect(creado().data).not.toHaveProperty("desdeDD");
+    expect(creado().data).toMatchObject({ desdeContacto: "si" });
   });
 
-  it("el Representante Legal va en Nombre_natural y en nombre y apellido del borrador", async () => {
-    await prepararExpedienteRelacionado({ ...base, representanteLegal: " Carlos Gómez Ruiz " });
+  it("RELATED sin contacto (Representante Legal): sin precarga de Zoho", async () => {
+    await crearEnlaceConBorrador({ ...base, role: "RELATED" });
+    expect(zohoMock.service.getDDRecord).not.toHaveBeenCalled();
+    expect(zohoMock.service.getAccountContactRecord).not.toHaveBeenCalled();
+    expect(creado()).toMatchObject({ role: "RELATED", isAditional: true, accountContactId: null });
+  });
 
-    expect(zohoMock.service.createDebidaDiligenciaRecord).toHaveBeenCalledWith(
-      expect.objectContaining({ nombreNatural: "Carlos Gómez Ruiz", contactCrmId: undefined })
-    );
-    expect(prismaMock.crmContact.create.mock.calls[0][0].data).toMatchObject({ lastName: "Carlos Gómez Ruiz" });
-    expect(prismaMock.draft.upsert.mock.calls[0][0].create.data).toMatchObject({ firstName: "Carlos Gómez", lastName: "Ruiz" });
+  it("ADITIONAL (isAditional): sin precarga de Zoho", async () => {
+    await crearEnlaceConBorrador({ ...base, isAditional: true, contactCrmId: "zc1", isNatural: false });
+    expect(zohoMock.service.getDDRecord).not.toHaveBeenCalled();
+    expect(zohoMock.service.getAccountContactRecord).not.toHaveBeenCalled();
+    expect(creado()).toMatchObject({ role: "ADITIONAL", isAditional: true, type: "JURIDICA" });
   });
 });

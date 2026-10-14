@@ -134,3 +134,5 @@ html.dd-redimensionado .dd { height: calc(100% - 68px); }
 .dd-check:disabled { cursor: not-allowed; }
 .dd-principal { color: var(--texto-suave); }
 .dd-fila-principal td { background: #fafbfc; font-weight: 600; }
+/* Natural: contactos con enlace relacionado a la DD principal */
+.dd-fila-relacionado td:nth-child(2) { padding-left: 22px; }

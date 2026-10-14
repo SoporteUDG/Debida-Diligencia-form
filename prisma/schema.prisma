@@ -44,6 +44,18 @@ enum DocumentStatus {
   REJECTED
 }
 
+// Rol de un enlace (Draft) o formulario (Form) dentro de un expediente:
+// - PRINCIPAL: el del contacto estándar (Contacto_est_ndar); es el único que
+//   se vincula y sincroniza con el registro de Debida_Diligencia de Zoho.
+// - RELATED: el de otro contacto del Socio de Negocio, sobre el mismo expediente.
+// - ADITIONAL: los enlaces adicionales generados desde Zoho (generar-adicional).
+// RELATED y ADITIONAL llevan isAditional = true: no escriben en el registro de Zoho.
+enum LinkRole {
+  PRINCIPAL
+  RELATED
+  ADITIONAL
+}
+
 enum SyncStatus {
   PENDING
   IN_PROGRESS
@@ -124,12 +136,16 @@ model AccountContact {
   email         String?
   phone         String?
   zohoCreatedAt DateTime? // Created_Time en Zoho: define el más antiguo
+  // Contacto_est_ndar en Zoho: contacto principal del Socio de Negocio (Persona Natural)
+  isStandard    Boolean      @default(false)
   // Marca: el contacto ya no existe en Zoho (se detectó al generar expedientes). No borra nada.
   missingInZohoAt DateTime?
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
   deletedAt     DateTime?
   crmContacts   CrmContact[]
+  drafts        Draft[]
+  forms         Form[]
 
   @@index([accountCrmId])
   @@index([deletedAt])
@@ -157,6 +173,12 @@ model Form {
   // Expediente adicional: comparte el CrmContact (DD de Zoho) pero su información
   // de cliente no se vincula ni se sincroniza con Zoho CRM.
   isAditional Boolean @default(false)
+
+  // Rol del formulario en el expediente (ver LinkRole). isAditional = role != PRINCIPAL.
+  role             LinkRole        @default(PRINCIPAL)
+  // Contacto relacionado (role RELATED) que llenó el formulario
+  accountContactId String?
+  accountContact   AccountContact? @relation(fields: [accountContactId], references: [id], onDelete: SetNull)
 
   // Token (enlace) con el que se envió el formulario: permite ubicar el expediente
   // al reactivar un enlace adicional en concreto (ver /api/reactivar).
@@ -186,6 +208,7 @@ model Form {
   @@index([createdAt])
   @@index([submittedAt])
   @@index([tokenUuid])
+  @@index([accountContactId])
 }
 
 // 3.1 FormVersion (Historial de versiones del expediente)
@@ -291,8 +314,15 @@ model Draft {
   // Borrador de un expediente adicional (ver Form.isAditional)
   isAditional Boolean @default(false)
 
+  // Rol del enlace en el expediente (ver LinkRole). isAditional = role != PRINCIPAL.
+  role             LinkRole        @default(PRINCIPAL)
+  // Contacto relacionado (role RELATED) al que pertenece el enlace
+  accountContactId String?
+  accountContact   AccountContact? @relation(fields: [accountContactId], references: [id], onDelete: SetNull)
+
   @@index([token])
   @@index([crmContactId])
+  @@index([accountContactId])
 }
 
 // 6. Document

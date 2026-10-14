@@ -1,8 +1,12 @@
 (function () {
   "use strict";
 
-  var tbody = document.getElementById("tabla-body");
-  var registros = [];
+  // Dos secciones: "Enlaces de Contactos" (principal + relacionados) y
+  // "Enlaces adicionales" (generar-adicional). Cada una con su tabla y sus filas.
+  var secciones = {
+    contactos: { tbody: document.getElementById("tabla-contactos"), columnas: 6, registros: [] },
+    adicionales: { tbody: document.getElementById("tabla-adicionales"), columnas: 5, registros: [] }
+  };
 
   function escapeHtml(v) {
     return String(v == null ? "" : v)
@@ -27,82 +31,153 @@
     catch (e) { return ""; }
   }
 
+  function esPrincipal(r) {
+    return String(campo(r, "rol")).toLowerCase() === "principal";
+  }
+
+  // Jurídica: enlace del Representante Legal (relacionado sin contacto)
+  function esRepresentante(r) {
+    return String(campo(r, "rol")).toLowerCase() === "representante";
+  }
+
+  function rolHtml(r) {
+    if (esPrincipal(r)) return '<span class="rol rol-principal">Principal</span>';
+    if (esRepresentante(r)) return '<span class="rol rol-representante">Representante Legal</span>';
+    return '<span class="rol">Relacionado</span>';
+  }
+
   function claseEstado(estado) {
     var s = String(estado || "").toLowerCase();
     if (/(activ|vigente)/.test(s) && !/inactiv/.test(s)) return "estado-ok";
-    if (/(vencid|inactiv|expir|cancel)/.test(s)) return "estado-error";
+    if (/(vencid|inactiv|expir|cancel|anulad)/.test(s)) return "estado-error";
     return "";
   }
 
-  // Acepta: [ ... ]  |  { registros: [ ... ] }  |  { data: ... }
-  function normalizar(payload) {
-    var d = payload;
-    if (d && d.data !== undefined && !Array.isArray(d)) d = d.data;
-    if (typeof d === "string") { try { d = JSON.parse(d); } catch (e) {} }
+  // Busca la primera lista dentro de un objeto
+  function lista(d) {
     if (Array.isArray(d)) return d;
     if (d && typeof d === "object") {
-      var lista = d.registros || d.records || d.items || d.enlaces;
-      if (Array.isArray(lista)) return lista;
+      var l = d.registros || d.records || d.items || d.enlaces;
+      if (Array.isArray(l)) return l;
       var k = Object.keys(d).find(function (x) { return Array.isArray(d[x]); });
       return k ? d[k] : [];
     }
     return [];
   }
 
-  var confirmIdx = null; // index of the row waiting for delete confirmation
+  // Acepta: { contactos: [...], adicionales: [...] }  (envuelto o no en { data })
+  // y, por compatibilidad, una sola lista: son los enlaces adicionales.
+  function normalizar(payload) {
+    var d = payload;
+    for (var n = 0; n < 5; n++) {
+      if (typeof d === "string") { try { d = JSON.parse(d); } catch (e) { break; } }
+      if (d && typeof d === "object" && !Array.isArray(d) &&
+          d.contactos === undefined && d.adicionales === undefined && d.data !== undefined) {
+        d = d.data;
+      } else {
+        break;
+      }
+    }
+    if (d && typeof d === "object" && !Array.isArray(d) &&
+        (d.contactos !== undefined || d.adicionales !== undefined)) {
+      return {
+        contactos: Array.isArray(d.contactos) ? d.contactos : [],
+        adicionales: Array.isArray(d.adicionales) ? d.adicionales : []
+      };
+    }
+    return { contactos: [], adicionales: lista(d) };
+  }
 
-  function celdaAcciones(i, estado) {
-    if (i === confirmIdx) {
+  var confirmar = null; // { seccion, i } de la fila que espera confirmación de borrado
+
+  function celdaAcciones(seccion, i, r) {
+    var attrs = ' data-s="' + seccion + '" data-i="' + i + '"';
+    if (confirmar && confirmar.seccion === seccion && confirmar.i === i) {
       return '<td class="acciones">' +
         '<span class="confirmar-texto">¿Borrar este enlace?</span>' +
-        '<button type="button" class="btn btn-borrar" data-i="' + i + '" data-type="confirmar-borrar">Sí, borrar</button>' +
-        '<button type="button" class="btn btn-reactivar" data-i="' + i + '" data-type="cancelar-borrar">Cancelar</button>' +
+        '<button type="button" class="btn btn-borrar"' + attrs + ' data-type="confirmar-borrar">Sí, borrar</button>' +
+        '<button type="button" class="btn btn-reactivar"' + attrs + ' data-type="cancelar-borrar">Cancelar</button>' +
         "</td>";
     }
-    var activo = claseEstado(estado) === "estado-ok";
+    var activo = claseEstado(campo(r, "estado")) === "estado-ok";
+    // Un enlace anulado no se reactiva aquí (extendería un token sobre algo archivado)
+    var anulado = /anulad/i.test(String(campo(r, "estado")));
+    // El enlace principal es el del expediente: se elimina con el expediente, no aquí
+    var borrar = esPrincipal(r)
+      ? ""
+      : '<button type="button" class="btn btn-borrar"' + attrs + ' data-type="borrar">Borrar</button>';
     return '<td class="acciones">' +
-      '<button type="button" class="btn btn-reactivar" ' + (activo ? "disabled" : "") + ' data-i="' + i + '" data-type="reactivar">Reactivar</button>' +
-      '<button type="button" class="btn btn-ver" data-i="' + i + '" data-type="ver">Ver</button>' +
-      '<button type="button" class="btn btn-borrar" data-i="' + i + '" data-type="borrar">Borrar</button>' +
+      '<button type="button" class="btn btn-reactivar" ' + (activo || anulado ? "disabled" : "") +
+        (anulado ? ' title="Enlace anulado"' : "") + attrs + ' data-type="reactivar">Reactivar</button>' +
+      '<button type="button" class="btn btn-ver"' + attrs + ' data-type="ver">Ver</button>' +
+      borrar +
       "</td>";
   }
 
-  function render() {
-    if (!registros.length) {
-      tbody.innerHTML = '<tr><td colspan="5" class="vacio">No hay enlaces para mostrar.</td></tr>';
-      return;
-    }
-    tbody.innerHTML = registros.map(function (r, i) {
-    var nombre = campo(r, "nombre");
+  function celdasEnlace(r) {
     var enlace = campo(r, "enlace");
     var estado = campo(r, "estado");
-      return "<tr>" +
-        "<td>" + escapeHtml(nombre || "No definido") + "</td>" +
-        '<td><a class="enlace" href="' + escapeHtml(enlace) + '" target="_blank" rel="noopener" title="' + escapeHtml(enlace) + '">' + escapeHtml(enlace || "—") + "</a></td>" +
-        '<td class="valor">' + escapeHtml(campo(r, "vigencia") || "—") + "</td>" +
-        '<td class="valor ' + claseEstado(estado) + '">' + escapeHtml(estado || "—") + "</td>" +
-        celdaAcciones(i, estado) +
-        "</tr>";
-    }).join("");
+    return '<td><a class="enlace" href="' + escapeHtml(enlace) + '" target="_blank" rel="noopener" title="' + escapeHtml(enlace) + '">' + escapeHtml(enlace || "—") + "</a></td>" +
+      '<td class="valor">' + escapeHtml(campo(r, "vigencia") || "—") + "</td>" +
+      '<td class="valor ' + claseEstado(estado) + '">' + escapeHtml(estado || "—") + "</td>";
+  }
 
-    // Put keyboard focus on the safe option when asking for confirmation
-    var cancelar = tbody.querySelector('[data-type="cancelar-borrar"]');
+  function filaContacto(r, i) {
+    return "<tr>" +
+      "<td>" + escapeHtml(campo(r, "nombre") || "No definido") + "</td>" +
+      "<td>" + rolHtml(r) + "</td>" +
+      celdasEnlace(r) +
+      celdaAcciones("contactos", i, r) +
+      "</tr>";
+  }
+
+  function filaAdicional(r, i) {
+    return "<tr>" +
+      "<td>" + escapeHtml(campo(r, "nombre") || "No definido") + "</td>" +
+      celdasEnlace(r) +
+      celdaAcciones("adicionales", i, r) +
+      "</tr>";
+  }
+
+  function renderSeccion(nombre, filaHtml, vacio) {
+    var s = secciones[nombre];
+    s.tbody.innerHTML = s.registros.length
+      ? s.registros.map(filaHtml).join("")
+      : '<tr><td colspan="' + s.columnas + '" class="vacio">' + vacio + "</td></tr>";
+  }
+
+  function render() {
+    renderSeccion("contactos", filaContacto, "No hay enlaces de contactos para mostrar.");
+    renderSeccion("adicionales", filaAdicional, "No hay enlaces adicionales para mostrar.");
+
+    // Foco en la opción segura al pedir confirmación
+    var cancelar = document.querySelector('[data-type="cancelar-borrar"]');
     if (cancelar) cancelar.focus();
   }
 
-  tbody.addEventListener("click", function (ev) {
+  function alHacerClic(ev) {
     var btn = ev.target.closest("button[data-type]");
     if (!btn || btn.disabled) return;
 
     var tipo = btn.getAttribute("data-type");
+    var seccion = btn.getAttribute("data-s");
     var i = Number(btn.getAttribute("data-i"));
 
-    if (tipo === "borrar")          { confirmIdx = i;    render(); return; }
-    if (tipo === "cancelar-borrar") { confirmIdx = null; render(); return; }
+    if (tipo === "borrar")          { confirmar = { seccion: seccion, i: i }; render(); return; }
+    if (tipo === "cancelar-borrar") { confirmar = null; render(); return; }
 
     if (tipo === "confirmar-borrar") tipo = "delete";
-    cerrar({ token: obtenerToken(registros[i]), type: tipo });
-  });
+    var r = secciones[seccion].registros[i];
+    cerrar({
+      token: obtenerToken(r),
+      type: tipo,
+      seccion: seccion,
+      rol: esPrincipal(r) ? "principal" : esRepresentante(r) ? "representante" : (seccion === "contactos" ? "relacionado" : "adicional")
+    });
+  }
+  secciones.contactos.tbody.addEventListener("click", alHacerClic);
+  secciones.adicionales.tbody.addEventListener("click", alHacerClic);
+
   // Lo enviado a $Client.close() es lo que retorna `await ZDK.Client.openPopup(...)`
   function cerrar(resultado) {
     try {
@@ -113,7 +188,10 @@
 
   ZOHO.embeddedApp.on("PageLoad", function (payload) {
     console.log("PageLoad payload:", payload);
-    registros = normalizar(payload);
+    var n = normalizar(payload);
+    secciones.contactos.registros = n.contactos;
+    secciones.adicionales.registros = n.adicionales;
+    confirmar = null;
     render();
   });
   ZOHO.embeddedApp.init();

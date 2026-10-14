@@ -4,6 +4,7 @@ import { logAuditEvent } from "@/lib/auditService";
 import { zoho } from "@/lib/zohoService";
 import { expedienteRetirado, MENSAJE_RETIRADO } from "@/lib/ddRetireService";
 import { crearEnlaceConBorrador } from "@/lib/enlaceService";
+import { describirEnlaces, enlacesDeContactos } from "@/lib/contactLinkService";
 
 export const dynamic = "force-dynamic";
 
@@ -20,11 +21,15 @@ export async function OPTIONS() {
 /**
  * Sin parámetros: health check.
  *
- * Con ?crmId=<ID del expediente en Zoho> (también ddId / debidaId): lista todos
- * los enlaces/borradores y formularios adicionales de ese expediente.
+ * Con ?crmId=<ID del expediente en Zoho> (también ddId / debidaId): lista los
+ * enlaces del expediente en dos secciones (ver LinkRole):
  *
- * - links: un elemento por enlace adicional generado (borrador + token), con
- *   `linkStatus` ("Activo" | "Vencido" | "Utilizado") y `expiresAt` (vigencia).
+ * - contactLinks ("Enlaces de Contactos"): el enlace PRINCIPAL (contacto estándar,
+ *   vinculado al registro de Zoho) y uno RELATED por cada otro contacto del Socio
+ *   de Negocio, con `role` y `contactId` (Contact de Zoho). Los RELATED se
+ *   reactivan / dan de baja por su `token`; el PRINCIPAL, como el expediente (sin token).
+ * - links ("Enlaces adicionales"): un elemento por enlace adicional generado (borrador + token), con
+ *   `linkStatus` ("Activo" | "Vencido" | "Utilizado" | "Anulado") y `expiresAt` (vigencia).
  *   "Utilizado" = el token se consumió (formulario enviado) o fue revocado.
  * - forms: formularios adicionales ya enviados; `tokenUuid` es el enlace con el que
  *   se enviaron (el mismo `token` de links) y es lo que /api/reactivar recibe.
@@ -49,13 +54,17 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const [drafts, forms] = await Promise.all([
+    const host = request.headers.get("host") || "debida-diligencia.duckdns.org";
+    const protocol = request.headers.get("x-forwarded-proto") || "https";
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || `${protocol}://${host}`;
+
+    const [drafts, forms, contactLinks] = await Promise.all([
       prisma.draft.findMany({
-        where: { crmContactId: contact.id, isAditional: true },
+        where: { crmContactId: contact.id, role: "ADITIONAL" },
         orderBy: { createdAt: "desc" },
       }),
       prisma.form.findMany({
-        where: { crmContactId: contact.id, isAditional: true, deletedAt: null },
+        where: { crmContactId: contact.id, role: "ADITIONAL", deletedAt: null },
         orderBy: { createdAt: "desc" },
         select: {
           id: true,
@@ -69,55 +78,13 @@ export async function GET(request: NextRequest) {
           createdAt: true,
         },
       }),
+      enlacesDeContactos(contact.id, appUrl),
     ]);
 
-    const formByToken = new Map(forms.map((f) => [f.tokenUuid, f.id]));
-
-    const tokens = await prisma.token.findMany({
-      where: { token: { in: drafts.map((d) => d.token) } },
-      select: { token: true, used: true, expiresAt: true },
-    });
-    const tokenByValue = new Map(tokens.map((t) => [t.token, t]));
-
-    const host = request.headers.get("host") || "debida-diligencia.duckdns.org";
-    const protocol = request.headers.get("x-forwarded-proto") || "https";
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || `${protocol}://${host}`;
-    const now = new Date();
-
-    const links = drafts.map((d) => {
-      const t = tokenByValue.get(d.token);
-      const expiresAt = t?.expiresAt ?? d.expiresAt ?? null;
-      const linkStatus = (d.data as any)?.retired
-        ? "Anulado"
-        : !t
-        ? "Desconocido"
-        : t.used
-          ? "Utilizado"
-          : t.expiresAt < now
-            ? "Vencido"
-            : "Activo";
-      const formPath = d.type === "NATURAL" ? "persona-natural" : "persona-juridica";
-      const data = (d.data || {}) as Record<string, any>;
-
-      return {
-        token: d.token,
-        draftId: d.id,
-        formId: formByToken.get(d.token) ?? null,
-        type: d.type,
-        step: d.step,
-        completed: !!data.completed,
-        name: data.razonSocial || [data.firstName, data.lastName].filter(Boolean).join(" ") || null,
-        projectName: data.nombreProyecto || null,
-        clientUrl: `${appUrl}/${formPath}?token=${d.token}`,
-        linkStatus,
-        expiresAt,
-        createdAt: d.createdAt,
-        updatedAt: d.updatedAt,
-      };
-    });
+    const links = await describirEnlaces(drafts, appUrl);
 
     return NextResponse.json(
-      { success: true, crmId, isAditional: true, links, forms },
+      { success: true, crmId, isAditional: true, contactLinks, links, forms },
       { headers: corsHeaders }
     );
   } catch (error: any) {

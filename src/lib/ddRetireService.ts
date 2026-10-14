@@ -7,7 +7,7 @@ import { ESTADO_ANULADO, ESTADO_EN_BORRADOR } from "@/lib/ddEstados";
 import {
   deleteFileFromWorkDrive,
   findFolderAdicional,
-  getOrCreateCarpetaRetirados,
+  getOrCreateCarpetaEliminados,
   localizarCarpetaExpediente,
   moveFolder,
 } from "@/lib/workdriveService";
@@ -196,9 +196,16 @@ export async function eliminarDDNoEnviado(params: {
     throw new BajaDDError("El expediente tiene un expediente relacionado (DD_relacionado): desvincúlelo primero.", "CONFLICT");
   }
 
-  // 1. Carpeta de WorkDrive (papelera). Debe resolverse antes de borrar el DD de Zoho.
+  // 1. Carpetas de WorkDrive (papelera): las de sus enlaces no principales (al lado
+  //    de la principal, en /{Socio}/DD) y la principal. Antes de borrar el DD de Zoho.
   const accessToken = await getAccessToken();
-  const { clientFolderId } = await localizarCarpetaExpediente(contact.crmId, formType, accessToken);
+  const { ddFolderId, clientFolderId } = await localizarCarpetaExpediente(contact.crmId, formType, accessToken);
+  if (ddFolderId) {
+    for (const d of contact.drafts.filter((x) => x.isAditional)) {
+      const carpeta = await findFolderAdicional(ddFolderId, clientFolderId, d.token, accessToken);
+      if (carpeta) await deleteFileFromWorkDrive(carpeta.folderId, accessToken);
+    }
+  }
   if (clientFolderId) await deleteFileFromWorkDrive(clientFolderId, accessToken);
 
   // 2. Zoho
@@ -284,7 +291,7 @@ async function eliminarDDSoloZoho(params: {
 /**
  * ANULA un expediente ya enviado (reversible): marca el archivo en Prisma, pone
  * Estado = "Anulado" en Zoho, cierra el borrador y los enlaces, y mueve la
- * carpeta a /{Socio}/DD/_Retirados/. Nada se borra.
+ * carpeta a /{Socio}/DD/Eliminados/ (también las de sus enlaces enviados). Nada se borra.
  */
 export async function anularDD(params: { crmContactId: string; reason: string; actor: Actor; ip?: string | null }) {
   const { crmContactId, reason, actor } = params;
@@ -296,31 +303,41 @@ export async function anularDD(params: { crmContactId: string; reason: string; a
     throw new BajaDDError("El formulario nunca se envió: corresponde eliminarlo, no anularlo.", "CONFLICT");
   }
 
-  // Expedientes adicionales (sus carpetas viven dentro de la del principal):
+  // Enlaces no principales (relacionados, Representante Legal y adicionales; sus
+  // carpetas viven al lado de la principal, en /{Socio}/DD):
   // - borrador nunca enviado: se ELIMINA (carpeta a la papelera, borrador, documentos y token)
-  // - formulario enviado: se ANULA junto con el principal (su carpeta viaja con la del principal)
+  // - formulario enviado: se ANULA junto con el principal (su carpeta también va a Eliminados)
   const tokensEnviados = new Set(contact.forms.map((f) => f.tokenUuid).filter(Boolean));
   const draftsAdicionales = contact.drafts.filter((d) => d.isAditional);
   const borradoresAEliminar = draftsAdicionales.filter((d) => !tokensEnviados.has(d.token));
   const formsAdicionalesAAnular = contact.forms.filter((f) => f.isAditional && !f.retiredAt);
 
-  // 1. Carpetas. Primero las de los borradores adicionales (papelera) y luego la del
-  //    expediente -> _Retirados (se recuerda dónde estaba)
+  // 1. Carpetas. Primero las de los borradores no enviados (papelera), luego las de
+  //    los enlaces enviados y la del expediente -> Eliminados (se recuerda dónde estaban)
   let retiredFolderId: string | null = null;
   let retiredOriginFolderId: string | null = null;
+  const carpetasAdicionales = new Map<string, { retiredFolderId: string; retiredOriginFolderId: string }>();
   const accessToken = await getAccessToken();
   const { ddFolderId, clientFolderId } = await localizarCarpetaExpediente(contact.crmId, formType, accessToken);
-  if (clientFolderId) {
+  if (ddFolderId) {
     for (const d of borradoresAEliminar) {
-      const carpetaAdicional = await findFolderAdicional(clientFolderId, d.token, accessToken);
-      if (carpetaAdicional) await deleteFileFromWorkDrive(carpetaAdicional, accessToken);
+      const carpeta = await findFolderAdicional(ddFolderId, clientFolderId, d.token, accessToken);
+      if (carpeta) await deleteFileFromWorkDrive(carpeta.folderId, accessToken);
     }
-  }
-  if (ddFolderId && clientFolderId) {
-    const retirados = await getOrCreateCarpetaRetirados(ddFolderId, accessToken);
-    await moveFolder(clientFolderId, retirados, accessToken);
-    retiredFolderId = clientFolderId;
-    retiredOriginFolderId = ddFolderId;
+    const eliminados =
+      formsAdicionalesAAnular.length || clientFolderId ? await getOrCreateCarpetaEliminados(ddFolderId, accessToken) : null;
+    for (const f of formsAdicionalesAAnular) {
+      if (!f.tokenUuid || !eliminados) continue;
+      const carpeta = await findFolderAdicional(ddFolderId, clientFolderId, f.tokenUuid, accessToken);
+      if (!carpeta) continue;
+      await moveFolder(carpeta.folderId, eliminados, accessToken);
+      carpetasAdicionales.set(f.id, { retiredFolderId: carpeta.folderId, retiredOriginFolderId: carpeta.parentId });
+    }
+    if (clientFolderId && eliminados) {
+      await moveFolder(clientFolderId, eliminados, accessToken);
+      retiredFolderId = clientFolderId;
+      retiredOriginFolderId = ddFolderId;
+    }
   }
 
   // 2. Zoho
@@ -347,12 +364,18 @@ export async function anularDD(params: { crmContactId: string; reason: string; a
       prisma.draft.delete({ where: { id: d.id } }),
       prisma.token.deleteMany({ where: { token: d.token } }),
     ]),
-    // Formularios adicionales enviados: anulados. Sin retiredFolderId: su carpeta viaja con la del
-    // principal; reactivarAdicional no la mueve y basta con reactivar el expediente principal.
+    // Formularios de enlaces enviados: anulados, con la carpeta que se movió a Eliminados
+    // (reactivarAdicional la devuelve a su lugar)
     ...formsAdicionalesAAnular.map((f) =>
       prisma.form.update({
         where: { id: f.id },
-        data: { retiredAt: ahora, retiredReason: motivoAdicional, retiredBy: actor.id, deletedAt: ahora },
+        data: {
+          retiredAt: ahora,
+          retiredReason: motivoAdicional,
+          retiredBy: actor.id,
+          deletedAt: ahora,
+          ...(carpetasAdicionales.get(f.id) ?? {}),
+        },
       })
     ),
     // Borradores restantes (principal y adicionales enviados): cerrados

@@ -4,6 +4,38 @@ vi.mock("@/lib/prisma", () => ({ default: {} }));
 
 import { calcularAutocompletado } from "../relatedDraftService";
 
+describe("calcularAutocompletado — Representante Legal en el mismo expediente", () => {
+  const rl = {
+    firstName: "Carlos", lastName: "Gómez", idNumber: "8-1-1", nationality: "Panameña",
+    direccionResidencial: "Casa del RL", ciudad: "David", telefonoCodigo: "+507", telefono: "2223333",
+    celularCodigo: "+507", celular: "66667777", email: "rl@x.com",
+  };
+  const empresa = {
+    razonSocial: "ACME", rlNombre: "Carlos Gómez", rlDireccion: "Casa del RL (jurídico)", rlTelefono: "+507 2223333",
+    empresaDireccion: "Oficina ACME", empresaCiudad: "Panamá", empresaTelefonoCodigo: "+507", empresaTelefono: "3000000",
+    empresaEmail: "info@acme.com",
+  };
+
+  it("RL -> jurídico: su dirección y teléfono van a los del Representante Legal, nunca a los de la empresa", () => {
+    const cambios = calcularAutocompletado("NATURAL", rl, {}, { representante: true });
+    expect(cambios).toMatchObject({ rlNombre: "Carlos Gómez", rlDireccion: "Casa del RL", rlTelefono: "+507 2223333" });
+    for (const k of ["empresaDireccion", "empresaCiudad", "empresaTelefono", "empresaCelular", "empresaEmail"]) {
+      expect(cambios).not.toHaveProperty(k);
+    }
+  });
+
+  it("jurídico -> RL: la dirección del RL sale de rlDireccion; los datos de la empresa no pasan a la persona", () => {
+    const cambios = calcularAutocompletado("JURIDICA", empresa, {}, { representante: true });
+    expect(cambios.direccionResidencial).toBe("Casa del RL (jurídico)");
+    for (const k of ["ciudad", "telefono", "celular", "email"]) expect(cambios).not.toHaveProperty(k);
+  });
+
+  it("esquema anterior (expediente natural aparte): sin cambios", () => {
+    const cambios = calcularAutocompletado("NATURAL", rl, {});
+    expect(cambios).toMatchObject({ empresaDireccion: "Casa del RL", empresaEmail: "rl@x.com" });
+  });
+});
+
 describe("calcularAutocompletado", () => {
   const natural = {
     nombreProyecto: "Altos del Parque",

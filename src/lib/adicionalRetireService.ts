@@ -6,7 +6,7 @@ import { reactivateToken } from "@/lib/tokenService";
 import { contextoCarpetaAdicional } from "@/lib/adicionalFolderContext";
 import {
   deleteFileFromWorkDrive,
-  getOrCreateCarpetaRetirados,
+  getOrCreateCarpetaEliminados,
   localizarCarpetaExpediente,
   moveFolder,
 } from "@/lib/workdriveService";
@@ -20,7 +20,7 @@ import {
  * - Nunca enviado (sin Form): se ELIMINA (carpeta de WorkDrive a la papelera, token,
  *   borrador y documentos de Prisma).
  * - Enviado (con Form): se ANULA (Form archivado con motivo, token vencido, carpeta
- *   movida a /{Socio}/DD/_Retirados). Nada se borra. No se escribe en Zoho.
+ *   movida a /{Socio}/DD/Eliminados). Nada se borra. No se escribe en Zoho.
  *
  * La carpeta del adicional es /{Socio}/DD/{FORMTYPE}-adicional de {DD} ({token8})/.
  */
@@ -87,7 +87,7 @@ export async function eliminarAdicional(params: { token: string; reason?: string
   const { draft, contact, form } = await cargarAdicional(token);
   if (form) throw new BajaDDError("El formulario adicional ya fue enviado: solo puede anularse, no eliminarse.", "CONFLICT");
 
-  // 1. Carpeta del adicional (dentro de la del principal) a la papelera de WorkDrive,
+  // 1. Carpeta del adicional (en /{Socio}/DD, o dentro de la principal si es anterior) a la papelera de WorkDrive,
   //    antes de borrar nada en Prisma
   const accessToken = await getAccessToken();
   const { formType } = await contextoCarpetaAdicional({ crmContactId: contact.id, token, tipo: draft.type });
@@ -120,7 +120,7 @@ export async function eliminarAdicional(params: { token: string; reason?: string
   return { success: true, action: "deleted" as const, crmId: contact.crmId, token, carpetaEliminada: !!clientFolderId };
 }
 
-/** ANULA un adicional ya enviado (reversible): archiva el Form, vence el token y mueve la carpeta a _Retirados. */
+/** ANULA un adicional ya enviado (reversible): archiva el Form, vence el token y mueve la carpeta a Eliminados. */
 export async function anularAdicional(params: { token: string; reason: string; actor: Actor; ip?: string | null }) {
   const token = extraerToken(params.token);
   const reason = (params.reason ?? "").trim();
@@ -132,23 +132,23 @@ export async function anularAdicional(params: { token: string; reason: string; a
   if (!form) throw new BajaDDError("El formulario adicional nunca se envió: corresponde eliminarlo, no anularlo.", "CONFLICT");
   if (form.retiredAt) throw new BajaDDError("El formulario adicional ya está anulado.", "CONFLICT");
 
-  // 1. Carpeta -> _Retirados (se recuerda dónde estaba)
+  // 1. Carpeta -> Eliminados (se recuerda dónde estaba)
   let retiredFolderId: string | null = null;
   let retiredOriginFolderId: string | null = null;
   const accessToken = await getAccessToken();
   const { formType } = await contextoCarpetaAdicional({ crmContactId: contact.id, token, tipo: form.type });
-  const { ddFolderId, clientFolderId, expedienteFolderId } = await localizarCarpetaExpediente(
+  const { ddFolderId, clientFolderId, parentFolderId } = await localizarCarpetaExpediente(
     contact.crmId,
     formType,
     accessToken,
     token
   );
-  if (ddFolderId && clientFolderId && expedienteFolderId) {
-    const retirados = await getOrCreateCarpetaRetirados(ddFolderId, accessToken);
-    await moveFolder(clientFolderId, retirados, accessToken);
+  if (ddFolderId && clientFolderId && parentFolderId) {
+    const eliminados = await getOrCreateCarpetaEliminados(ddFolderId, accessToken);
+    await moveFolder(clientFolderId, eliminados, accessToken);
     retiredFolderId = clientFolderId;
-    // Origen: la carpeta del expediente principal, donde vive el adicional
-    retiredOriginFolderId = expedienteFolderId;
+    // Origen: donde vivía la carpeta del enlace (/{Socio}/DD, o la principal en la estructura anterior)
+    retiredOriginFolderId = parentFolderId;
   }
 
   // 2. Prisma: Form archivado, token vencido y borrador cerrado
@@ -193,7 +193,7 @@ export async function anularAdicional(params: { token: string; reason: string; a
 }
 
 /**
- * REACTIVA un adicional anulado: devuelve su carpeta a la del expediente principal,
+ * REACTIVA un adicional anulado: devuelve su carpeta a donde estaba (/{Socio}/DD),
  * reabre el borrador, desarchiva el Form y reactiva el token 30 días. Con el mismo
  * token que se usó para anularlo. Para extender el enlace de un adicional activo
  * (y autorizar una modificación) se usa /api/reactivar con `token`.
@@ -213,7 +213,7 @@ export async function reactivarAdicional(params: { token: string; actor: Actor; 
     throw new BajaDDError("El expediente adicional no está anulado.", "CONFLICT");
   }
 
-  // 1. Carpeta de vuelta a la del expediente principal
+  // 1. Carpeta de vuelta a donde estaba
   if (form.retiredFolderId && form.retiredOriginFolderId) {
     await moveFolder(form.retiredFolderId, form.retiredOriginFolderId, await getAccessToken());
   }

@@ -237,24 +237,91 @@ export async function createFolderInParent(
 }
 
 /**
- * Expediente adicional: su carpeta vive DENTRO de la carpeta del expediente principal
- *   /{Socio}/DD/{FORMTYPE}-{DD}/{TIPO}-{nombre dado}-{DD} ({token8})/
- * con la misma estructura interna (subcarpetas por documento) que la principal.
- * Los 8 primeros caracteres del token identifican la carpeta: se busca por ese
- * sufijo, así que el nombre puede cambiar (el cliente edita el suyo) sin perderla.
+ * Estructura en WorkDrive: una carpeta por enlace, todas al mismo nivel dentro
+ * de /{Socio}/DD, con su rol (ver LinkRole) al inicio del nombre:
+ *
+ *   /{Socio}/DD/
+ *     Principal-{FORMTYPE}-{DD}/                    enlace PRINCIPAL del expediente
+ *     Relacionado-{TIPO}-{nombre} ({token8})/        contacto relacionado
+ *     Representante Legal-{TIPO}-{nombre} ({token8})/ jurídica: Representante Legal
+ *     Adicional-{TIPO}-{nombre} ({token8})/          enlaces adicionales
+ *     Eliminados/                                   expedientes y enlaces anulados
+ *
+ * Cada una con sus subcarpetas por documento. Las de los enlaces se buscan por
+ * el sufijo del token (los 8 primeros caracteres), así que el nombre puede
+ * cambiar (el cliente edita el suyo) sin perderlas.
+ *
+ * Estructura anterior (se migra al resolver la carpeta con getOrCreateFolderStructure):
+ * la principal se llamaba {FORMTYPE}-{DD}, las de los enlaces vivían DENTRO de
+ * ella como {TIPO}-{nombre}-{DD} ({token8}), y los anulados iban a _Retirados.
  */
+export type RolCarpeta = "Relacionado" | "Representante Legal" | "Adicional";
+
 export interface AdicionalCarpeta {
   token: string;
-  /** Nombre dado al adicional (cliente / razón social) */
+  /** Nombre dado al enlace (cliente / razón social / contacto) */
   nombre: string;
-  /** Tipo del adicional ("NATURAL" | "JURIDICA"); el del expediente principal va en `formType` */
+  /** Tipo del formulario del enlace ("NATURAL" | "JURIDICA"); el del expediente principal va en `formType` */
   tipo: string;
+  /** Rol del enlace (por defecto "Adicional") */
+  rol?: RolCarpeta;
 }
 
 const sufijoAdicional = (token: string) => `(${token.slice(0, 8)})`;
 
-function nombreCarpetaAdicional(a: AdicionalCarpeta, ddName: string): string {
-  return sanitizeFolderName(`${a.tipo}-${a.nombre || "Adicional"}-${ddName} ${sufijoAdicional(a.token)}`);
+function nombreCarpetaAdicional(a: AdicionalCarpeta): string {
+  return sanitizeFolderName(`${a.rol ?? "Adicional"}-${a.tipo}-${a.nombre || "Sin nombre"} ${sufijoAdicional(a.token)}`);
+}
+
+/** Nombre de la carpeta del enlace principal del expediente. */
+function nombreCarpetaPrincipal(formType: string, ddName: string): string {
+  return sanitizeFolderName(`Principal-${formType}-${ddName}`);
+}
+
+/** Nombre que tenía antes la carpeta principal (sin el rol). */
+function nombreCarpetaPrincipalAnterior(formType: string, ddName: string): string {
+  return sanitizeFolderName(`${formType}-${ddName}`);
+}
+
+/**
+ * Carpeta principal del expediente dentro de /{Socio}/DD (null si no existe).
+ * Acepta el nombre anterior; con `renombrar` la lleva al nombre actual.
+ */
+async function buscarCarpetaPrincipal(
+  ddFolderId: string,
+  formType: string,
+  ddName: string,
+  accessToken: string,
+  renombrar = false
+): Promise<string | null> {
+  const actual = await findFolderInParent(ddFolderId, nombreCarpetaPrincipal(formType, ddName), accessToken);
+  if (actual) return actual;
+  const anterior = await findFolderInParent(ddFolderId, nombreCarpetaPrincipalAnterior(formType, ddName), accessToken);
+  if (anterior && renombrar) {
+    try {
+      await renameFolder(anterior, nombreCarpetaPrincipal(formType, ddName), accessToken);
+    } catch (err) {
+      console.warn(`[WorkDrive Service] No se pudo renombrar la carpeta principal ${anterior}; se usa con su nombre anterior:`, err);
+    }
+  }
+  return anterior;
+}
+
+/**
+ * Carpeta de un enlace (no principal): primero dentro de /{Socio}/DD y, si no,
+ * dentro de la carpeta principal (estructura anterior). Devuelve también su padre.
+ */
+async function buscarCarpetaEnlace(
+  ddFolderId: string,
+  expedienteFolderId: string | null,
+  token: string,
+  accessToken: string
+): Promise<{ folderId: string; parentId: string } | null> {
+  const enDD = await findFolderEndingWith(ddFolderId, sufijoAdicional(token), accessToken);
+  if (enDD) return { folderId: enDD, parentId: ddFolderId };
+  if (!expedienteFolderId) return null;
+  const anidada = await findFolderEndingWith(expedienteFolderId, sufijoAdicional(token), accessToken);
+  return anidada ? { folderId: anidada, parentId: expedienteFolderId } : null;
 }
 
 /** Resoluciones en curso de la carpeta del expediente, por ruta. */
@@ -264,8 +331,9 @@ const carpetasAdicionalEnCurso = new Map<string, Promise<string>>();
 
 /**
  * Creates or reuses the Zoho WorkDrive folder structure inside the Socio de
- * Negocio's documents folder (Accounts.Link_documentos):
- *   /{Socio}/DD/{FORMTYPE}-{Nombre del expediente}/{Nombre legible del documento}/
+ * Negocio's documents folder (Accounts.Link_documentos), see AdicionalCarpeta:
+ *   /{Socio}/DD/Principal-{FORMTYPE}-{Nombre del expediente}/{Nombre legible del documento}/
+ *   /{Socio}/DD/{Rol}-{TIPO}-{nombre} ({token8})/{Nombre legible del documento}/
  *
  * The operation is completely idempotent and will not create duplicate folders if run repeatedly.
  *
@@ -273,8 +341,8 @@ const carpetasAdicionalEnCurso = new Map<string, Promise<string>>();
  * @param formType Tipo de formulario del expediente principal ("NATURAL" | "JURIDICA")
  * @param documentTypes Ranuras documentales (p. ej. "copiaIdFile"); cada una se
  *   crea como subcarpeta con su nombre legible
- * @param adicional Si se indica, `clientFolderId` y las subcarpetas son las de esa
- *   carpeta adicional (dentro de la del expediente principal); `expedienteFolderId` es la principal
+ * @param adicional Si se indica, `clientFolderId` y las subcarpetas son las de la
+ *   carpeta de ese enlace (al lado de la principal); `expedienteFolderId` es la principal
  * @returns IDs of the hierarchy; `subfolders` is keyed by the documentTypes received
  */
 export async function getOrCreateFolderStructure(
@@ -293,7 +361,7 @@ export async function getOrCreateFolderStructure(
   const accessToken = passedToken || await getAccessToken();
 
   const { socioFolderId, ddName } = await findFolderSocio(ddId);
-  const clientFolderName = sanitizeFolderName(`${formType}-${ddName}`);
+  const clientFolderName = nombreCarpetaPrincipal(formType, ddName);
 
   console.log(`[WorkDrive Service] Iniciando sincronización de estructura de carpetas: /${socioFolderId}/DD/${clientFolderName}`);
 
@@ -308,31 +376,44 @@ export async function getOrCreateFolderStructure(
     return folderId;
   };
 
-  // 1 y 2. '/DD' dentro de la carpeta del socio y '{FORMTYPE}-{Nombre del
-  // expediente}' dentro de '/DD'. Al enviar el formulario la sincronización con
-  // CRM y con WorkDrive corren en paralelo y ambas resuelven esta carpeta: se
-  // comparte la resolución en curso para no crear la carpeta dos veces.
+  // 1 y 2. '/DD' dentro de la carpeta del socio y 'Principal-{FORMTYPE}-{Nombre
+  // del expediente}' dentro de '/DD' (la del nombre anterior se renombra). Al
+  // enviar el formulario la sincronización con CRM y con WorkDrive corren en
+  // paralelo y ambas resuelven esta carpeta: se comparte la resolución en curso
+  // para no crear la carpeta dos veces.
   const clave = `${socioFolderId}/${clientFolderName}`;
   let enCurso = carpetasExpedienteEnCurso.get(clave);
   if (!enCurso) {
     enCurso = (async () => {
       const ddFolderId = await getOrCreate(socioFolderId, "DD", "Carpeta");
-      const clientFolderId = await getOrCreate(ddFolderId, clientFolderName, "Carpeta del expediente");
+      const existente = await buscarCarpetaPrincipal(ddFolderId, formType, ddName, accessToken, true);
+      const clientFolderId = existente ?? (await createFolderInParent(ddFolderId, clientFolderName, accessToken));
       return { ddFolderId, clientFolderId };
     })().finally(() => carpetasExpedienteEnCurso.delete(clave));
     carpetasExpedienteEnCurso.set(clave, enCurso);
   }
   const { ddFolderId, clientFolderId: expedienteFolderId } = await enCurso;
 
-  // 2b. Adicional: su carpeta dentro de la del expediente principal (se busca por el
-  // sufijo del token; si no existe se crea con el nombre dado)
+  // 2b. Enlace no principal (relacionado, Representante Legal o adicional): su
+  // carpeta al mismo nivel que la principal, dentro de '/DD' (se busca por el
+  // sufijo del token; si no existe se crea). Una carpeta de la estructura anterior
+  // (dentro de la principal) se mueve a '/DD' y se renombra con su rol.
   let clientFolderId = expedienteFolderId;
   if (adicional) {
     let adicionalEnCurso = carpetasAdicionalEnCurso.get(adicional.token);
     if (!adicionalEnCurso) {
       adicionalEnCurso = (async () => {
-        const existente = await findFolderEndingWith(expedienteFolderId, sufijoAdicional(adicional.token), accessToken);
-        return existente ?? createFolderInParent(expedienteFolderId, nombreCarpetaAdicional(adicional, ddName), accessToken);
+        const existente = await buscarCarpetaEnlace(ddFolderId, expedienteFolderId, adicional.token, accessToken);
+        if (!existente) return createFolderInParent(ddFolderId, nombreCarpetaAdicional(adicional), accessToken);
+        if (existente.parentId !== ddFolderId) {
+          try {
+            await moveFolder(existente.folderId, ddFolderId, accessToken);
+            await renameFolder(existente.folderId, nombreCarpetaAdicional(adicional), accessToken);
+          } catch (err) {
+            console.warn(`[WorkDrive Service] No se pudo migrar la carpeta del enlace ${existente.folderId} a '/DD':`, err);
+          }
+        }
+        return existente.folderId;
       })().finally(() => carpetasAdicionalEnCurso.delete(adicional.token));
       carpetasAdicionalEnCurso.set(adicional.token, adicionalEnCurso);
     }
@@ -583,11 +664,36 @@ export async function moveFolder(resourceId: string, newParentId: string, access
   console.log(`[WorkDrive Service] Recurso ${resourceId} movido a la carpeta ${newParentId}.`);
 }
 
+/** Renombra un archivo o carpeta de WorkDrive (conserva su contenido y su ID). */
+export async function renameFolder(resourceId: string, newName: string, accessToken: string): Promise<void> {
+  const workdriveBaseUrl =
+    process.env.ZOHO_WORKDRIVE_BASE_URL || "https://www.zohoapis.com/workdrive/api/v1";
+  const response = await fetch(`${workdriveBaseUrl}/files/${resourceId}`, {
+    method: "PATCH",
+    headers: {
+      Authorization: `Zoho-oauthtoken ${accessToken}`,
+      "Content-Type": "application/vnd.api+json",
+      Accept: "application/vnd.api+json",
+    },
+    body: JSON.stringify({ data: { attributes: { name: newName }, type: "files" } }),
+  });
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(
+      `Error al renombrar ${resourceId} a "${newName}": ${response.status} ${response.statusText} - ${resumirErrorZoho(errorText)}`
+    );
+  }
+  console.log(`[WorkDrive Service] Recurso ${resourceId} renombrado a "${newName}".`);
+}
+
 /**
- * Ubica (sin crear nada) la carpeta del expediente
- * /{Socio}/DD/{FORMTYPE}-{Nombre del expediente}. `clientFolderId` es null si aún no existe.
- * Con `adicionalToken` (`formType` sigue siendo el del expediente principal), `clientFolderId`
- * es la carpeta de ese adicional dentro de la principal (`expedienteFolderId`).
+ * Ubica (sin crear ni mover nada) la carpeta del expediente
+ * /{Socio}/DD/Principal-{FORMTYPE}-{Nombre del expediente} (o la del nombre
+ * anterior). `clientFolderId` es null si aún no existe.
+ * Con `adicionalToken` (`formType` sigue siendo el del expediente principal),
+ * `clientFolderId` es la carpeta de ese enlace: en /{Socio}/DD o, en la estructura
+ * anterior, dentro de la principal (`expedienteFolderId`). `parentFolderId` es la
+ * carpeta donde está `clientFolderId` (a donde vuelve al reactivarse).
  */
 export async function localizarCarpetaExpediente(
   ddId: string,
@@ -599,34 +705,57 @@ export async function localizarCarpetaExpediente(
   ddFolderId: string | null;
   clientFolderId: string | null;
   expedienteFolderId: string | null;
+  parentFolderId: string | null;
 }> {
   const { socioFolderId, ddName } = await findFolderSocio(ddId);
   const ddFolderId = await findFolderInParent(socioFolderId, "DD", accessToken);
-  if (!ddFolderId) return { socioFolderId, ddFolderId: null, clientFolderId: null, expedienteFolderId: null };
-  const expedienteFolderId = await findFolderInParent(ddFolderId, sanitizeFolderName(`${formType}-${ddName}`), accessToken);
-  if (!adicionalToken || !expedienteFolderId) {
-    return { socioFolderId, ddFolderId, clientFolderId: adicionalToken ? null : expedienteFolderId, expedienteFolderId };
+  if (!ddFolderId) {
+    return { socioFolderId, ddFolderId: null, clientFolderId: null, expedienteFolderId: null, parentFolderId: null };
   }
-  const clientFolderId = await findFolderEndingWith(expedienteFolderId, sufijoAdicional(adicionalToken), accessToken);
-  return { socioFolderId, ddFolderId, clientFolderId, expedienteFolderId };
+  const expedienteFolderId = await buscarCarpetaPrincipal(ddFolderId, formType, ddName, accessToken);
+  if (!adicionalToken) {
+    return { socioFolderId, ddFolderId, clientFolderId: expedienteFolderId, expedienteFolderId, parentFolderId: ddFolderId };
+  }
+  const enlace = await buscarCarpetaEnlace(ddFolderId, expedienteFolderId, adicionalToken, accessToken);
+  return {
+    socioFolderId,
+    ddFolderId,
+    clientFolderId: enlace?.folderId ?? null,
+    expedienteFolderId,
+    parentFolderId: enlace?.parentId ?? null,
+  };
 }
 
-/** Carpeta de un adicional dentro de la del expediente principal (null si no existe). */
+/**
+ * Carpeta de un enlace no principal: en /{Socio}/DD o, en la estructura anterior,
+ * dentro de la principal (null si no existe). Devuelve también su padre.
+ */
 export async function findFolderAdicional(
-  expedienteFolderId: string,
+  ddFolderId: string,
+  expedienteFolderId: string | null,
   token: string,
   accessToken: string
-): Promise<string | null> {
-  return findFolderEndingWith(expedienteFolderId, sufijoAdicional(token), accessToken);
+): Promise<{ folderId: string; parentId: string } | null> {
+  return buscarCarpetaEnlace(ddFolderId, expedienteFolderId, token, accessToken);
 }
 
-/** Nombre de la carpeta, dentro de /{Socio}/DD, donde se archivan los expedientes anulados. */
-export const CARPETA_RETIRADOS = "_Retirados";
+/** Nombre de la carpeta, dentro de /{Socio}/DD, donde se archivan los expedientes y enlaces anulados. */
+export const CARPETA_ELIMINADOS = "Eliminados";
+/** Nombre anterior de CARPETA_ELIMINADOS: se renombra al encontrarla. */
+const CARPETA_ELIMINADOS_ANTERIOR = "_Retirados";
 
-/** Obtiene (o crea) /{Socio}/DD/_Retirados. */
-export async function getOrCreateCarpetaRetirados(ddFolderId: string, accessToken: string): Promise<string> {
-  return (
-    (await findFolderInParent(ddFolderId, CARPETA_RETIRADOS, accessToken)) ??
-    (await createFolderInParent(ddFolderId, CARPETA_RETIRADOS, accessToken))
-  );
+/** Obtiene (o crea) /{Socio}/DD/Eliminados; una _Retirados existente se renombra a Eliminados. */
+export async function getOrCreateCarpetaEliminados(ddFolderId: string, accessToken: string): Promise<string> {
+  const actual = await findFolderInParent(ddFolderId, CARPETA_ELIMINADOS, accessToken);
+  if (actual) return actual;
+  const anterior = await findFolderInParent(ddFolderId, CARPETA_ELIMINADOS_ANTERIOR, accessToken);
+  if (anterior) {
+    try {
+      await renameFolder(anterior, CARPETA_ELIMINADOS, accessToken);
+    } catch (err) {
+      console.warn(`[WorkDrive Service] No se pudo renombrar ${CARPETA_ELIMINADOS_ANTERIOR} a ${CARPETA_ELIMINADOS}:`, err);
+    }
+    return anterior;
+  }
+  return createFolderInParent(ddFolderId, CARPETA_ELIMINADOS, accessToken);
 }

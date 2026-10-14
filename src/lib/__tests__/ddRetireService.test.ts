@@ -16,7 +16,7 @@ const { prismaMock, zohoMock, wd } = vi.hoisted(() => ({
   },
   wd: {
     localizarCarpetaExpediente: vi.fn(), deleteFileFromWorkDrive: vi.fn(),
-    getOrCreateCarpetaRetirados: vi.fn(), moveFolder: vi.fn(), findFolderAdicional: vi.fn(),
+    getOrCreateCarpetaEliminados: vi.fn(), moveFolder: vi.fn(), findFolderAdicional: vi.fn(),
   },
 }));
 
@@ -53,7 +53,7 @@ beforeEach(() => {
   zohoMock.service.getDDRecord.mockResolvedValue({ Estado: "" });
   zohoMock.service.getRelatedDDId.mockResolvedValue(null);
   wd.localizarCarpetaExpediente.mockResolvedValue({ socioFolderId: "s", ddFolderId: "dd", clientFolderId: "cf" });
-  wd.getOrCreateCarpetaRetirados.mockResolvedValue("ret");
+  wd.getOrCreateCarpetaEliminados.mockResolvedValue("elim");
 });
 
 describe("eliminarDDNoEnviado", () => {
@@ -61,6 +61,21 @@ describe("eliminarDDNoEnviado", () => {
   const params = { crmId: "dd1", actor: gerente };
   beforeEach(() => {
     prismaMock.crmContact.findFirst.mockResolvedValue({ id: "c1" });
+  });
+
+  it("también manda a la papelera las carpetas de sus enlaces no principales (al lado de la principal)", async () => {
+    wd.findFolderAdicional.mockResolvedValue({ folderId: "cf-rel", parentId: "dd" });
+    prismaMock.crmContact.findUnique.mockResolvedValue({
+      ...base,
+      drafts: [
+        { id: "d1", type: "NATURAL", data: {}, isAditional: false, token: "tm" },
+        { id: "d2", type: "NATURAL", data: {}, isAditional: true, token: "t-rel" },
+      ],
+    });
+    await eliminarDDNoEnviado(params);
+    expect(wd.findFolderAdicional).toHaveBeenCalledWith("dd", "cf", "t-rel", "tok");
+    expect(wd.deleteFileFromWorkDrive).toHaveBeenCalledWith("cf-rel", "tok");
+    expect(wd.deleteFileFromWorkDrive).toHaveBeenCalledWith("cf", "tok");
   });
 
   it("elimina carpeta, Zoho y Prisma, en ese orden", async () => {
@@ -91,8 +106,8 @@ describe("eliminarDDNoEnviado", () => {
     prismaMock.crmContact.findUnique.mockResolvedValue({ ...base, forms: [{ id: "f", type: "NATURAL" }] });
     const r = await eliminarDDNoEnviado(params);
     expect(r).toMatchObject({ success: true, action: "retired", crmId: "dd1" });
-    // anulado: carpeta a _Retirados y Estado = Anulado; nada se borra
-    expect(wd.moveFolder).toHaveBeenCalledWith("cf", "ret", "tok");
+    // anulado: carpeta a Eliminados y Estado = Anulado; nada se borra
+    expect(wd.moveFolder).toHaveBeenCalledWith("cf", "elim", "tok");
     expect(zohoMock.service.setDDEstado).toHaveBeenCalledWith("dd1", "Anulado", true);
     expect(prismaMock.crmContact.update.mock.calls[0][0].data).toMatchObject({ retiredBy: "u1" });
     expect(wd.deleteFileFromWorkDrive).not.toHaveBeenCalled();
@@ -193,10 +208,10 @@ describe("eliminarDDNoEnviado", () => {
 describe("anularDD", () => {
   const enviado = { ...base, forms: [{ id: "f", type: "NATURAL" }] };
 
-  it("mueve la carpeta a _Retirados, marca Anulado y archiva en Prisma", async () => {
+  it("mueve la carpeta a Eliminados, marca Anulado y archiva en Prisma", async () => {
     prismaMock.crmContact.findUnique.mockResolvedValue(enviado);
     await anularDD({ crmContactId: "c1", reason: "cliente desistio", actor });
-    expect(wd.moveFolder).toHaveBeenCalledWith("cf", "ret", "tok");
+    expect(wd.moveFolder).toHaveBeenCalledWith("cf", "elim", "tok");
     expect(zohoMock.service.setDDEstado).toHaveBeenCalledWith("dd1", "Anulado", true);
     const data = prismaMock.crmContact.update.mock.calls[0][0].data;
     expect(data).toMatchObject({ retiredFolderId: "cf", retiredOriginFolderId: "dd", retiredBy: "a1" });
@@ -205,8 +220,10 @@ describe("anularDD", () => {
     expect(prismaMock.draft.update.mock.calls[0][0].data.data).toMatchObject({ retired: true });
   });
 
-  it("con adicionales: elimina el borrador adicional y anula el enviado sin mover su carpeta aparte", async () => {
-    wd.findFolderAdicional.mockResolvedValue("cf-adic");
+  it("con enlaces no principales: elimina el borrador no enviado y mueve a Eliminados la carpeta del enviado", async () => {
+    wd.findFolderAdicional.mockImplementation(async (_dd: string, _cf: string, token: string) =>
+      token === "t-borrador" ? { folderId: "cf-borrador", parentId: "dd" } : { folderId: "cf-enviado", parentId: "dd" }
+    );
     prismaMock.crmContact.findUnique.mockResolvedValue({
       ...base,
       forms: [
@@ -221,15 +238,21 @@ describe("anularDD", () => {
       ],
     });
     const r = await anularDD({ crmContactId: "c1", reason: "cliente desistio", actor });
-    expect(wd.findFolderAdicional).toHaveBeenCalledWith("cf", "t-borrador", "tok");
-    expect(wd.deleteFileFromWorkDrive).toHaveBeenCalledWith("cf-adic", "tok");
-    expect(wd.moveFolder).toHaveBeenCalledTimes(1);
+    // Carpetas de los enlaces: en /{Socio}/DD (o dentro de la principal, si son anteriores)
+    expect(wd.findFolderAdicional).toHaveBeenCalledWith("dd", "cf", "t-borrador", "tok");
+    expect(wd.deleteFileFromWorkDrive).toHaveBeenCalledWith("cf-borrador", "tok");
+    // La del enlace enviado y la principal van a Eliminados
+    expect(wd.moveFolder).toHaveBeenCalledWith("cf-enviado", "elim", "tok");
+    expect(wd.moveFolder).toHaveBeenCalledWith("cf", "elim", "tok");
+    expect(wd.moveFolder).toHaveBeenCalledTimes(2);
     expect(prismaMock.draft.delete).toHaveBeenCalledWith({ where: { id: "db" } });
     expect(prismaMock.token.deleteMany).toHaveBeenCalledWith({ where: { token: "t-borrador" } });
-    // solo el adicional enviado y aun no anulado se anula
+    // solo el enlace enviado y aun no anulado se anula, recordando dónde estaba su carpeta
     expect(prismaMock.form.update).toHaveBeenCalledTimes(1);
-    expect(prismaMock.form.update.mock.calls[0][0]).toMatchObject({ where: { id: "fa" } });
-    expect(prismaMock.form.update.mock.calls[0][0].data.retiredFolderId).toBeUndefined();
+    expect(prismaMock.form.update.mock.calls[0][0]).toMatchObject({
+      where: { id: "fa" },
+      data: { retiredFolderId: "cf-enviado", retiredOriginFolderId: "dd" },
+    });
     // los borradores restantes (principal + adicional enviado) se cierran; el eliminado no
     expect(prismaMock.draft.update).toHaveBeenCalledTimes(2);
     expect(r).toMatchObject({ adicionalesEliminados: 1, adicionalesAnulados: 1 });

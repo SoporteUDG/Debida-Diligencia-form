@@ -103,6 +103,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Un expediente o enlace anulado no se reactiva aquí (eso extendería un token
+    // sobre algo archivado, con su carpeta en Eliminados): tiene su propio flujo
+    if (contact.retiredAt) {
+      return NextResponse.json(
+        { success: false, code: "RETIRADO", error: "El expediente está anulado: reactívelo primero." },
+        { status: 409 }
+      );
+    }
+    if (requestedToken) {
+      const borrador = await prisma.draft.findUnique({ where: { token: requestedToken }, select: { data: true } });
+      if ((borrador?.data as any)?.retired) {
+        return NextResponse.json(
+          { success: false, code: "RETIRADO", error: "El enlace está anulado: reactívelo desde Reactivar adicional." },
+          { status: 409 }
+        );
+      }
+    }
+
     // 2. Reactivar/Extender el token por 30 días
     const extension = await reactivateToken(latestToken.token, 30);
     if (!extension.success) {
@@ -134,6 +152,12 @@ export async function POST(request: NextRequest) {
           attempts: { increment: 1 },
           lastAttempt: new Date(),
         },
+      });
+    } else if (form?.role === "RELATED") {
+      // Contacto relacionado: su CrmSync (del Contact) se vuelve a habilitar para la enmienda
+      await prisma.crmSync.updateMany({
+        where: { formId: form.id },
+        data: { status: "IN_PROGRESS", attempts: { increment: 1 }, lastAttempt: new Date() },
       });
     }
 

@@ -1359,11 +1359,12 @@ export const appRouter = router({
             }
           }
 
-          if (!existente.isAditional) {
+          if (existente.role !== "ADITIONAL") {
             syncFormToCrm(existente.id).catch((e) => console.error("[Amend Sync CRM]", e));
           }
           syncFormToWorkDrive(existente.id).catch((e) => console.error("[Amend Sync WorkDrive]", e));
-          if (!existente.isAditional) {
+          // Principal o Representante Legal (el resto lo descarta autocompletarExpedienteRelacionado)
+          if (existente.role !== "ADITIONAL") {
             autocompletarExpedienteRelacionado(existente.id).catch((e) => console.error("[Amend Relacionado]", e));
           }
 
@@ -1387,6 +1388,8 @@ export const appRouter = router({
           projectName,
           crmContactId: ctx.client!.crmContactId || null,
           isAditional: draft.isAditional,
+          role: draft.role,
+          accountContactId: draft.accountContactId,
           tokenUuid: draft.token,
           data: validatedData as any,
           conclusionesVerificacion: validatedData.conclusionesVerificacion || null,
@@ -1515,8 +1518,9 @@ export const appRouter = router({
       }
 
       // 6. Trigger Zoho CRM & WorkDrive sync in the background asynchronously
-      // Un expediente adicional no se sincroniza con Zoho CRM
-      if (!dbForm.isAditional) {
+      // Un expediente adicional no se sincroniza con Zoho CRM; el de un contacto
+      // relacionado solo actualiza su Contact (ver syncFormToCrm)
+      if (dbForm.role !== "ADITIONAL") {
         syncFormToCrm(dbForm.id).catch((syncErr) => {
           console.error(`[Submit Form Sync Warning] Error in CRM sync background promise for form ${dbForm.id}:`, syncErr);
         });
@@ -1526,8 +1530,9 @@ export const appRouter = router({
         console.error(`[Submit Form Sync Warning] Error in WorkDrive sync background promise for form ${dbForm.id}:`, wdErr);
       });
 
-      // Completa los campos comunes del expediente relacionado (dd_relacionado) si sigue en borrador
-      if (!dbForm.isAditional) {
+      // Completa los campos comunes del par jurídico / Representante Legal (mismo
+      // expediente, o dd_relacionado en los anteriores) si sigue en borrador
+      if (dbForm.role !== "ADITIONAL") {
         autocompletarExpedienteRelacionado(dbForm.id).catch((relErr) => {
           console.error(`[Submit Form Warning] Error al autocompletar el expediente relacionado de ${dbForm.id}:`, relErr);
         });

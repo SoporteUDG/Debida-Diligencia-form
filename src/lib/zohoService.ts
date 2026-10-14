@@ -1356,6 +1356,7 @@ export const zoho = {
             email: "contacto.mock@gmail.com",
             phone: "50766554433",
             createdTime: "2026-01-01T00:00:00+00:00",
+            estandar: true,
           },
         ];
       }
@@ -1367,7 +1368,7 @@ export const zoho = {
         // Related list "Contacts" del Account, paginada
         for (let page = 1; page <= 20; page++) {
           const response = await fetch(
-            `${crmBaseUrl}/Accounts/${accountId}/Contacts?fields=First_Name,Last_Name,Email,Phone,Created_Time&per_page=200&page=${page}`,
+            `${crmBaseUrl}/Accounts/${accountId}/Contacts?fields=First_Name,Last_Name,Email,Phone,Created_Time,${CONTACT_STANDARD_FIELD}&per_page=200&page=${page}`,
             { method: "GET", headers: { Authorization: `Zoho-oauthtoken ${accessToken}` } }
           );
           if (response.status === 204) break;
@@ -1384,6 +1385,7 @@ export const zoho = {
               email: cleanValue(rec.Email),
               phone: cleanValue(rec.Phone),
               createdTime: cleanValue(rec.Created_Time),
+              estandar: esVerdadero(rec[CONTACT_STANDARD_FIELD]),
             });
           }
           if (!json.info?.more_records) break;
@@ -1593,6 +1595,66 @@ export const zoho = {
         return { success: true };
       });
     },
+
+    /**
+     * Escribe campos sueltos en un expediente de Debida_Diligencia (no dispara
+     * workflows ni toca Estado / enlace). Lo usa el formulario del Representante
+     * Legal, que solo escribe sus campos exclusivos (ver mapRepresentanteToDDPayload).
+     */
+    updateDDFields: async (ddId: string, payload: Record<string, unknown>): Promise<{ success: boolean; mocked?: boolean }> => {
+      if (Object.keys(payload).length === 0) return { success: true };
+      if (zohoSimulado(ddId)) {
+        console.log(`[Zoho Service] Simulación: actualización de campos del expediente ${ddId}.`);
+        return { success: true, mocked: true };
+      }
+
+      return executeWithRetry(async (accessToken) => {
+        const crmBaseUrl = process.env.ZOHO_CRM_BASE_URL || "https://www.zohoapis.com/crm/v2";
+        const response = await fetch(`${crmBaseUrl}/Debida_Diligencia/${ddId}`, {
+          method: "PUT",
+          headers: { Authorization: `Zoho-oauthtoken ${accessToken}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ data: [payload], trigger: [] }),
+        });
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Zoho CRM Debida_Diligencia/${ddId} PUT respondió HTTP ${response.status}: ${errorText}`);
+        }
+        const result = (await response.json()).data?.[0];
+        if (!result || result.status === "error") {
+          throw new Error(`Zoho CRM Error actualizando el expediente ${ddId} [${result?.code}]: ${result?.message}`);
+        }
+        console.log(`[Zoho Service] Expediente ${ddId} actualizado (${Object.keys(payload).join(", ")}).`);
+        return { success: true };
+      });
+    },
+
+    /**
+     * Vincula un Contact al expediente de Debida_Diligencia por el lookup
+     * Contacts.Debida_Diligencia (CONTACT_DD_FIELD): así el expediente muestra
+     * todos los contactos del Socio de Negocio en su lista relacionada. Zoho no
+     * los relaciona solo por compartir el Account.
+     */
+    vincularContactoADD: async (contactId: string, ddId: string): Promise<{ success: boolean; mocked?: boolean }> => {
+      if (zohoSimulado(contactId) || zohoSimulado(ddId)) return { success: true, mocked: true };
+
+      return executeWithRetry(async (accessToken) => {
+        const crmBaseUrl = process.env.ZOHO_CRM_BASE_URL || "https://www.zohoapis.com/crm/v2";
+        const response = await fetch(`${crmBaseUrl}/Contacts/${contactId}`, {
+          method: "PUT",
+          headers: { Authorization: `Zoho-oauthtoken ${accessToken}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ data: [{ [CONTACT_DD_FIELD]: { id: ddId } }], trigger: [] }),
+        });
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Zoho CRM Contacts/${contactId} (${CONTACT_DD_FIELD}) PUT respondió HTTP ${response.status}: ${errorText}`);
+        }
+        const result = (await response.json()).data?.[0];
+        if (!result || result.status === "error") {
+          throw new Error(`Zoho CRM Error vinculando el Contact ${contactId} al expediente ${ddId} [${result?.code}]: ${result?.message}`);
+        }
+        return { success: true };
+      });
+    },
   },
 };
 
@@ -1609,7 +1671,20 @@ export interface ZohoAccountContact {
   phone: string;
   /** Created_Time (ISO) en Zoho; "" si no viene. */
   createdTime: string;
+  /** Contacto_est_ndar: contacto principal del Socio de Negocio. */
+  estandar?: boolean;
 }
+
+/** API name del checkbox de Contacts que marca al contacto principal (estándar) del Socio de Negocio. */
+export const CONTACT_STANDARD_FIELD = "Contacto_est_ndar";
+
+/**
+ * API name del lookup Contacts -> Debida_Diligencia que ata cada contacto del
+ * Socio de Negocio a su expediente (ZOHO_CONTACT_DD_FIELD lo sustituye).
+ */
+export const CONTACT_DD_FIELD = process.env.ZOHO_CONTACT_DD_FIELD || "Debida_Diligencia";
+
+const esVerdadero = (v: unknown) => v === true || String(v ?? "").trim().toLowerCase() === "true";
 
 /** Resumen de un expediente de Debida_Diligencia de Zoho. */
 export interface ZohoDDResumen {
@@ -1745,6 +1820,29 @@ export function mapFormToContactPayload(clientType: "NATURAL" | "JURIDICA", form
     });
   }
 
+  return payload;
+}
+
+/**
+ * Campos del Representante Legal en el expediente jurídico que NO comparten API
+ * name con los de Persona Natural. Son los únicos que escribe el formulario del
+ * Representante Legal (enlace relacionado sin contacto): los compartidos
+ * (Nombre_natural, Nacionalidad, Estado_Civil, Numero_Identificacion,
+ * Fecha_de_nacimiento, Profesi_n, Actividad_Persona, Pais_de_residencia_fiscal…)
+ * los fija solo el formulario jurídico.
+ * Declaraci_n_del_origen_il_cito_firmada también es exclusivo, pero el
+ * formulario natural no tiene esa pregunta (rlObjetoInvestigacion es jurídica).
+ */
+export const CAMPOS_EXCLUSIVOS_REPRESENTANTE = ["Direccion_Representante", "Telefono_Representante"] as const;
+
+/** Formulario natural del Representante Legal -> sus campos exclusivos del expediente jurídico. */
+export function mapRepresentanteToDDPayload(formData: any): Record<string, unknown> {
+  const d = formData || {};
+  const payload: Record<string, unknown> = {};
+  assign(payload, {
+    "Direccion_Representante": text(d.direccionResidencial),
+    "Telefono_Representante": phone(d.telefonoCodigo, d.telefono) ?? phone(d.celularCodigo, d.celular),
+  });
   return payload;
 }
 

@@ -269,12 +269,47 @@ function juridicaANatural(j: Datos): GrupoCampos[] {
  * Calcula los cambios a aplicar sobre el borrador destino: solo campos con
  * valor en el origen y vacíos en el destino.
  */
+/** Campos de dirección y contacto de la EMPRESA (jurídica) y de la persona (natural). */
+const CAMPOS_EMPRESA = new Set([
+  "empresaDireccion", "empresaCiudad", "empresaProvincia", "empresaPais", "empresaTelefonoCodigo",
+  "empresaTelefono", "empresaCelularCodigo", "empresaCelular", "empresaEmail",
+]);
+const CAMPOS_RESIDENCIA = new Set([
+  "direccionResidencial", "ciudad", "provinciaEstado", "paisResidencial", "telefonoCodigo",
+  "telefono", "celularCodigo", "celular", "email",
+]);
+
+/**
+ * Par jurídica / Representante Legal en el mismo expediente: la dirección y el
+ * teléfono de la persona son los del Representante Legal (rlDireccion /
+ * rlTelefono = Direccion_Representante / Telefono_Representante), no los de la
+ * empresa. Se quitan los grupos empresa <-> residencia y se cruzan con los del
+ * Representante Legal.
+ */
+function gruposRepresentante(origenTipo: FormType, origen: Datos, grupos: GrupoCampos[]): GrupoCampos[] {
+  const excluidos = origenTipo === "NATURAL" ? CAMPOS_EMPRESA : CAMPOS_RESIDENCIA;
+  const filtrados = grupos.filter((g) => !Object.keys(g.valores).some((k) => excluidos.has(k)));
+  if (origenTipo === "NATURAL") {
+    const telefono = `${texto(origen.telefonoCodigo)} ${texto(origen.telefono)}`.trim();
+    const celular = `${texto(origen.celularCodigo)} ${texto(origen.celular)}`.trim();
+    filtrados.push(
+      { valores: { rlDireccion: texto(origen.direccionResidencial) } },
+      { valores: { rlTelefono: texto(origen.telefono) ? telefono : texto(origen.celular) ? celular : "" } }
+    );
+  } else {
+    filtrados.push({ valores: { direccionResidencial: texto(origen.rlDireccion) } });
+  }
+  return filtrados;
+}
+
 export function calcularAutocompletado(
   origenTipo: FormType,
   origen: Datos,
-  destino: Datos
+  destino: Datos,
+  opts?: { representante?: boolean }
 ): Record<string, string> {
-  const grupos = origenTipo === "NATURAL" ? naturalAJuridica(origen) : juridicaANatural(origen);
+  const base = origenTipo === "NATURAL" ? naturalAJuridica(origen) : juridicaANatural(origen);
+  const grupos = opts?.representante ? gruposRepresentante(origenTipo, origen, base) : base;
   const cambios: Record<string, string> = {};
 
   for (const grupo of grupos) {
@@ -313,7 +348,9 @@ export async function autocompletarExpedienteRelacionado(
       include: { crmContact: true },
     });
     if (!form) return cancelar("formulario no encontrado");
-    if (form.isAditional) return cancelar("el formulario es adicional");
+    // El Representante Legal es un RELATED sin contacto sobre el expediente jurídico
+    const esRepresentante = form.role === "RELATED" && !form.accountContactId;
+    if (form.isAditional && !esRepresentante) return cancelar("el formulario es adicional");
 
     const ddId = form.crmContact?.crmId;
     if (!ddId) return cancelar("el formulario no está vinculado a un expediente de Zoho CRM");
@@ -321,36 +358,62 @@ export async function autocompletarExpedienteRelacionado(
       return cancelar("expediente simulado");
     }
 
-    // 1. Expediente relacionado en Zoho (dd_relacionado)
-    const relatedCrmId = await zoho.service.getRelatedDDId(ddId);
-    if (!relatedCrmId) return cancelar("el campo dd_relacionado está vacío");
-    if (relatedCrmId === ddId) return cancelar("dd_relacionado apunta al mismo expediente");
+    let relatedCrmId: string = ddId;
+    let relatedDraft: Awaited<ReturnType<typeof prisma.draft.findFirst>> = null;
 
-    // 2. Su registro en el portal
-    const relatedContact = await prisma.crmContact.findUnique({ where: { crmId: relatedCrmId } });
-    if (!relatedContact) return cancelar(`el expediente relacionado ${relatedCrmId} no existe en el portal`);
-
-    const formularioRelacionado = await prisma.form.findFirst({
-      where: { crmContactId: relatedContact.id, deletedAt: null, isAditional: false },
-    });
-    if (formularioRelacionado) return cancelar("el expediente relacionado ya fue completado");
-
-    // El borrador se vincula al contacto por Draft.crmContactId o, en borradores
-    // antiguos sin esa columna, por el token de acceso emitido al contacto.
-    const tokensRelacionado = await prisma.token.findMany({
-      where: { crmContactId: relatedContact.id },
-      select: { token: true },
-    });
-    const relatedDraft = await prisma.draft.findFirst({
-      where: {
-        isAditional: false,
-        OR: [
-          { crmContactId: relatedContact.id },
-          { token: { in: tokensRelacionado.map((t) => t.token) } },
-        ],
-      },
+    // 1. Esquema actual: el par jurídico / Representante Legal vive en el mismo
+    //    expediente (borrador PRINCIPAL y borrador RELATED sin contacto)
+    const contrapartes = await prisma.draft.findMany({
+      where: esRepresentante
+        ? { crmContactId: form.crmContactId!, role: "PRINCIPAL" }
+        : { crmContactId: form.crmContactId!, role: "RELATED", accountContactId: null },
       orderBy: { updatedAt: "desc" },
     });
+    const contraparte = contrapartes.find((d) => !(d.data as any)?.retired) ?? null;
+    if (contraparte) {
+      const enviado = await prisma.form.findFirst({
+        where: esRepresentante
+          ? { crmContactId: form.crmContactId!, role: "PRINCIPAL", deletedAt: null }
+          : { tokenUuid: contraparte.token, deletedAt: null },
+        select: { id: true },
+      });
+      if (enviado) return cancelar("el formulario relacionado ya fue completado");
+      relatedDraft = contraparte;
+    } else {
+      if (esRepresentante) return cancelar("el expediente no tiene borrador principal");
+
+      // 2. Esquema anterior: expediente relacionado en Zoho (dd_relacionado)
+      const zohoRelatedId = await zoho.service.getRelatedDDId(ddId);
+      if (!zohoRelatedId) return cancelar("el campo dd_relacionado está vacío");
+      if (zohoRelatedId === ddId) return cancelar("dd_relacionado apunta al mismo expediente");
+      relatedCrmId = zohoRelatedId;
+
+      // Su registro en el portal
+      const relatedContact = await prisma.crmContact.findUnique({ where: { crmId: relatedCrmId } });
+      if (!relatedContact) return cancelar(`el expediente relacionado ${relatedCrmId} no existe en el portal`);
+
+      const formularioRelacionado = await prisma.form.findFirst({
+        where: { crmContactId: relatedContact.id, deletedAt: null, isAditional: false },
+      });
+      if (formularioRelacionado) return cancelar("el expediente relacionado ya fue completado");
+
+      // El borrador se vincula al contacto por Draft.crmContactId o, en borradores
+      // antiguos sin esa columna, por el token de acceso emitido al contacto.
+      const tokensRelacionado = await prisma.token.findMany({
+        where: { crmContactId: relatedContact.id },
+        select: { token: true },
+      });
+      relatedDraft = await prisma.draft.findFirst({
+        where: {
+          isAditional: false,
+          OR: [
+            { crmContactId: relatedContact.id },
+            { token: { in: tokensRelacionado.map((t) => t.token) } },
+          ],
+        },
+        orderBy: { updatedAt: "desc" },
+      });
+    }
     if (!relatedDraft) return cancelar("el expediente relacionado no tiene borrador");
 
     // 3. Estado del relacionado: debe seguir siendo un borrador
@@ -361,7 +424,8 @@ export async function autocompletarExpedienteRelacionado(
     }
 
     // 4. Campos comunes vacíos en el destino
-    const cambios = calcularAutocompletado(form.type, form.data as Datos, destino);
+    // En el mismo expediente la contraparte es el Representante Legal (no un expediente natural aparte)
+    const cambios = calcularAutocompletado(form.type, form.data as Datos, destino, { representante: !!contraparte });
     const campos = Object.keys(cambios);
     if (campos.length === 0) return cancelar("no hay campos vacíos que completar");
 

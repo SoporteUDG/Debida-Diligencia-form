@@ -23,7 +23,7 @@ function llaveValida(request: NextRequest): boolean | "sin-configurar" {
  * identificado por su token (el `token` de GET /api/generar-adicional, o la URL del enlace).
  *
  * - Adicional nunca enviado (borrador): se ELIMINA (carpeta, token, borrador y documentos).
- * - Adicional ya enviado: se ANULA (Form archivado, enlace vencido, carpeta a _Retirados);
+ * - Adicional ya enviado: se ANULA (Form archivado, enlace vencido, carpeta a Eliminados);
  *   en ese caso `reason` es obligatorio (mínimo 10 caracteres).
  * El expediente principal y Zoho no se modifican.
  *

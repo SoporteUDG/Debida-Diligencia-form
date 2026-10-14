@@ -78,30 +78,42 @@
   }
 
   // ---------- Render ----------
-  // Casilla: los contactos sin DD se pueden marcar; los ya creados quedan
-  // marcados y bloqueados; las DD principales (jurídica) no llevan casilla.
+  // Casilla: los contactos sin DD (o, en la natural, sin enlace relacionado) se
+  // pueden marcar; los ya creados quedan marcados y bloqueados; las DD
+  // principales (jurídica y natural) no llevan casilla.
   function casillaHtml(r, i) {
     if (esVerdadero(campo(r, "principal"))) return '<span class="dd-principal" title="Se genera siempre que falte">—</span>';
     var creado = esVerdadero(campo(r, "registro"));
     var habilitada = puedeSolicitar && esVerdadero(campo(r, "seleccionable"));
+    var titulo = esVerdadero(campo(r, "relacionado"))
+      ? (creado ? "Ya tiene su enlace en la Debida Diligencia principal" : "Generar su enlace en la Debida Diligencia principal")
+      : (creado ? "Ya tiene su Debida Diligencia" : "Generar su Debida Diligencia");
     return '<input type="checkbox" class="dd-check" data-i="' + i + '"' +
       (creado || r.seleccionado ? " checked" : "") +
       (habilitada ? "" : " disabled") +
-      ' title="' + (creado ? "Ya tiene su Debida Diligencia" : "Generar su Debida Diligencia") + '">';
+      ' title="' + titulo + '">';
+  }
+
+  function creadoTexto(r) {
+    var creado = esVerdadero(campo(r, "registro"));
+    if (esVerdadero(campo(r, "relacionado"))) return creado ? "Enlace creado" : "Pendiente";
+    return creado ? "Creado" : "Pendiente";
   }
 
   function filaHtml(r, i) {
     var nombre = escapeHtml(campo(r, "nombre"));
     var enlace = campo(r, "enlace");
     var estado = campo(r, "estado");
-    return '<tr class="' + (esVerdadero(campo(r, "principal")) ? "dd-fila-principal" : "") + '">' +
+    var clase = esVerdadero(campo(r, "principal")) ? "dd-fila-principal"
+      : esVerdadero(campo(r, "relacionado")) ? "dd-fila-relacionado" : "";
+    return '<tr class="' + clase + '">' +
       '<td class="dd-col-check">' + casillaHtml(r, i) + "</td>" +
       "<td>" + (enlace
         ? '<a href="' + escapeHtml(enlace) + '" target="_blank" rel="noopener">' + nombre + "</a>"
         : nombre) + "</td>" +
       "<td>" + escapeHtml(campo(r, "tipo")) + "</td>" +
       '<td><span class="estado ' + claseEstado(estado) + '">' + escapeHtml(estado || "—") + "</span></td>" +
-      "<td>" + (campo(r, "registro") ? "Creado" : "Pendiente") + "</td>" +
+      "<td>" + creadoTexto(r) + "</td>" +
       "</tr>";
   }
 

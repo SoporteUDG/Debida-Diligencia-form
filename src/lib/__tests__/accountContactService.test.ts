@@ -6,6 +6,7 @@ const { prismaMock, zohoMock } = vi.hoisted(() => ({
     crmContact: { findFirst: vi.fn(), findMany: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
     token: { findMany: vi.fn() },
     form: { findFirst: vi.fn() },
+    draft: { findMany: vi.fn() },
   },
   zohoMock: { service: { searchAccountContacts: vi.fn(), searchDDsByAccount: vi.fn(), updateClientFormLink: vi.fn(), createNote: vi.fn() } },
 }));
@@ -17,7 +18,15 @@ vi.mock("@/lib/zohoService", async (importOriginal) => ({
   zoho: zohoMock,
 }));
 
-import { createAccountContact, obtenerContactosDeCuenta, clasificarContactosNaturales, clasificarExpedientesJuridica, SinContactosError } from "../accountContactService";
+import {
+  createAccountContact,
+  obtenerContactosDeCuenta,
+  clasificarContactosNaturales,
+  clasificarExpedientesJuridica,
+  SinContactosError,
+  contactoPrincipal,
+  ContactoEstandarError,
+} from "../accountContactService";
 
 const contacto = (id: string, createdTime: string) => ({
   id, firstName: `N${id}`, lastName: `A${id}`, email: "", phone: "", createdTime,
@@ -26,6 +35,32 @@ const contacto = (id: string, createdTime: string) => ({
 beforeEach(() => {
   vi.clearAllMocks();
   prismaMock.accountContact.upsert.mockImplementation(async ({ create }: any) => ({ id: `row-${create.crmId}`, ...create }));
+  prismaMock.draft.findMany.mockResolvedValue([]);
+});
+
+describe("contacto estándar (Contacto_est_ndar)", () => {
+  const c = (id: string, isStandard: boolean) => ({ id, crmId: `z${id}`, accountCrmId: "s1", firstName: id, lastName: "", isStandard });
+
+  it("contactoPrincipal devuelve el único estándar", () => {
+    expect(contactoPrincipal("s1", [c("a", false), c("b", true)]).id).toBe("b");
+  });
+
+  it("sin estándar o con más de uno lanza ContactoEstandarError", () => {
+    expect(() => contactoPrincipal("s1", [c("a", false)])).toThrow(ContactoEstandarError);
+    try {
+      contactoPrincipal("s1", [c("a", true), c("b", true)]);
+    } catch (e: any) {
+      expect(e).toBeInstanceOf(ContactoEstandarError);
+      expect(e.estandares.map((x: any) => x.id)).toEqual(["a", "b"]);
+    }
+  });
+
+  it("se guarda desde Zoho; un Contact leído suelto (sin la marca) no la borra", async () => {
+    await createAccountContact({ accountCrmId: "s1", clientType: "NATURAL", contact: { ...contacto("c1", "2026-01-01"), estandar: true } });
+    expect(prismaMock.accountContact.upsert.mock.calls[0][0].update).toMatchObject({ isStandard: true });
+    await createAccountContact({ accountCrmId: "s1", clientType: "NATURAL", contact: contacto("c1", "2026-01-01") });
+    expect(prismaMock.accountContact.upsert.mock.calls[1][0].update).not.toHaveProperty("isStandard");
+  });
 });
 
 describe("createAccountContact", () => {
@@ -137,13 +172,16 @@ describe("clasificarContactosNaturales", () => {
     expect(prismaMock.accountContact.findMany.mock.calls[0][0].where.crmId).toEqual({ notIn: ["c1"] });
   });
 
-  it("contacto faltante: revoca el enlace vigente, deja nota y marca el expediente", async () => {
+  it("contacto faltante: revoca el enlace PRINCIPAL vigente (no los relacionados/adicionales), deja nota y marca el expediente", async () => {
     zohoMock.service.searchDDsByAccount.mockResolvedValue([]);
     prismaMock.accountContact.findMany.mockResolvedValue([{ id: "x", crmId: "gone", firstName: "Ana", lastName: "Paz", missingInZohoAt: null }]);
     prismaMock.crmContact.findMany.mockResolvedValue([{ id: "e1", crmId: "dd7" }]);
+    // Sin enlaces relacionados propios; el expediente tiene el enlace de otro contacto (t-otro)
+    prismaMock.draft.findMany.mockImplementation(async ({ where }: any) => (where.crmContactId === "e1" ? [{ token: "t-otro" }] : []));
     prismaMock.token.findMany.mockResolvedValue([{ token: "t1" }]);
     await clasificarContactosNaturales("acc1", [fila("c1")]);
     expect(prismaMock.crmContact.findMany.mock.calls[0][0].where).toMatchObject({ accountContactId: "x", missingContactAt: null });
+    expect(prismaMock.token.findMany.mock.calls.at(-1)![0].where.token).toEqual({ notIn: ["t-otro"] });
     expect(zohoMock.service.updateClientFormLink).toHaveBeenCalledWith("dd7", "Debida_Diligencia", undefined, undefined, "Expirado / Revocado");
     expect(zohoMock.service.createNote.mock.calls[0][2]).toBe(
       "El contacto Ana Paz falta en el Socio de Negocio. Agréguelo nuevamente o archive el registro de Debida Diligencia."
@@ -151,10 +189,26 @@ describe("clasificarContactosNaturales", () => {
     expect(prismaMock.crmContact.update.mock.calls[0][0]).toMatchObject({ where: { id: "e1" } });
   });
 
+  it("contacto relacionado faltante: revoca su enlace relacionado y deja nota en el expediente del socio", async () => {
+    zohoMock.service.searchDDsByAccount.mockResolvedValue([]);
+    prismaMock.accountContact.findMany.mockResolvedValue([{ id: "x", crmId: "gone", firstName: "Luis", lastName: "Mora", missingInZohoAt: null }]);
+    prismaMock.crmContact.findMany.mockResolvedValue([]);
+    prismaMock.draft.findMany.mockResolvedValue([{ token: "t-rel", crmContact: { crmId: "dd1" } }]);
+    prismaMock.token.findMany.mockResolvedValue([{ token: "t-rel" }]);
+    await clasificarContactosNaturales("acc1", [fila("c1")]);
+    expect(prismaMock.draft.findMany.mock.calls[0][0].where).toEqual({ accountContactId: "x", role: "RELATED" });
+    const { revokeToken } = await import("@/lib/tokenService");
+    expect(revokeToken).toHaveBeenCalledWith("t-rel");
+    expect(zohoMock.service.createNote).toHaveBeenCalledWith("dd1", "Contacto relacionado faltante en el Socio de Negocio", expect.stringContaining("Luis Mora"));
+    // No se toca el enlace principal del expediente
+    expect(zohoMock.service.updateClientFormLink).not.toHaveBeenCalled();
+  });
+
   it("contacto faltante sin enlace vigente: solo nota y marca", async () => {
     zohoMock.service.searchDDsByAccount.mockResolvedValue([]);
     prismaMock.accountContact.findMany.mockResolvedValue([{ id: "x", crmId: "gone", firstName: "", lastName: "", missingInZohoAt: new Date() }]);
     prismaMock.crmContact.findMany.mockResolvedValue([{ id: "e1", crmId: "dd7" }]);
+    prismaMock.draft.findMany.mockResolvedValue([]);
     await clasificarContactosNaturales("acc1", [fila("c1")]);
     expect(zohoMock.service.updateClientFormLink).not.toHaveBeenCalled();
     expect(zohoMock.service.createNote).toHaveBeenCalledOnce();

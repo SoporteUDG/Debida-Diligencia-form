@@ -10,6 +10,31 @@ export interface AccountContactRow {
   accountCrmId: string;
   firstName: string;
   lastName: string;
+  /** Contacto_est_ndar en Zoho: contacto principal del Socio de Negocio. */
+  isStandard?: boolean;
+}
+
+/**
+ * El Socio de Negocio de Persona Natural no tiene exactamente un contacto
+ * estándar (Contacto_est_ndar): es el que lleva el expediente principal.
+ */
+export class ContactoEstandarError extends Error {
+  constructor(public accountCrmId: string, public estandares: AccountContactRow[]) {
+    const nombres = estandares.map((c) => `${c.firstName} ${c.lastName}`.trim() || c.crmId).join(", ");
+    super(
+      estandares.length
+        ? `El Socio de Negocio tiene ${estandares.length} contactos marcados como Contacto estándar (${nombres}): solo uno puede serlo, ya que lleva el expediente principal de Debida Diligencia.`
+        : "Ningún contacto del Socio de Negocio está marcado como Contacto estándar: marque al contacto principal para generar su Debida Diligencia."
+    );
+    this.name = "ContactoEstandarError";
+  }
+}
+
+/** El único contacto estándar (Contacto_est_ndar) de la lista; si hay cero o más de uno lanza ContactoEstandarError. */
+export function contactoPrincipal(accountCrmId: string, contactos: AccountContactRow[]): AccountContactRow {
+  const estandares = contactos.filter((c) => c.isStandard);
+  if (estandares.length !== 1) throw new ContactoEstandarError(accountCrmId, estandares);
+  return estandares[0];
 }
 
 /** El Socio de Negocio de Persona Natural no tiene Contacts vinculados en Zoho. */
@@ -42,6 +67,8 @@ export async function createAccountContact(params: {
     email: contact.email || null,
     phone: contact.phone || null,
     zohoCreatedAt: Number.isNaN(zohoCreatedAt) ? null : new Date(zohoCreatedAt),
+    // Solo si Zoho lo informó (la lectura de un Contact suelto no lo trae)
+    ...(contact.estandar !== undefined ? { isStandard: contact.estandar } : {}),
     deletedAt: null,
     missingInZohoAt: null,
   };
@@ -277,11 +304,50 @@ async function marcarExpedientesDeContactosFaltantes(
     });
     const nombre = `${contacto.firstName} ${contacto.lastName}`.trim() || contacto.crmId;
 
+    // Enlaces RELATED del contacto (sobre el expediente del socio): se revocan y se
+    // deja nota en ese expediente. No se marca el expediente: sigue siendo de otro contacto.
+    try {
+      const relacionados = await prisma.draft.findMany({
+        where: { accountContactId: contacto.id, role: "RELATED" },
+        select: { token: true, crmContact: { select: { crmId: true } } },
+      });
+      const vigentesRel = relacionados.length
+        ? await prisma.token.findMany({
+            where: { token: { in: relacionados.map((d) => d.token) }, used: false, expiresAt: { gt: new Date() } },
+            select: { token: true },
+          })
+        : [];
+      for (const t of vigentesRel) await revokeToken(t.token);
+      const ddIds = new Set(
+        relacionados.filter((d) => vigentesRel.some((t) => t.token === d.token)).map((d) => d.crmContact?.crmId).filter(Boolean) as string[]
+      );
+      for (const ddId of ddIds) {
+        await zoho.service.createNote(
+          ddId,
+          "Contacto relacionado faltante en el Socio de Negocio",
+          `El contacto ${`${contacto.firstName} ${contacto.lastName}`.trim() || contacto.crmId} falta en el Socio de Negocio: se desactivó su enlace relacionado. Agréguelo nuevamente para reactivarlo.`
+        );
+      }
+    } catch (err) {
+      console.error(`[Account Contacts] No se pudieron desactivar los enlaces relacionados del contacto faltante ${contacto.crmId}:`, err);
+    }
+
     for (const exp of expedientes) {
       try {
-        // Enlace: se revocan los tokens vigentes y, si había alguno, se refleja en Zoho
+        // Enlace PRINCIPAL: se revocan sus tokens vigentes (no los de los enlaces
+        // relacionados ni adicionales del expediente, que son de otras personas)
+        // y, si había alguno, se refleja en Zoho
+        const otrosEnlaces = await prisma.draft.findMany({
+          where: { crmContactId: exp.id, isAditional: true },
+          select: { token: true },
+        });
         const vigentes = await prisma.token.findMany({
-          where: { crmContactId: exp.id, used: false, expiresAt: { gt: new Date() } },
+          where: {
+            crmContactId: exp.id,
+            used: false,
+            expiresAt: { gt: new Date() },
+            token: { notIn: otrosEnlaces.map((d) => d.token) },
+          },
           select: { token: true },
         });
         for (const t of vigentes) await revokeToken(t.token);
@@ -302,17 +368,6 @@ async function marcarExpedientesDeContactosFaltantes(
     }
   }
 }
-
-/** El expediente no tiene un Contact de Zoho asociado (lookup Nombre_de_contacto). */
-export class SinContactoExpedienteError extends Error {
-  constructor(public ddCrmId: string) {
-    super(
-      `El expediente ${ddCrmId} no tiene un Contact de Zoho asociado (${DD_CONTACT_FIELD}): vincule un contacto al expediente para generar su enlace.`
-    );
-    this.name = "SinContactoExpedienteError";
-  }
-}
-
 const idDe = (v: any): string => String((v && typeof v === "object" ? v.id : v) ?? "").trim();
 
 /**
@@ -346,40 +401,4 @@ export async function contactoDelLookupZoho(params: {
       createdTime: String(rec.Created_Time ?? ""),
     },
   });
-}
-
-/**
- * Contact de Zoho de un expediente de Debida_Diligencia que YA existe (botón del
- * expediente). Es obligatorio. Orden de búsqueda:
- * 1. El contacto ya vinculado en el portal (CrmContact.accountContact).
- * 2. El lookup Nombre_de_contacto del expediente en Zoho (se guarda su copia local).
- * 3. Solo Persona Jurídica: el único contacto del Socio de Negocio (como
- *    /api/generar-expediente).
- * Si no hay ninguno lanza SinContactoExpedienteError.
- */
-export async function resolverContactoDeExpediente(params: {
-  ddCrmId: string;
-  clientType: ClientType;
-  /** Registro de Debida_Diligencia tal como lo devuelve Zoho */
-  ddRecord: Record<string, any> | null;
-}): Promise<AccountContactRow> {
-  const { ddCrmId, clientType, ddRecord } = params;
-
-  // 1. Vínculo local
-  const local = await prisma.crmContact.findUnique({ where: { crmId: ddCrmId }, include: { accountContact: true } });
-  if (local?.accountContact && !local.accountContact.deletedAt) return local.accountContact;
-
-  const socioId = idDe(ddRecord?.Socio_de_Negocios ?? ddRecord?.Socio_de_Negocio);
-
-  // 2. Lookup del expediente en Zoho
-  const delLookup = await contactoDelLookupZoho({ clientType, ddRecord });
-  if (delLookup) return delLookup;
-
-  // 3. Jurídica: el único contacto del Socio de Negocio
-  if (clientType === "JURIDICA" && socioId) {
-    const [unico] = await obtenerContactosDeCuenta(socioId, "JURIDICA");
-    if (unico) return unico;
-  }
-
-  throw new SinContactoExpedienteError(ddCrmId);
 }
