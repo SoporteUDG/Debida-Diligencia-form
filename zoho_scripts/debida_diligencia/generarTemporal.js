@@ -3,19 +3,22 @@
  * lista > botón > acción "Client Script"). No depende de ningún registro: el
  * enlace crea un Socio de Negocio y una Debida Diligencia nuevos al completarse.
  *
- * Pide en un formulario emergente la Persona de Tipo (Natural / Jurídica, la
- * del Socio de Negocio que se creará), el proyecto y la unidad; genera un
- * enlace temporal con las secciones I a III del formulario (sin documentos ni
- * firma) y lo copia al portapapeles (o lo muestra para copiarlo). Con la unidad
- * y el proyecto se nombran ("nombre-unidad-proyecto") el Socio de Negocio y la
- * Debida Diligencia que se crean.
+ * Formulario emergente en dos pasos:
+ *  1. Persona de Tipo (Natural / Jurídica, la del Socio de Negocio que se
+ *     creará) y Proyecto.
+ *  2. Unidad (requerida): lookup a los registros del módulo de
+ *     Accounts.Unidad_Vendida1, filtrados por el proyecto (los da /api/unidades).
+ * Genera un enlace temporal con las secciones I a III del formulario (sin
+ * documentos ni firma) y lo copia al portapapeles (o lo muestra para copiarlo).
+ * Con la unidad y el proyecto se nombran ("nombre-unidad-proyecto") el Socio
+ * de Negocio y la Debida Diligencia que se crean.
  *
  * Requisitos en Zoho (los mismos del botón Eliminar):
  *  - Conexión "dd_portal" (Custom Service, tipo API Key) que envía el
  *    encabezado  x-api-key: <ZOHO_BUTTON_API_KEY>. La llave vive en la conexión.
  *  - El dominio del portal agregado en Setup > Security Control > Trusted Domains.
  */
-var PORTAL_URL = "https://debida-diligencia.udggroup.com/api/generar-temporal";
+var PORTAL = "https://debida-diligencia.udggroup.com/api";
 var CONEXION = "dd_portal"; // nombre de enlace (Link Name) exacto de la conexión
 var TITULO = "Generar enlace temporal";
 var SIN_PROYECTO = "-Ninguno-";
@@ -38,6 +41,16 @@ function cuerpoDe(resp) {
   return crudo || {};
 }
 
+// POST al portal por la conexión; devuelve el cuerpo ya interpretado
+async function portal(ruta, parametros) {
+  // invoke(conexion, url, método, tipo de parámetro (2 = cuerpo JSON), parámetros, encabezados)
+  var resp = await ZDK.Apps.CRM.Connections.invoke(
+    CONEXION, PORTAL + ruta, "POST", 2, parametros, { "Content-Type": "application/json" }
+  );
+  log("[generar temporal] " + ruta + ": " + JSON.stringify(resp));
+  return cuerpoDe(resp);
+}
+
 function mostrarEnlace(url, vence) {
   var texto = "Enlace temporal (vence el " + vence + "):\n\n" + url;
   if (typeof navigator !== "undefined" && navigator.clipboard) {
@@ -51,20 +64,8 @@ function mostrarEnlace(url, vence) {
   }
 }
 
-function mostrarResultado(resp) {
-  ZDK.Client.hideLoader();
-  log("[generar temporal] respuesta: " + JSON.stringify(resp));
-  var cuerpo = cuerpoDe(resp);
-  if (cuerpo.success && cuerpo.url) {
-    var vence = cuerpo.expiresAt ? new Date(cuerpo.expiresAt).toLocaleString() : "";
-    mostrarEnlace(cuerpo.url, vence);
-  } else {
-    ZDK.Client.showAlert(cuerpo.error || ("Respuesta inesperada: " + JSON.stringify(resp)), TITULO);
-  }
-}
-
-// Formulario emergente; undefined si el usuario cancela
-function pedirDatos() {
+// Paso 1: Persona de Tipo y Proyecto; undefined si el usuario cancela
+function pedirTipoYProyecto() {
   return ZDK.Client.getInput([
     {
       type: "picklist",
@@ -82,10 +83,18 @@ function pedirDatos() {
         PROYECTOS.map(function (p) { return { actual_value: p, display_value: p }; })
       ),
       default_value: SIN_PROYECTO
-    },
+    }
+  ], TITULO, "Siguiente", "Cancelar");
+}
+
+// Paso 2: lookup de la unidad (id del registro); undefined si el usuario cancela
+function pedirUnidad(unidades) {
+  return ZDK.Client.getInput([
     {
-      type: "text",
-      label: "Unidad (opcional)"
+      type: "picklist",
+      label: "Unidad",
+      list_options: unidades.map(function (u) { return { actual_value: u.id, display_value: u.name }; }),
+      default_value: unidades[0].id
     }
   ], TITULO, "Generar", "Cancelar");
 }
@@ -99,50 +108,64 @@ function moduloActual() {
   }
 }
 
-try {
-  var datos = pedirDatos();
-
-  if (datos === undefined) {
+async function generarTemporal() {
+  var paso1 = pedirTipoYProyecto();
+  if (paso1 === undefined) {
     log("[generar temporal] El usuario canceló el formulario.");
-  } else {
-    var personaDeTipo = String(datos[0] || "").trim();
-    var proyecto = String(datos[1] || "").trim();
-    var unidad = String(datos[2] || "").trim();
-    if (proyecto === SIN_PROYECTO) proyecto = "";
-
-    if (!personaDeTipo) {
-      ZDK.Client.showAlert("Seleccione la Persona de Tipo (Natural o Jurídica).", TITULO);
-    } else {
-      ZDK.Client.showLoader({ type: "page", template: "vertical-bar", message: "Generando enlace temporal..." });
-
-      // invoke(conexion, url, método, tipo de parámetro (2 = cuerpo JSON), parámetros, encabezados)
-      var resp = ZDK.Apps.CRM.Connections.invoke(
-        CONEXION,
-        PORTAL_URL,
-        "POST",
-        2,
-        {
-          persona_de_tipo: personaDeTipo,
-          modulo: moduloActual(),
-          userId: $Crm.user.id,
-          // Name "nombre-unidad-proyecto" del Socio de Negocio y la DD que se crean
-          unidad_vendida: unidad ? { name: unidad } : null,
-          proyecto: proyecto
-        },
-        { "Content-Type": "application/json" }
-      );
-
-      if (resp && typeof resp.then === "function") {
-        resp.then(mostrarResultado).catch(function (e) {
-          ZDK.Client.hideLoader();
-          ZDK.Client.showAlert("Error al llamar al portal: " + JSON.stringify(e), TITULO);
-        });
-      } else {
-        mostrarResultado(resp);
-      }
-    }
+    return;
   }
-} catch (e) {
+  var personaDeTipo = String(paso1[0] || "").trim();
+  var proyecto = String(paso1[1] || "").trim();
+  if (proyecto === SIN_PROYECTO) proyecto = "";
+  if (!personaDeTipo) {
+    ZDK.Client.showAlert("Seleccione la Persona de Tipo (Natural o Jurídica).", TITULO);
+    return;
+  }
+
+  ZDK.Client.showLoader({ type: "page", template: "vertical-bar", message: "Cargando unidades..." });
+  var lista = await portal("/unidades", { proyecto: proyecto });
+  ZDK.Client.hideLoader();
+  if (!lista.success) {
+    ZDK.Client.showAlert(lista.error || "No se pudieron cargar las unidades.", TITULO);
+    return;
+  }
+  var unidades = lista.unidades || [];
+  if (!unidades.length) {
+    ZDK.Client.showAlert("No hay unidades" + (proyecto ? " del proyecto " + proyecto : "") + " para elegir.", TITULO);
+    return;
+  }
+
+  var paso2 = pedirUnidad(unidades);
+  if (paso2 === undefined) {
+    log("[generar temporal] El usuario canceló el formulario.");
+    return;
+  }
+  var unidadId = String(paso2[0] || "").trim();
+  var unidad = unidades.filter(function (u) { return String(u.id) === unidadId; })[0];
+  if (!unidad) {
+    ZDK.Client.showAlert("Seleccione la unidad.", TITULO);
+    return;
+  }
+
+  ZDK.Client.showLoader({ type: "page", template: "vertical-bar", message: "Generando enlace temporal..." });
+  var cuerpo = await portal("/generar-temporal", {
+    persona_de_tipo: personaDeTipo,
+    modulo: moduloActual(),
+    userId: $Crm.user.id,
+    // Lookup Unidad_Vendida1 y Name "nombre-unidad-proyecto" de lo que se crea
+    unidad_vendida: { id: unidad.id, name: unidad.name },
+    proyecto: proyecto
+  });
+  ZDK.Client.hideLoader();
+  if (cuerpo.success && cuerpo.url) {
+    var vence = cuerpo.expiresAt ? new Date(cuerpo.expiresAt).toLocaleString() : "";
+    mostrarEnlace(cuerpo.url, vence);
+  } else {
+    ZDK.Client.showAlert(cuerpo.error || ("Respuesta inesperada: " + JSON.stringify(cuerpo)), TITULO);
+  }
+}
+
+generarTemporal().catch(function (e) {
   ZDK.Client.hideLoader();
   ZDK.Client.showAlert("Error en el botón: " + (e && e.message ? e.message : JSON.stringify(e)), TITULO);
-}
+});

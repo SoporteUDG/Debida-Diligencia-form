@@ -28,7 +28,7 @@ beforeEach(() => {
 describe("POST /api/generar-temporal", () => {
   it("crea un temporal nuevo sin recordId con los datos del formulario emergente", async () => {
     const res = await POST(
-      req({ persona_de_tipo: "Jurídica", modulo: "Accounts", userId: "u1", proyecto: "The Hub", unidad_vendida: { name: "A-12" } })
+      req({ persona_de_tipo: "Jurídica", modulo: "Accounts", userId: "u1", proyecto: "The Hub", unidad_vendida: { id: "u-12", name: "A-12" } })
     );
     expect(res.status).toBe(200);
     const json = await res.json();
@@ -42,7 +42,7 @@ describe("POST /api/generar-temporal", () => {
       crmModule: "Accounts",
       createdBy: "u1",
       data: { nombreProyecto: "The Hub" },
-      unidadVendidaId: null,
+      unidadVendidaId: "u-12",
       unidadVendidaNombre: "A-12",
       proyecto: "The Hub",
     });
@@ -62,6 +62,15 @@ describe("POST /api/generar-temporal", () => {
     const res = await POST(req({ proyecto: "The Hub" }));
     expect(res.status).toBe(400);
     expect((await res.json()).code).toBe("SIN_TIPO");
+    expect(prismaMock.temporal.create).not.toHaveBeenCalled();
+  });
+
+  it("rechaza la solicitud sin la unidad (o con la unidad sin id)", async () => {
+    for (const unidad_vendida of [undefined, { name: "A-12" }]) {
+      const res = await POST(req({ persona_de_tipo: "Natural", unidad_vendida }));
+      expect(res.status).toBe(400);
+      expect((await res.json()).code).toBe("SIN_UNIDAD");
+    }
     expect(prismaMock.temporal.create).not.toHaveBeenCalled();
   });
 

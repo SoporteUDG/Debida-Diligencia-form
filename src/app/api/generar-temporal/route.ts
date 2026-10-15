@@ -18,15 +18,11 @@ function llaveValida(request: NextRequest): boolean | "sin-configurar" {
 const texto = (v: any): string =>
   String((v && typeof v === "object" ? v.name ?? v.display_value ?? v.value : v) ?? "").trim();
 
-/**
- * unidad_vendida del botón: { id?, name } o solo el nombre. Sin id solo da el
- * nombre ("nombre-unidad-proyecto") y el lookup del socio queda vacío. null sin datos.
- */
+/** unidad_vendida del botón: lookup { id, name } (o solo el id). null sin id. */
 function unidadVendidaDe(v: any): { id: string; nombre: string } | null {
-  const id = v && typeof v === "object" ? String(v.id ?? "").trim() : "";
-  const nombre = texto(v);
-  if (!id && !nombre) return null;
-  return { id, nombre };
+  const id = String((v && typeof v === "object" ? v.id : v) ?? "").trim();
+  if (!id) return null;
+  return { id, nombre: v && typeof v === "object" ? texto(v) : "" };
 }
 
 /** Persona_de_Tipo ("Natural" / "Jurídica") → FormType; null si no se reconoce. */
@@ -50,11 +46,12 @@ function tipoDe(v: any): "NATURAL" | "JURIDICA" | null {
  * los TEMPORAL_EXPIRES_DAYS días.
  *
  * Body (del formulario emergente del botón):
- *   { persona_de_tipo: "Natural" | "Jurídica", modulo?: string, userId?: string,
- *     unidad_vendida?: { id?: string, name: string } | string, proyecto?: string }
+ *   { persona_de_tipo: "Natural" | "Jurídica", unidad_vendida: { id: string, name: string },
+ *     modulo?: string, userId?: string, proyecto?: string }
  * persona_de_tipo es el Persona_de_Tipo del Socio de Negocio que se creará
- * (se acepta `tipo` como alias). unidad_vendida y proyecto dan el Name
- * "nombre-unidad-proyecto" del Socio de Negocio y la Debida Diligencia.
+ * (se acepta `tipo` como alias). unidad_vendida (requerida) es el lookup
+ * Unidad_Vendida1 del socio; las unidades salen de /api/unidades. Con ella y el
+ * proyecto se forma el Name "nombre-unidad-proyecto" del Socio de Negocio y la DD.
  */
 export async function POST(request: NextRequest) {
   console.log(`[API Generar Temporal] Solicitud recibida (x-api-key ${request.headers.get("x-api-key") ? "presente" : "ausente"}).`);
@@ -78,6 +75,12 @@ export async function POST(request: NextRequest) {
     if (!type) {
       return NextResponse.json(
         { success: false, code: "SIN_TIPO", error: "Indique la Persona de Tipo (Natural o Jurídica)." },
+        { status: 400 }
+      );
+    }
+    if (!unidadVendida) {
+      return NextResponse.json(
+        { success: false, code: "SIN_UNIDAD", error: "Seleccione la unidad vendida." },
         { status: 400 }
       );
     }

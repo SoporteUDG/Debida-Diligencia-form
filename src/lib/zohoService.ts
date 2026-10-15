@@ -1478,6 +1478,48 @@ export const zoho = {
     },
 
     /**
+     * Unidades que se pueden elegir en el lookup Unidad_Vendida1 del Socio de
+     * Negocio. El módulo destino se lee de la metadata del campo (no se fija en
+     * el código). Con `proyecto`, solo las unidades cuyo campo Proyecto
+     * coincide (las que no tienen Proyecto se incluyen siempre).
+     */
+    getUnidades: async (proyecto?: string): Promise<Array<{ id: string; name: string }>> => {
+      return executeWithRetry(async (accessToken) => {
+        const crmBaseUrl = process.env.ZOHO_CRM_BASE_URL || "https://www.zohoapis.com/crm/v2";
+        const headers = { Authorization: `Zoho-oauthtoken ${accessToken}` };
+
+        // 1. Módulo al que apunta el lookup
+        const metaRes = await fetch(`${crmBaseUrl}/settings/fields?module=Accounts`, { method: "GET", headers });
+        if (!metaRes.ok) {
+          throw new Error(`Zoho CRM settings/fields respondió HTTP ${metaRes.status}: ${await metaRes.text()}`);
+        }
+        const campo = ((await metaRes.json()).fields ?? []).find((f: any) => f.api_name === "Unidad_Vendida1");
+        const destino = campo?.lookup?.module;
+        const modulo = cleanValue(typeof destino === "object" ? destino?.api_name : destino);
+        if (!modulo) throw new Error("No se encontró el módulo del lookup Unidad_Vendida1 en Accounts.");
+
+        // 2. Registros del módulo (hasta 2000)
+        const filtro = cleanValue(proyecto).toLowerCase();
+        const out: Array<{ id: string; name: string }> = [];
+        for (let page = 1; page <= 10; page++) {
+          const res = await fetch(`${crmBaseUrl}/${modulo}?per_page=200&page=${page}`, { method: "GET", headers });
+          if (res.status === 204) break;
+          if (!res.ok) throw new Error(`Zoho CRM ${modulo} respondió HTTP ${res.status}: ${await res.text()}`);
+          const json = await res.json();
+          for (const rec of json.data ?? []) {
+            const recProyecto = firstValue(rec, PROYECTO_KEYS).toLowerCase();
+            if (filtro && recProyecto && recProyecto !== filtro) continue;
+            const id = cleanValue(rec.id);
+            const name = firstValue(rec, ["Name", "Product_Name", ...UNIDAD_KEYS]);
+            if (id) out.push({ id, name: name || id });
+          }
+          if (!json.info?.more_records) break;
+        }
+        return out.sort((a, b) => a.name.localeCompare(b.name, "es", { numeric: true }));
+      });
+    },
+
+    /**
      * Cambia el Estado de un expediente de Debida_Diligencia (no dispara workflows) y su marca
      * `retirado`. Con retirado = true (anulación) el enlace queda "Retirado"; con false
      * (reactivación) se quita la marca y quien llama restablece el Estado_del_enlace.
