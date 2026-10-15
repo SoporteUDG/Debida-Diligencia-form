@@ -1122,5 +1122,26 @@
     "Message": "The page you are looking for does not exist or is no longer available. Please check that the address is spelled correctly.",
     "HelpTitle": "Looking for your form?",
     "HelpBody": "The Due Diligence form can only be opened with the secure, personalized link sent to you by your business advisor or the UDG Compliance team. If you do not have it or it has expired, please ask for it to be resent."
+  },
+  "Temporal": {
+    "Title": "Complete your information",
+    "Subtitle": "Fill in the information for these sections. Your changes are saved automatically.",
+    "ExistingClientTitle": "You are already a UDG client",
+    "ExistingClientMessage": "Your identification number (RUC / tax ID) is already registered with us from a previous purchase. Are you sure your information is correct?",
+    "ExistingClientConfirm": "Yes, my information is correct",
+    "ExistingClientReview": "Review my information",
+    "VerifyError": "We could not verify your information right now. Please try again in a few minutes.",
+    "CreateError": "We could not create your file right now. Your information is saved; please submit it again.",
+    "CreatingTitle": "We are creating your file",
+    "CreatingMessage": "This may take a few seconds. Please do not close or reload this page.",
+    "RedirectingTitle": "All set!",
+    "RedirectingMessage": "We are taking you to your form to continue with the documents.",
+    "Submit": "Submit information",
+    "Submitting": "Submitting...",
+    "FixErrors": "Please review the highlighted fields before submitting.",
+    "SubmitError": "The information could not be submitted. Please try again.",
+    "Loading": "Loading...",
+    "DoneTitle": "Information submitted",
+    "DoneMessage": "Thank you. We received the information for this step; your UDG advisor will continue with the process."
   }
 }

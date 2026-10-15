@@ -503,3 +503,38 @@ model ZohoRecordSnapshot {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+// Enlace temporal (botón "Generar temporal" del Canvas de Zoho): funciona como
+// un Draft, pero solo con el primer paso del formulario (Identificación
+// personal / Identificación de empresa). El token en claro solo viaja en el
+// enlace; aquí se guarda su hash SHA-256. Ver temporalService y manageTemporal.
+model Temporal {
+  id          String    @id @default(uuid())
+  type        FormType
+  data        Json
+  tokenHash   String    @unique
+  // Registro de Zoho desde el que se generó (record del Canvas) y su módulo
+  crmRecordId String
+  crmModule   String
+  // Usuario de Zoho que pulsó el botón
+  createdBy   String?
+  expiresAt   DateTime
+  // Paso completado y entregado a manageTemporal; el enlace ya no se puede editar
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Enviados por el botón de Zoho: Name "nombre-unidad-proyecto" de lo que se crea
+  unidadVendidaId     String?
+  unidadVendidaNombre String?
+  proyecto            String?
+
+  // Registros de Zoho creados al enviarse (temporalScaffold). Cada id se guarda
+  // al crearse: si la creación falla a medias, el reintento solo crea lo que falta.
+  contactCrmId String? // Contact (solo natural; la jurídica no crea Contact)
+  accountCrmId String? // Socio de Negocio (Accounts)
+  ddCrmId      String? // Debida_Diligencia
+
+  @@index([crmRecordId])
+  @@index([expiresAt])
+}

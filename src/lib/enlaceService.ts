@@ -32,6 +32,10 @@ export async function crearEnlaceConBorrador(params: {
   contactCrmId?: string;
   /** AccountContact del enlace RELATED. */
   accountContactId?: string;
+  /** Datos que ya capturó el cliente (enlace temporal): prevalecen sobre lo precargado de Zoho. */
+  datosCliente?: Record<string, any>;
+  /** Paso en que se abre el borrador (0 = políticas). */
+  step?: number;
 }): Promise<{ tokenUuid: string; clientUrl: string; expiresAt: Date }> {
   const role: LinkRole = params.role ?? (params.isAditional ? "ADITIONAL" : "PRINCIPAL");
   const tokenUuid = await generateToken(params.contactId, "ACCESS", 30);
@@ -67,7 +71,8 @@ export async function crearEnlaceConBorrador(params: {
       isAditional: role !== "PRINCIPAL",
       role,
       accountContactId: params.accountContactId ?? null,
-      data: { ...params.draftData, ...desdeZoho, ...desdeContacto },
+      data: { ...params.draftData, ...desdeZoho, ...desdeContacto, ...params.datosCliente },
+      ...(params.step !== undefined ? { step: params.step } : {}),
     },
     update: {
       crmContactId: params.contactId,

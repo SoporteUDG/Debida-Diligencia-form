@@ -1132,5 +1132,26 @@
     "Message": "La página que busca no existe o ya no está disponible. Verifique que la dirección esté escrita correctamente.",
     "HelpTitle": "¿Busca su formulario?",
     "HelpBody": "El formulario de Debida Diligencia solo se abre con el enlace seguro y personalizado que le envió su asesor comercial o el equipo de Cumplimiento de UDG. Si no lo tiene o expiró, solicite que se lo reenvíen."
+  },
+  "Temporal": {
+    "Title": "Completar información",
+    "Subtitle": "Complete la información de estas secciones. Sus cambios se guardan automáticamente.",
+    "ExistingClientTitle": "Ya es cliente de UDG",
+    "ExistingClientMessage": "Su número de identificación (RUC / ID tributaria) ya está registrado con nosotros por una compra anterior. ¿Está seguro de que su información es correcta?",
+    "ExistingClientConfirm": "Sí, mi información es correcta",
+    "ExistingClientReview": "Revisar mis datos",
+    "VerifyError": "No pudimos verificar su información en este momento. Intente nuevamente en unos minutos.",
+    "CreateError": "No pudimos crear su expediente en este momento. Su información está guardada; intente enviarla nuevamente.",
+    "CreatingTitle": "Estamos creando su expediente",
+    "CreatingMessage": "Esto puede tardar unos segundos. Por favor no cierre ni recargue esta página.",
+    "RedirectingTitle": "¡Listo!",
+    "RedirectingMessage": "Lo estamos llevando a su formulario para continuar con los documentos.",
+    "Submit": "Enviar información",
+    "Submitting": "Enviando...",
+    "FixErrors": "Revise los campos marcados antes de enviar.",
+    "SubmitError": "No se pudo enviar la información. Intente nuevamente.",
+    "Loading": "Cargando...",
+    "DoneTitle": "Información enviada",
+    "DoneMessage": "Gracias. Recibimos la información de este paso; su asesor de UDG continuará con el proceso."
   }
 }

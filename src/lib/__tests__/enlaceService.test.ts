@@ -39,6 +39,22 @@ describe("crearEnlaceConBorrador", () => {
     expect(creado().data).toMatchObject({ nombreProyecto: "P", desdeDD: "si", desdeContacto: "si" });
   });
 
+  it("datosCliente (enlace temporal) prevalece sobre lo precargado de Zoho y fija el paso", async () => {
+    await crearEnlaceConBorrador({
+      ...base,
+      contactCrmId: "zc1",
+      datosCliente: { desdeDD: "cliente", desdeContacto: "cliente", firstName: "Ana" },
+      step: 2,
+    });
+    expect(creado().data).toMatchObject({ nombreProyecto: "P", desdeDD: "cliente", desdeContacto: "cliente", firstName: "Ana" });
+    expect(creado().step).toBe(2);
+  });
+
+  it("sin step el borrador conserva el paso por defecto", async () => {
+    await crearEnlaceConBorrador(base);
+    expect(creado()).not.toHaveProperty("step");
+  });
+
   it("RELATED: solo se precarga desde su Contact (nunca desde el expediente) y queda como adicional", async () => {
     await crearEnlaceConBorrador({ ...base, role: "RELATED", contactCrmId: "zc2", accountContactId: "ac2" });
     expect(zohoMock.service.getDDRecord).not.toHaveBeenCalled();

@@ -141,7 +141,7 @@ async function resolveDDName(
       return (
         formatDDName({
           socio: input.overRideName,
-          unidad: firstValue(socioRecord, UNIDAD_KEYS) || firstValue(ddRecord, UNIDAD_KEYS),
+          unidad: firstValue(socioRecord, UNIDAD_KEYS) || firstValue(ddRecord, UNIDAD_KEYS) || fallback?.unidad,
           proyecto,
         }) || undefined
       )
@@ -729,6 +729,8 @@ export const zoho = {
       projectName?: string;
       /** Lookup Unidad_Vendida1 del Socio de Negocio (Accounts); se escribe por su id. */
       unidad?: UnidadLookup | null;
+      /** Texto de la unidad para el Name si el Socio de Negocio aún no lo tiene. */
+      unidadNombre?: string;
       formLink?: string;
       expiresAt?: Date;
       email?: string;
@@ -744,6 +746,8 @@ export const zoho = {
       overRideName?: string;
       /** Contact de Zoho del expediente (se escribe en el lookup Nombre_de_contacto). */
       contactCrmId?: string;
+      /** Campos adicionales del expediente (API name -> valor), p. ej. Forma_de_contacto. */
+      camposExtra?: Record<string, unknown>;
     }): Promise<{ success: boolean; debidaId: string; mocked?: boolean }> => {
       const clientId = process.env.ZOHO_CLIENT_ID;
       const clientSecret = process.env.ZOHO_CLIENT_SECRET;
@@ -785,6 +789,7 @@ export const zoho = {
         }
 
         const recordPayload: any = {
+          ...params.camposExtra,
           Tipo_de_Persona: params.clientType === "NATURAL" ? "Natural" : "Jurídica",
           Estado_del_enlace: "Activo",
           Estado: ESTADO_EN_BORRADOR,
@@ -864,7 +869,7 @@ export const zoho = {
         let unidadId = params.unidad?.id || "";
         const ddName = await resolveDDName(accessToken, {
           socioId: params.accountCrmId,
-          fallback: { nombre: params.name, proyecto: params.projectName },
+          fallback: { nombre: params.name, unidad: params.unidadNombre, proyecto: params.projectName },
           overRideName: params.overRideName,
           onSocioRecord: (socioRecord) => {
             socioUnidad = firstValue(socioRecord, UNIDAD_KEYS);
@@ -1005,7 +1010,9 @@ export const zoho = {
     createNote: async (
       crmId: string,
       title: string,
-      content: string
+      content: string,
+      /** Módulo del registro; sin él se asume Debida_Diligencia (vía getContact). */
+      moduleOverride?: "Accounts" | "Contacts" | "Debida_Diligencia"
     ): Promise<{ success: boolean; noteId?: string }> => {
       const clientId = process.env.ZOHO_CLIENT_ID;
       const clientSecret = process.env.ZOHO_CLIENT_SECRET;
@@ -1028,12 +1035,14 @@ export const zoho = {
         const crmBaseUrl = process.env.ZOHO_CRM_BASE_URL || "https://www.zohoapis.com/crm/v2";
 
         // Determine if it is under Accounts or Debida_Diligencia
-        let resolvedModule: CrmModule = "Debida_Diligencia";
-        try {
-          const contactInfo = await zoho.service.getContact(crmId);
-          resolvedModule = contactInfo.module || "Debida_Diligencia";
-        } catch (e) {
-          console.warn(`[Zoho Note] No se pudo determinar el módulo para ID ${crmId}, asumiendo Debida_Diligencia:`, e);
+        let resolvedModule: string = moduleOverride ?? "Debida_Diligencia";
+        if (!moduleOverride) {
+          try {
+            const contactInfo = await zoho.service.getContact(crmId);
+            resolvedModule = contactInfo.module || "Debida_Diligencia";
+          } catch (e) {
+            console.warn(`[Zoho Note] No se pudo determinar el módulo para ID ${crmId}, asumiendo Debida_Diligencia:`, e);
+          }
         }
 
         console.log(`[Zoho Service] Creando nota de actividad para ${crmId} (${resolvedModule}): ${title}`);
@@ -1519,6 +1528,98 @@ export const zoho = {
         const result = (await response.json()).data?.[0];
         if (result && result.status === "error") {
           throw new Error(`Zoho CRM Error eliminando ${ddId} [${result.code}]: ${result.message}`);
+        }
+        return { success: true };
+      });
+    },
+
+    /**
+     * Registros de un módulo cuyo campo es igual al valor dado (search por
+     * criteria, hasta 200). [] si no hay o Zoho está simulado; lanza si Zoho falla.
+     */
+    searchByField: async (
+      module: "Accounts" | "Contacts" | "Debida_Diligencia",
+      field: string,
+      value: string
+    ): Promise<Record<string, any>[]> => {
+      if (zohoSimulado(value) || !value.trim()) return [];
+
+      // Zoho exige escapar paréntesis y comas dentro del valor del criteria
+      const valor = value.trim().replace(/([(),\\])/g, "\\$1");
+      return executeWithRetry(async (accessToken) => {
+        const crmBaseUrl = process.env.ZOHO_CRM_BASE_URL || "https://www.zohoapis.com/crm/v2";
+        const response = await fetch(
+          `${crmBaseUrl}/${module}/search?criteria=${encodeURIComponent(`(${field}:equals:${valor})`)}&per_page=200`,
+          { method: "GET", headers: { Authorization: `Zoho-oauthtoken ${accessToken}` } }
+        );
+        if (response.status === 204) return [];
+        if (!response.ok) {
+          throw new Error(`Zoho CRM ${module}/search (${field}) respondió HTTP ${response.status}: ${await response.text()}`);
+        }
+        return (await response.json()).data ?? [];
+      });
+    },
+
+    /**
+     * Crea un registro en Accounts o Contacts y devuelve su id. Con
+     * `dispararWorkflows` Zoho ejecuta los workflows de creación; sin él no.
+     */
+    createRecord: async (
+      module: "Accounts" | "Contacts",
+      payload: Record<string, unknown>,
+      options?: { dispararWorkflows?: boolean }
+    ): Promise<{ id: string; mocked?: boolean }> => {
+      if (zohoSimulado("")) {
+        const id = `mock-${module.toLowerCase()}-${Date.now()}`;
+        console.log(`[Zoho Service] Simulación: creación en ${module} con ID ${id}.`);
+        return { id, mocked: true };
+      }
+
+      return executeWithRetry(async (accessToken) => {
+        const crmBaseUrl = process.env.ZOHO_CRM_BASE_URL || "https://www.zohoapis.com/crm/v2";
+        const response = await fetch(`${crmBaseUrl}/${module}`, {
+          method: "POST",
+          headers: { Authorization: `Zoho-oauthtoken ${accessToken}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ data: [payload], trigger: options?.dispararWorkflows ? ["workflow"] : [] }),
+        });
+        if (!response.ok) {
+          throw new Error(`Zoho CRM ${module} POST respondió HTTP ${response.status}: ${await response.text()}`);
+        }
+        const result = (await response.json()).data?.[0];
+        if (!result || result.status === "error" || !result.details?.id) {
+          throw new Error(
+            `Zoho CRM Error creando en ${module} [${result?.code}]: ${result?.message} - ${JSON.stringify(result?.details)}`
+          );
+        }
+        console.log(`[Zoho Service] Registro ${result.details.id} creado en ${module}.`);
+        return { id: String(result.details.id) };
+      });
+    },
+
+    /** Escribe campos sueltos en un registro de Accounts o Contacts (no dispara workflows). */
+    updateRecord: async (
+      module: "Accounts" | "Contacts",
+      id: string,
+      payload: Record<string, unknown>
+    ): Promise<{ success: boolean; mocked?: boolean }> => {
+      if (zohoSimulado(id)) {
+        console.log(`[Zoho Service] Simulación: actualización de ${module} ${id}.`);
+        return { success: true, mocked: true };
+      }
+
+      return executeWithRetry(async (accessToken) => {
+        const crmBaseUrl = process.env.ZOHO_CRM_BASE_URL || "https://www.zohoapis.com/crm/v2";
+        const response = await fetch(`${crmBaseUrl}/${module}/${id}`, {
+          method: "PUT",
+          headers: { Authorization: `Zoho-oauthtoken ${accessToken}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ data: [payload], trigger: [] }),
+        });
+        if (!response.ok) {
+          throw new Error(`Zoho CRM ${module}/${id} PUT respondió HTTP ${response.status}: ${await response.text()}`);
+        }
+        const result = (await response.json()).data?.[0];
+        if (!result || result.status === "error") {
+          throw new Error(`Zoho CRM Error actualizando ${module} ${id} [${result?.code}]: ${result?.message}`);
         }
         return { success: true };
       });
