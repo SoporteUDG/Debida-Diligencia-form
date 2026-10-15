@@ -16,12 +16,12 @@ export function hashTemporalToken(token: string): string {
 const TOKEN_REGEX = /^[A-Za-z0-9_-]{43}$/;
 
 /**
- * Crea el enlace temporal de un registro de Zoho. Los enlaces pendientes
- * anteriores del mismo registro se invalidan: solo uno vive a la vez.
+ * Crea un enlace temporal nuevo. No está atado a ningún registro de Zoho (lo
+ * que se crea al completarse es nuevo), así que no invalida otros temporales.
  */
 export async function crearTemporal(params: {
   type: FormType;
-  crmRecordId: string;
+  /** Módulo de Zoho desde cuya vista de lista se generó. */
   crmModule: string;
   createdBy?: string | null;
   data?: Record<string, any>;
@@ -34,41 +34,31 @@ export async function crearTemporal(params: {
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + TEMPORAL_EXPIRES_DAYS);
 
-  const ahora = new Date();
-  const [invalidados, temporal] = await prisma.$transaction([
-    prisma.temporal.updateMany({
-      where: { crmRecordId: params.crmRecordId, completedAt: null, expiresAt: { gt: ahora } },
-      data: { expiresAt: ahora },
-    }),
-    prisma.temporal.create({
-      data: {
-        type: params.type,
-        data: params.data ?? {},
-        tokenHash: hashTemporalToken(token),
-        crmRecordId: params.crmRecordId,
-        crmModule: params.crmModule,
-        createdBy: params.createdBy ?? null,
-        expiresAt,
-        unidadVendidaId: params.unidadVendida?.id || null,
-        unidadVendidaNombre: params.unidadVendida?.nombre || null,
-        proyecto: params.proyecto || null,
-      },
-    }),
-  ]);
+  const temporal = await prisma.temporal.create({
+    data: {
+      type: params.type,
+      data: params.data ?? {},
+      tokenHash: hashTemporalToken(token),
+      crmModule: params.crmModule,
+      createdBy: params.createdBy ?? null,
+      expiresAt,
+      unidadVendidaId: params.unidadVendida?.id || null,
+      unidadVendidaNombre: params.unidadVendida?.nombre || null,
+      proyecto: params.proyecto || null,
+    },
+  });
 
   await logAuditEvent({
     action: "TEMPORAL_GENERATE",
     entityName: "Temporal",
     entityId: temporal.id,
     details: {
-      crmRecordId: params.crmRecordId,
       crmModule: params.crmModule,
       type: params.type,
       createdBy: params.createdBy ?? null,
       expiresAt,
       unidadVendida: params.unidadVendida ?? null,
       proyecto: params.proyecto ?? null,
-      invalidatedPrevious: invalidados.count,
     },
   });
 
