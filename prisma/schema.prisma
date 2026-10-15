@@ -513,8 +513,10 @@ model Temporal {
   type        FormType
   data        Json
   tokenHash   String    @unique
-  // Registro de Zoho desde el que se generó (record del Canvas) y su módulo
-  crmRecordId String
+  // Registro de Zoho desde el que se generó (solo temporales antiguos, del
+  // Canvas). Los nuevos salen de la vista de lista y no se atan a un registro.
+  crmRecordId String?
+  // Módulo de Zoho desde el que se generó
   crmModule   String
   // Usuario de Zoho que pulsó el botón
   createdBy   String?

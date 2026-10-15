@@ -1,12 +1,14 @@
 /**
- * Botón "Generar temporal" del Canvas de Debida_Diligencia (Zoho CRM > Canvas >
- * botón > acción "Client Script").
+ * Botón "Generar temporal" de la vista de lista (Zoho CRM > módulo > vista de
+ * lista > botón > acción "Client Script"). No depende de ningún registro: el
+ * enlace crea un Socio de Negocio y una Debida Diligencia nuevos al completarse.
  *
- * Genera un enlace temporal con las secciones I a III del formulario (sin
- * documentos ni firma) y lo copia al portapapeles (o lo muestra para copiarlo).
- * Generar otro invalida el anterior. Envía la unidad vendida y el proyecto del
- * registro: con ellos se nombran ("nombre-unidad-proyecto") el Socio de
- * Negocio y la Debida Diligencia que se crean al completarse.
+ * Pide en un formulario emergente la Persona de Tipo (Natural / Jurídica, la
+ * del Socio de Negocio que se creará), el proyecto y la unidad; genera un
+ * enlace temporal con las secciones I a III del formulario (sin documentos ni
+ * firma) y lo copia al portapapeles (o lo muestra para copiarlo). Con la unidad
+ * y el proyecto se nombran ("nombre-unidad-proyecto") el Socio de Negocio y la
+ * Debida Diligencia que se crean.
  *
  * Requisitos en Zoho (los mismos del botón Eliminar):
  *  - Conexión "dd_portal" (Custom Service, tipo API Key) que envía el
@@ -16,28 +18,12 @@
 var PORTAL_URL = "https://debida-diligencia.udggroup.com/api/generar-temporal";
 var CONEXION = "dd_portal"; // nombre de enlace (Link Name) exacto de la conexión
 var TITULO = "Generar enlace temporal";
-// API names en el registro del Canvas (el primero que tenga valor)
-var CAMPOS_UNIDAD = ["Unidad_Vendida", "Unidad_Vendida1"];
-var CAMPO_PROYECTO = "Proyecto";
-
-// Texto de un campo (los lookups/picklists pueden venir como objeto)
-function texto(valor) {
-  if (valor === null || valor === undefined) return "";
-  if (typeof valor === "object") return String(valor.name || valor.display_value || valor.value || "").trim();
-  return String(valor).trim();
-}
-
-// Lookup de la unidad vendida como { id, name }: ZDK lo entrega como
-// Campo_Lookup_Id (+ el nombre en el campo) o como { id, name }
-function unidadVendida(registro) {
-  for (var i = 0; i < CAMPOS_UNIDAD.length; i++) {
-    var campo = CAMPOS_UNIDAD[i];
-    var valor = registro[campo];
-    var id = registro[campo + "_Lookup_Id"] || (valor && typeof valor === "object" ? valor.id : "");
-    if (id) return { id: String(id), name: texto(valor) };
-  }
-  return null;
-}
+var SIN_PROYECTO = "-Ninguno-";
+// Opciones del picklist Proyecto de Accounts (las mismas que valida el portal)
+var PROYECTOS = [
+  "Altos del Parque", "Caminos de Centennial", "Deici", "Guayacán", "Living73",
+  "New West I", "New West II", "Paramount", "Spotlight", "The Hub"
+];
 
 // Zoho envuelve la respuesta del portal: { _details: { statusMessage: <cuerpo> } }
 // (según la versión también en .response / .data, o ya como objeto)
@@ -77,42 +63,83 @@ function mostrarResultado(resp) {
   }
 }
 
+// Formulario emergente; undefined si el usuario cancela
+function pedirDatos() {
+  return ZDK.Client.getInput([
+    {
+      type: "picklist",
+      label: "Persona de Tipo",
+      list_options: [
+        { actual_value: "Natural", display_value: "Persona Natural" },
+        { actual_value: "Jurídica", display_value: "Persona Jurídica" }
+      ],
+      default_value: "Natural"
+    },
+    {
+      type: "picklist",
+      label: "Proyecto",
+      list_options: [{ actual_value: SIN_PROYECTO, display_value: SIN_PROYECTO }].concat(
+        PROYECTOS.map(function (p) { return { actual_value: p, display_value: p }; })
+      ),
+      default_value: SIN_PROYECTO
+    },
+    {
+      type: "text",
+      label: "Unidad (opcional)"
+    }
+  ], TITULO, "Generar", "Cancelar");
+}
+
+// Módulo de la vista de lista donde está el botón (solo informativo para el portal)
+function moduloActual() {
+  try {
+    return (typeof $Page !== "undefined" && $Page && $Page.module) ? String($Page.module) : "";
+  } catch (e) {
+    return "";
+  }
+}
+
 try {
-  var ok = ZDK.Client.showConfirmation(
-    "Se generará un enlace temporal con las secciones I a III del formulario. " +
-    "Si ya existía uno pendiente para este registro, dejará de funcionar.",
-    "Generar",
-    "Cancelar"
-  );
+  var datos = pedirDatos();
 
-  if (ok) {
-    ZDK.Client.showLoader({ type: "page", template: "vertical-bar", message: "Generando enlace temporal..." });
+  if (datos === undefined) {
+    log("[generar temporal] El usuario canceló el formulario.");
+  } else {
+    var personaDeTipo = String(datos[0] || "").trim();
+    var proyecto = String(datos[1] || "").trim();
+    var unidad = String(datos[2] || "").trim();
+    if (proyecto === SIN_PROYECTO) proyecto = "";
 
-    // invoke(conexion, url, método, tipo de parámetro (2 = cuerpo JSON), parámetros, encabezados)
-    var resp = ZDK.Apps.CRM.Connections.invoke(
-      CONEXION,
-      PORTAL_URL,
-      "POST",
-      2,
-      {
-        recordId: $Page.record_id,
-        modulo: "Debida_Diligencia",
-        tipo: $Page.record.Tipo_de_Persona || "",
-        userId: $Crm.user.id,
-        // Name "nombre-unidad-proyecto" del Socio de Negocio y la DD que se crean
-        unidad_vendida: unidadVendida($Page.record),
-        proyecto: texto($Page.record[CAMPO_PROYECTO])
-      },
-      { "Content-Type": "application/json" }
-    );
-
-    if (resp && typeof resp.then === "function") {
-      resp.then(mostrarResultado).catch(function (e) {
-        ZDK.Client.hideLoader();
-        ZDK.Client.showAlert("Error al llamar al portal: " + JSON.stringify(e), TITULO);
-      });
+    if (!personaDeTipo) {
+      ZDK.Client.showAlert("Seleccione la Persona de Tipo (Natural o Jurídica).", TITULO);
     } else {
-      mostrarResultado(resp);
+      ZDK.Client.showLoader({ type: "page", template: "vertical-bar", message: "Generando enlace temporal..." });
+
+      // invoke(conexion, url, método, tipo de parámetro (2 = cuerpo JSON), parámetros, encabezados)
+      var resp = ZDK.Apps.CRM.Connections.invoke(
+        CONEXION,
+        PORTAL_URL,
+        "POST",
+        2,
+        {
+          persona_de_tipo: personaDeTipo,
+          modulo: moduloActual(),
+          userId: $Crm.user.id,
+          // Name "nombre-unidad-proyecto" del Socio de Negocio y la DD que se crean
+          unidad_vendida: unidad ? { name: unidad } : null,
+          proyecto: proyecto
+        },
+        { "Content-Type": "application/json" }
+      );
+
+      if (resp && typeof resp.then === "function") {
+        resp.then(mostrarResultado).catch(function (e) {
+          ZDK.Client.hideLoader();
+          ZDK.Client.showAlert("Error al llamar al portal: " + JSON.stringify(e), TITULO);
+        });
+      } else {
+        mostrarResultado(resp);
+      }
     }
   }
 } catch (e) {
