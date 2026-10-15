@@ -75,8 +75,7 @@ async function validarDebidaDiligencia() {
             return;
         }
 
-        // En Accounts (Socio de Negocio) el tipo vive en Persona_de_Tipo
-        var tipoPersona = account.Persona_de_Tipo;
+        var tipoPersona = account.Tipo_de_Persona;
         if (!tipoPersona) {
             ZDK.Client.showAlert("El Socio de Negocio no tiene definido el Tipo de Persona.");
             return;

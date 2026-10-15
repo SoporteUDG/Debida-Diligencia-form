@@ -17,7 +17,7 @@ export async function manageTemporal(
   temporal: Temporal,
   opciones: { coincidencias: CoincidenciaZoho[]; appUrl: string }
 ): Promise<EnlaceDelTemporal | null> {
-  console.log(`[ManageTemporal] Temporal ${temporal.id} enviado (generado desde ${temporal.crmModule}).`);
+  console.log(`[ManageTemporal] Temporal ${temporal.id} enviado (registro ${temporal.crmRecordId}).`);
   if (opciones.coincidencias.length) {
     await registrarClienteExistente(temporal, opciones.coincidencias);
     return null;
