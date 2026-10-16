@@ -513,6 +513,9 @@ model Temporal {
   type        FormType
   data        Json
   tokenHash   String    @unique
+  // Token en claro (como Token.token), para volver a mostrar el enlace en el
+  // widget de enlaces temporales. null en los temporales anteriores a la columna.
+  token       String?
   // Registro de Zoho desde el que se generó (solo temporales antiguos, del
   // Canvas). Los nuevos salen de la vista de lista y no se atan a un registro.
   crmRecordId String?

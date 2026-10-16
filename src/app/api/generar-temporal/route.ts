@@ -34,23 +34,24 @@ function tipoDe(v: any): "NATURAL" | "JURIDICA" | null {
 }
 
 /**
- * Botón "Generar temporal" de la vista de lista de Zoho CRM: crea un enlace
+ * Widget "Generar temporal" (zoho_widget/generar-temporal), abierto por el botón
+ * de la vista personalizada de Zoho CRM: crea un enlace
  * temporal nuevo (tabla Temporal), sin atarlo a ningún registro existente, que
  * solo muestra las secciones I a III del formulario, y devuelve su URL. Al
  * completarse, /api/temporal llama a manageTemporal, que crea el Socio de
  * Negocio y la Debida Diligencia.
  *
- * Seguridad: la llamada debe traer ZOHO_BUTTON_API_KEY (el botón la envía por
+ * Seguridad: la llamada debe traer ZOHO_BUTTON_API_KEY (el widget la envía por
  * la Conexión "dd_portal", así la llave no queda en el navegador). El enlace
  * lleva un token aleatorio de 256 bits del que solo se guarda el hash; vence a
  * los TEMPORAL_EXPIRES_DAYS días.
  *
- * Body (del formulario emergente del botón):
+ * Body (del formulario del widget):
  *   { persona_de_tipo: "Natural" | "Jurídica", unidad_vendida: { id: string, name: string },
  *     modulo?: string, userId?: string, proyecto?: string }
  * persona_de_tipo es el Persona_de_Tipo del Socio de Negocio que se creará
  * (se acepta `tipo` como alias). unidad_vendida (requerida) es el lookup
- * Unidad_Vendida1 del socio: el botón la busca por su ID_SAP y envía el id del
+ * Unidad_Vendida1 del socio: el widget la busca por su ID_SAP y envía el id del
  * registro. Con ella y el proyecto se forma el Name "nombre-unidad-proyecto"
  * del Socio de Negocio y la DD.
  */

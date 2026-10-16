@@ -47,6 +47,8 @@ describe("POST /api/generar-temporal", () => {
       proyecto: "The Hub",
     });
     expect(data).not.toHaveProperty("crmRecordId");
+    // El token se guarda para volver a mostrar el enlace en el widget
+    expect(json.url).toBe(`https://portal.test/temporal?token=${data.token}`);
     // No está atado a un registro: no invalida otros temporales
     expect(prismaMock.temporal.updateMany).not.toHaveBeenCalled();
   });

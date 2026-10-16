@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Enlaces temporales</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="card">
+    <div class="encabezado">
+      <h1>Enlaces temporales</h1>
+      <button type="button" class="btn btn-primario" id="crear">Crear enlace adicional</button>
+    </div>
+
+    <!-- Formulario: bloqueado hasta pulsar "Crear enlace adicional" -->
+    <form id="formulario" class="panel" novalidate hidden>
+      <h2>Nuevo enlace temporal</h2>
+      <p class="ayuda">
+        El enlace muestra las secciones I a III del formulario. Al completarse se crean
+        el Socio de Negocio y la Debida Diligencia.
+      </p>
+
+      <label for="persona-de-tipo">Persona de Tipo <span class="req">*</span></label>
+      <select id="persona-de-tipo" required>
+        <option value="Natural">Persona Natural</option>
+        <option value="Jurídica">Persona Jurídica</option>
+      </select>
+
+      <label for="proyecto">Proyecto</label>
+      <select id="proyecto"></select>
+
+      <label for="id-sap">ID SAP de la unidad <span class="req">*</span></label>
+      <input id="id-sap" type="text" autocomplete="off" required>
+
+      <p id="mensaje" class="mensaje" role="alert" hidden></p>
+
+      <div class="botones">
+        <button type="button" class="btn btn-sec" id="cancelar">Cancelar</button>
+        <button type="submit" class="btn btn-primario" id="generar">Generar</button>
+      </div>
+    </form>
+
+    <!-- Enlace recién generado -->
+    <section id="resultado" class="panel panel-ok" hidden>
+      <p class="ok">Enlace temporal generado<span id="vence"></span>. Unidad: <strong id="unidad-nombre"></strong></p>
+      <div class="copiar">
+        <input id="enlace" type="text" readonly>
+        <button type="button" class="btn btn-primario" id="copiar">Copiar</button>
+      </div>
+    </section>
+
+    <section class="seccion">
+      <h2>Enlaces activos</h2>
+      <p id="error-lista" class="mensaje" role="alert" hidden></p>
+      <div class="tabla-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Tipo</th>
+              <th>Proyecto</th>
+              <th>Unidad</th>
+              <th>Creado</th>
+              <th>Vence</th>
+              <th>Enlace</th>
+              <th class="col-acciones">Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="tabla-temporales">
+            <tr><td colspan="7" class="vacio">Cargando enlaces…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <div class="botones">
+      <button type="button" class="btn btn-sec" id="cerrar">Cerrar</button>
+    </div>
+  </main>
+
+  <script src="https://live.zwidgets.com/js-sdk/1.2/ZohoEmbededAppSDK.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

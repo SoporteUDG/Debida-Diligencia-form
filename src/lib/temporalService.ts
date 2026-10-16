@@ -7,7 +7,10 @@ import type { TokenFailureReason } from "./tokenAccess";
 /** Vigencia del enlace temporal. */
 export const TEMPORAL_EXPIRES_DAYS = 7;
 
-/** Hash con el que se guarda y busca el token (el token en claro nunca se persiste). */
+/**
+ * Hash con el que se busca el token. El token en claro también se guarda
+ * (Temporal.token) para volver a mostrar el enlace en el widget de Zoho.
+ */
 export function hashTemporalToken(token: string): string {
   return crypto.createHash("sha256").update(token).digest("hex");
 }
@@ -39,6 +42,7 @@ export async function crearTemporal(params: {
       type: params.type,
       data: params.data ?? {},
       tokenHash: hashTemporalToken(token),
+      token,
       crmModule: params.crmModule,
       createdBy: params.createdBy ?? null,
       expiresAt,
@@ -62,7 +66,52 @@ export async function crearTemporal(params: {
     },
   });
 
-  return { temporal, url: `${params.appUrl}/temporal?token=${token}` };
+  return { temporal, url: urlDelTemporal(params.appUrl, token) };
+}
+
+function urlDelTemporal(appUrl: string, token: string): string {
+  return `${appUrl}/temporal?token=${token}`;
+}
+
+/** Enlace temporal activo, como lo muestra el widget de Zoho. */
+export interface TemporalActivo {
+  id: string;
+  tipo: FormType;
+  /** null en los temporales anteriores a la columna `token` (no se puede rearmar). */
+  url: string | null;
+  proyecto: string | null;
+  unidad: string | null;
+  createdBy: string | null;
+  createdAt: Date;
+  expiresAt: Date;
+}
+
+/** Enlaces temporales sin completar y sin vencer, del más reciente al más antiguo. */
+export async function listarTemporalesActivos(appUrl: string): Promise<TemporalActivo[]> {
+  const temporales = await prisma.temporal.findMany({
+    where: { completedAt: null, expiresAt: { gt: new Date() } },
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      type: true,
+      token: true,
+      proyecto: true,
+      unidadVendidaNombre: true,
+      createdBy: true,
+      createdAt: true,
+      expiresAt: true,
+    },
+  });
+  return temporales.map((t) => ({
+    id: t.id,
+    tipo: t.type,
+    url: t.token ? urlDelTemporal(appUrl, t.token) : null,
+    proyecto: t.proyecto,
+    unidad: t.unidadVendidaNombre,
+    createdBy: t.createdBy,
+    createdAt: t.createdAt,
+    expiresAt: t.expiresAt,
+  }));
 }
 
 /**
