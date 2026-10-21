@@ -21,9 +21,9 @@ export const metadata: Metadata = {
   title: "Formulario Debida Diligencia | UDG",
   description: "Formulario de Debida Diligencia para clientes de Urban Development Group",
   icons: {
-    icon: "/UDG_LOGO_MINI.png",
-    shortcut: "/UDG_LOGO_MINI.png",
-    apple: "/UDG_LOGO_MINI.png",
+    icon: "/UDG_LOGO_SMALL.png",
+    shortcut: "/UDG_LOGO_SMALL.png",
+    apple: "/UDG_LOGO_SMALL.png",
   },
 };
 
