@@ -4,8 +4,9 @@
 // Para expedientes creados a mano en Zoho: crea los enlaces que le faltan al
 // expediente (nunca crea otro registro). El portal hace el mismo análisis que
 // al generar desde el Socio de Negocio:
-// - Natural: enlace principal del Contacto estándar (el expediente debe tenerlo
-//   en Nombre de contacto) y un enlace relacionado por cada otro contacto.
+// - Natural: enlace principal del Contacto estándar (se busca entre los contactos
+//   del Socio de Negocio y, si no tiene, entre los atados al expediente) y un
+//   enlace relacionado por cada otro contacto.
 // - Jurídica: enlace principal, el del Representante Legal y uno relacionado
 //   por cada contacto del Socio de Negocio. No requiere contacto.
 // ==========================================
@@ -70,7 +71,7 @@ async function generarEnlace() {
     } else if (statusCode === 409 && json.code === "ALREADY_EXISTS") {
       ZDK.Client.showMessage(json.error || "Los enlaces de este expediente ya fueron creados.", { type: "info" });
     } else if (statusCode === 409 || statusCode === 422) {
-      // El portal explica el motivo (sin contacto, contacto no estándar, sin Representante Legal, anulado...)
+      // El portal explica el motivo (sin contactos, sin Contacto estándar, sin Representante Legal, anulado...)
       ZDK.Client.showMessage(json.error || "No se pudo generar el enlace (status " + statusCode + ").", { type: "warning" });
     } else {
       ZDK.Client.showMessage(json.error || "El servidor devolvió status: " + statusCode, { type: "error" });

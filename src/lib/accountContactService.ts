@@ -137,6 +137,20 @@ export async function obtenerContactosDeCuenta(
   return filas;
 }
 
+/**
+ * Contactos atados al expediente en Zoho (Contacts.Debida_Diligencia), guardados
+ * como AccountContact. Respaldo cuando el Socio de Negocio no tiene contactos:
+ * `accountCrmId` es el del socio, o el del propio Contact si el expediente no tiene.
+ */
+export async function obtenerContactosDeDD(ddCrmId: string, accountCrmId?: string): Promise<AccountContactRow[]> {
+  const contactos = await zoho.service.searchContactsByDD(ddCrmId);
+  const filas: AccountContactRow[] = [];
+  for (const { accountId, ...contact } of contactos) {
+    filas.push(await createAccountContact({ accountCrmId: accountCrmId || accountId, clientType: "NATURAL", contact }));
+  }
+  return filas;
+}
+
 const tipoDe = (dd: ZohoDDResumen): "NATURAL" | "JURIDICA" | null => {
   const t = (dd.tipo ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").trim().toLowerCase();
   return t === "natural" ? "NATURAL" : t === "juridica" ? "JURIDICA" : null;

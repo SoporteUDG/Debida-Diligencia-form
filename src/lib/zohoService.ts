@@ -537,7 +537,7 @@ export const zoho = {
           return { success: true, notFound: false };
         };
 
-        // El expediente debe tener Socio de Negocio antes de actualizarse
+        // El expediente debe existir en Zoho antes de actualizarse
         const ddResponse = await fetch(`${crmBaseUrl}/Debida_Diligencia/${crmId}`, {
           method: "GET",
           headers: { Authorization: `Zoho-oauthtoken ${accessToken}` },
@@ -549,8 +549,9 @@ export const zoho = {
         if (!ddRecord) {
           throw new Error(`No se encontró el registro ${crmId} en el módulo Debida_Diligencia de Zoho CRM.`);
         }
+        // Los expedientes de /registro/* nacen sin Socio de Negocio: se actualizan igual
         if (!socioIdDe(ddRecord)) {
-          throw new Error(`El expediente ${crmId} no tiene Socio de Negocio (Socio_de_Negocios): no se actualiza.`);
+          console.warn(`[Zoho Service] El expediente ${crmId} no tiene Socio de Negocio (Socio_de_Negocios): se actualiza sin él.`);
         }
 
         // Estado: el formulario se completó o se actualizó -> "En borrador" (Zoho no tiene
@@ -748,6 +749,13 @@ export const zoho = {
       contactCrmId?: string;
       /** Campos adicionales del expediente (API name -> valor), p. ej. Forma_de_contacto. */
       camposExtra?: Record<string, unknown>;
+      /**
+       * Excepción: crea el expediente sin Socio de Negocio (formularios
+       * independientes /registro/*). Sin esta marca, falta de socio es un error.
+       */
+      sinSocio?: boolean;
+      /** Estado con el que nace el expediente (por defecto "En borrador"). */
+      estado?: string;
     }): Promise<{ success: boolean; debidaId: string; mocked?: boolean }> => {
       const clientId = process.env.ZOHO_CLIENT_ID;
       const clientSecret = process.env.ZOHO_CLIENT_SECRET;
@@ -768,8 +776,8 @@ export const zoho = {
         return { success: true, debidaId: mockDebidaId, mocked: true };
       }
 
-      // Todo expediente debe quedar vinculado a un Socio de Negocio
-      if (!cleanValue(params.accountCrmId)) {
+      // Todo expediente debe quedar vinculado a un Socio de Negocio (salvo sinSocio)
+      if (!params.sinSocio && !cleanValue(params.accountCrmId)) {
         throw new Error("No se puede crear el expediente de Debida_Diligencia sin Socio de Negocio (Socio_de_Negocios).");
       }
 
@@ -792,7 +800,7 @@ export const zoho = {
           ...params.camposExtra,
           Tipo_de_Persona: params.clientType === "NATURAL" ? "Natural" : "Jurídica",
           Estado_del_enlace: "Activo",
-          Estado: ESTADO_EN_BORRADOR,
+          Estado: params.estado ?? ESTADO_EN_BORRADOR,
         };
 
         if (params.formLink) {
@@ -1395,6 +1403,49 @@ export const zoho = {
               phone: cleanValue(rec.Phone),
               createdTime: cleanValue(rec.Created_Time),
               estandar: esVerdadero(rec[CONTACT_STANDARD_FIELD]),
+            });
+          }
+          if (!json.info?.more_records) break;
+        }
+
+        return contacts
+          .filter((c) => c.id)
+          .sort((a, b) => (Date.parse(a.createdTime) || 0) - (Date.parse(b.createdTime) || 0));
+      });
+    },
+
+    /**
+     * Contacts atados a un expediente (lookup Contacts.Debida_Diligencia), del más
+     * antiguo al más reciente. `accountId` es el Socio de Negocio del Contact ("" si no tiene).
+     */
+    searchContactsByDD: async (ddId: string): Promise<Array<ZohoAccountContact & { accountId: string }>> => {
+      if (zohoSimulado(ddId)) return [];
+
+      return executeWithRetry(async (accessToken) => {
+        const crmBaseUrl = process.env.ZOHO_CRM_BASE_URL || "https://www.zohoapis.com/crm/v2";
+        const contacts: Array<ZohoAccountContact & { accountId: string }> = [];
+
+        for (let page = 1; page <= 20; page++) {
+          const response = await fetch(
+            `${crmBaseUrl}/Contacts/search?criteria=(${CONTACT_DD_FIELD}:equals:${encodeURIComponent(ddId)})&fields=First_Name,Last_Name,Email,Phone,Created_Time,Account_Name,${CONTACT_STANDARD_FIELD}&per_page=200&page=${page}`,
+            { method: "GET", headers: { Authorization: `Zoho-oauthtoken ${accessToken}` } }
+          );
+          if (response.status === 204) break;
+          if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Zoho CRM Contacts/search (${CONTACT_DD_FIELD}=${ddId}) respondió HTTP ${response.status}: ${errorText}`);
+          }
+          const json = await response.json();
+          for (const rec of json.data ?? []) {
+            contacts.push({
+              id: cleanValue(rec.id),
+              firstName: cleanValue(rec.First_Name),
+              lastName: cleanValue(rec.Last_Name),
+              email: cleanValue(rec.Email),
+              phone: cleanValue(rec.Phone),
+              createdTime: cleanValue(rec.Created_Time),
+              estandar: esVerdadero(rec[CONTACT_STANDARD_FIELD]),
+              accountId: cleanValue(rec.Account_Name?.id),
             });
           }
           if (!json.info?.more_records) break;
@@ -2083,7 +2134,6 @@ export function mapFormToCrmPayload(
   const d = formData || {};
   const docs = options?.documentos ?? [];
   const payload: Record<string, unknown> = {
-    "Fecha_de_Ingreso": new Date().toISOString().split("T")[0],
     "Estado_del_enlace": "Expirado / Revocado",
   };
 

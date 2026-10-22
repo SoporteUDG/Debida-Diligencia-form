@@ -16,6 +16,7 @@ import {
   clasificarContactosNaturales,
   contactoDelLookupZoho,
   contactoPrincipal,
+  obtenerContactosDeDD,
   ContactoEstandarError,
   SinContactosError,
   type AccountContactRow,
@@ -61,10 +62,11 @@ const idDe = (v: any): string => String((v && typeof v === "object" ? v.id : v) 
  *
  * Validaciones:
  * - Expediente inexistente: 404. Retirado (anulado): 409 RETIRADO.
- * - Natural: requiere el Contact del expediente (lookup Nombre_de_contacto): sin
- *   él, 422 SIN_CONTACTO. Si el socio tiene contactos, debe haber exactamente un
- *   Contacto estándar (422 CONTACTO_ESTANDAR) y debe ser el del expediente (409
- *   CONTACTO_NO_ESTANDAR): solo el contacto estándar escribe el expediente.
+ * - Natural: el contacto del expediente es el Contacto estándar (Contacto_est_ndar,
+ *   no el lookup Nombre_de_contacto). Se busca entre los contactos del Socio de
+ *   Negocio y, si no tiene, entre los atados al expediente (Contacts.Debida_Diligencia).
+ *   Sin contactos: 422 SIN_CONTACTO; debe haber exactamente un estándar (422
+ *   CONTACTO_ESTANDAR): solo el contacto estándar escribe el expediente.
  * - Jurídica: no requiere contacto. Sin Representante legal (socio o
  *   Nombre_natural del expediente) y su enlace falta: 422 SIN_REPRESENTANTE_LEGAL.
  * - El Contact del expediente cambió en Zoho: si el formulario principal sigue
@@ -125,45 +127,47 @@ export async function POST(request: NextRequest) {
     const socioId = idDe(ddRecord.Socio_de_Negocios ?? ddRecord.Socio_de_Negocio) || undefined;
     const account = socioId ? await zoho.service.getAccountRecord(socioId) : null;
 
-    // 2. Contacto del expediente: el del lookup en Zoho (o, si no, el vinculado en el portal)
+    // 2. Contactos del socio (mismo análisis que generar-expediente). Si el socio
+    // no tiene (o el expediente no tiene socio), los atados al propio expediente.
     const contactoLocal = contact?.accountContact && !contact.accountContact.deletedAt ? contact.accountContact : null;
-    const ddContacto: AccountContactRow | null = (await contactoDelLookupZoho({ clientType, ddRecord })) ?? contactoLocal;
-    if (isNatural && !ddContacto) {
-      return NextResponse.json(
-        {
-          success: false,
-          code: "SIN_CONTACTO",
-          error: `El expediente no tiene un contacto (${DD_CONTACT_FIELD}): vincule el Contacto estándar del Socio de Negocio para generar su enlace.`,
-          crmId: recordId,
-        },
-        { status: 422, headers: corsHeaders }
-      );
-    }
-
-    // 3. Contactos del socio (mismo análisis que generar-expediente)
-    const contactos = socioId ? await obtenerContactosDeCuenta(socioId, clientType, { todos: true }) : [];
-    let principal: AccountContactRow | null = null;
-    if (isNatural) {
-      principal = ddContacto;
-      if (contactos.length) {
-        const estandar = contactoPrincipal(socioId!, contactos); // lanza ContactoEstandarError
-        if (estandar.crmId !== ddContacto!.crmId) {
-          return NextResponse.json(
-            {
-              success: false,
-              code: "CONTACTO_NO_ESTANDAR",
-              error:
-                `El contacto del expediente (${nombreDe(ddContacto!)}) no es el Contacto estándar del Socio de Negocio ` +
-                `(${nombreDe(estandar)}): solo el contacto estándar lleva el expediente. Cambie el contacto del expediente o el Contacto estándar.`,
-              crmId: recordId,
-              contactId: ddContacto!.crmId,
-              estandarContactId: estandar.crmId,
-            },
-            { status: 409, headers: corsHeaders }
-          );
-        }
-        principal = estandar;
+    let contactos: AccountContactRow[] = [];
+    if (socioId) {
+      try {
+        contactos = await obtenerContactosDeCuenta(socioId, clientType, { todos: true });
+      } catch (err) {
+        if (!(err instanceof SinContactosError)) throw err;
       }
+    }
+    if (isNatural && !contactos.length) contactos = await obtenerContactosDeDD(recordId, socioId);
+
+    // 3. Contacto del expediente: en la natural, el Contacto estándar (Contacto_est_ndar),
+    // no el lookup Nombre_de_contacto. La jurídica no requiere contacto.
+    let principal: AccountContactRow | null = null;
+    let ddContacto: AccountContactRow | null;
+    if (isNatural) {
+      if (!contactos.length) {
+        return NextResponse.json(
+          {
+            success: false,
+            code: "SIN_CONTACTO",
+            error: "Ni el Socio de Negocio ni el expediente tienen contactos: vincule el Contacto estándar para generar su enlace.",
+            crmId: recordId,
+          },
+          { status: 422, headers: corsHeaders }
+        );
+      }
+      principal = contactoPrincipal(socioId ?? recordId, contactos); // lanza ContactoEstandarError
+      ddContacto = principal;
+      // El estándar identificado queda en el lookup Nombre_de_contacto del expediente
+      if (idDe(ddRecord[DD_CONTACT_FIELD]) !== principal.crmId) {
+        try {
+          await zoho.service.setDDContacto(recordId, principal.crmId);
+        } catch (err) {
+          console.error(`[API Generar Enlace ZDK Warning] No se pudo escribir ${DD_CONTACT_FIELD} en ${recordId}:`, err);
+        }
+      }
+    } else {
+      ddContacto = (await contactoDelLookupZoho({ clientType, ddRecord })) ?? contactoLocal;
     }
     const clasif: ClasificacionContactos = socioId
       ? await clasificarContactosNaturales(socioId, contactos)

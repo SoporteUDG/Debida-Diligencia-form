@@ -29,6 +29,7 @@ const { prismaMock, zohoMock, enlaceMock, linkMock, contactoMock } = vi.hoisted(
     obtenerContactosDeCuenta: vi.fn(),
     clasificarContactosNaturales: vi.fn(),
     contactoDelLookupZoho: vi.fn(),
+    obtenerContactosDeDD: vi.fn(),
   },
 }));
 
@@ -121,9 +122,9 @@ describe("POST /api/generar-enlace — general", () => {
 });
 
 describe("POST /api/generar-enlace — Persona Natural", () => {
-  it("sin contacto en el expediente: 422 SIN_CONTACTO y no crea nada", async () => {
-    contactoMock.contactoDelLookupZoho.mockResolvedValue(null);
-    prismaMock.crmContact.findUnique.mockResolvedValue(local({ accountContactId: null, accountContact: null }));
+  it("sin contactos en el socio ni en el expediente: 422 SIN_CONTACTO y no crea nada", async () => {
+    contactoMock.obtenerContactosDeCuenta.mockResolvedValue([]);
+    contactoMock.obtenerContactosDeDD.mockResolvedValue([]);
     const res = await boton();
     expect(res.status).toBe(422);
     expect((await res.json()).code).toBe("SIN_CONTACTO");
@@ -146,13 +147,21 @@ describe("POST /api/generar-enlace — Persona Natural", () => {
     expect(json).toMatchObject({ crmId: "dd1", contactId: "zc1", clientUrl: "https://x/f?token=tk", relacionados: [{ contactId: "zc2" }] });
   });
 
-  it("el contacto del expediente no es el estándar: 409 CONTACTO_NO_ESTANDAR", async () => {
-    contactoMock.contactoDelLookupZoho.mockResolvedValue(luis);
+  it("el contacto del expediente es el estándar del socio, sin importar Nombre_de_contacto", async () => {
+    zohoMock.service.getDDRecord.mockResolvedValue({ ...ddNatural, Nombre_de_contacto: { id: "zc2" } });
     const res = await boton();
-    const json = await res.json();
-    expect(res.status).toBe(409);
-    expect(json).toMatchObject({ code: "CONTACTO_NO_ESTANDAR", contactId: "zc2", estandarContactId: "zc1" });
-    expect(enlaceMock.crearEnlaceConBorrador).not.toHaveBeenCalled();
+    expect(res.status).toBe(200);
+    expect(enlaceMock.crearEnlaceConBorrador).toHaveBeenCalledWith(expect.objectContaining({ contactCrmId: "zc1" }));
+  });
+
+  it("socio sin contactos: el estándar sale de los contactos atados al expediente", async () => {
+    const { SinContactosError } = await import("@/lib/accountContactService");
+    contactoMock.obtenerContactosDeCuenta.mockRejectedValue(new SinContactosError("s1"));
+    contactoMock.obtenerContactosDeDD.mockResolvedValue([ana, luis]);
+    const res = await boton();
+    expect(res.status).toBe(200);
+    expect(contactoMock.obtenerContactosDeDD).toHaveBeenCalledWith("dd1", "s1");
+    expect(enlaceMock.crearEnlaceConBorrador).toHaveBeenCalledWith(expect.objectContaining({ contactCrmId: "zc1" }));
   });
 
   it("socio sin contacto estándar (o con varios): 422 CONTACTO_ESTANDAR", async () => {
@@ -183,13 +192,6 @@ describe("POST /api/generar-enlace — Persona Natural", () => {
     expect(linkMock.vincularContactosAlExpediente).toHaveBeenCalledWith("dd1", ["zc1", "zc2"]);
   });
 
-  it("socio sin contactos en Zoho: 422 SIN_CONTACTOS", async () => {
-    const { SinContactosError } = await import("@/lib/accountContactService");
-    contactoMock.obtenerContactosDeCuenta.mockRejectedValue(new SinContactosError("s1"));
-    const res = await boton();
-    expect(res.status).toBe(422);
-    expect((await res.json()).code).toBe("SIN_CONTACTOS");
-  });
 
   describe("el Contact del expediente cambió en Zoho", () => {
     const luisEstandar = { ...luis, isStandard: true };
