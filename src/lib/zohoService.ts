@@ -1786,6 +1786,29 @@ export const zoho = {
      * todos los contactos del Socio de Negocio en su lista relacionada. Zoho no
      * los relaciona solo por compartir el Account.
      */
+    /** Escribe el Contact en el lookup Debida_Diligencia.Nombre_de_contacto del expediente (no dispara workflows). */
+    setDDContacto: async (ddId: string, contactId: string): Promise<{ success: boolean; mocked?: boolean }> => {
+      if (zohoSimulado(contactId) || zohoSimulado(ddId)) return { success: true, mocked: true };
+
+      return executeWithRetry(async (accessToken) => {
+        const crmBaseUrl = process.env.ZOHO_CRM_BASE_URL || "https://www.zohoapis.com/crm/v2";
+        const response = await fetch(`${crmBaseUrl}/Debida_Diligencia/${ddId}`, {
+          method: "PUT",
+          headers: { Authorization: `Zoho-oauthtoken ${accessToken}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ data: [{ [DD_CONTACT_FIELD]: { id: contactId } }], trigger: [] }),
+        });
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Zoho CRM Debida_Diligencia/${ddId} (${DD_CONTACT_FIELD}) PUT respondió HTTP ${response.status}: ${errorText}`);
+        }
+        const result = (await response.json()).data?.[0];
+        if (!result || result.status === "error") {
+          throw new Error(`Zoho CRM Error asignando el contacto ${contactId} al expediente ${ddId} [${result?.code}]: ${result?.message}`);
+        }
+        return { success: true };
+      });
+    },
+
     vincularContactoADD: async (contactId: string, ddId: string): Promise<{ success: boolean; mocked?: boolean }> => {
       if (zohoSimulado(contactId) || zohoSimulado(ddId)) return { success: true, mocked: true };
 

@@ -15,6 +15,7 @@ const { prismaMock, zohoMock, enlaceMock, linkMock, contactoMock } = vi.hoisted(
       updateClientFormLink: vi.fn(),
       createNote: vi.fn(),
       createDebidaDiligenciaRecord: vi.fn(),
+      setDDContacto: vi.fn(),
     },
   },
   enlaceMock: { crearEnlaceConBorrador: vi.fn() },
@@ -152,6 +153,12 @@ describe("POST /api/generar-enlace — Persona Natural", () => {
     const res = await boton();
     expect(res.status).toBe(200);
     expect(enlaceMock.crearEnlaceConBorrador).toHaveBeenCalledWith(expect.objectContaining({ contactCrmId: "zc1" }));
+    expect(zohoMock.service.setDDContacto).toHaveBeenCalledWith("dd1", "zc1");
+  });
+
+  it("si Nombre_de_contacto ya es el estándar no lo reescribe", async () => {
+    await boton();
+    expect(zohoMock.service.setDDContacto).not.toHaveBeenCalled();
   });
 
   it("socio sin contactos: el estándar sale de los contactos atados al expediente", async () => {
