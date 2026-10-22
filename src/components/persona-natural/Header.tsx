@@ -11,13 +11,23 @@ interface HeaderProps {
   saveStatus?: "idle" | "saving" | "saved" | "error" | "conflict";
 }
 
+/** El logo lleva al inicio y olvida el enlace en curso de este navegador (si no, el inicio lo retomaría). */
+function irAlInicio() {
+  try {
+    localStorage.removeItem("udg_due_diligence_natural_token");
+    localStorage.removeItem("udg_due_diligence_juridica_token");
+  } catch {
+    // Sin acceso al almacenamiento del navegador: se navega igual
+  }
+}
+
 export default function Header({ isSaving, lastSaved, saveStatus }: HeaderProps) {
   const t = useTranslations("NaturalForm.Header");
   return (
     <header className="border-b border-zinc-800/40 bg-[#052B48]/95 backdrop-blur-md sticky top-0 z-50 text-white">
       <div className="max-w-6xl mx-auto px-6 h-20 md:h-24 flex items-center justify-between">
         {/* Left: UDG Brand Logo */}
-        <div className="flex items-center gap-3 select-none">
+        <a href="/" onClick={irAlInicio} className="flex items-center gap-3 select-none">
           <Image
             src="/UDG_LOGO.png"
             alt={t("LogoAlt")}
@@ -26,7 +36,7 @@ export default function Header({ isSaving, lastSaved, saveStatus }: HeaderProps)
             className="object-contain h-8 md:h-12 w-auto"
             priority
           />
-        </div>
+        </a>
 
         {/* Right: Save Status & 20 Años Slogan Banner */}
         <div className="flex items-center gap-4 md:gap-6">
