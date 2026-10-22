@@ -1,6 +1,6 @@
 import { executeWithRetry } from "./zohoAuthService";
 import crypto from "crypto";
-import { ESTADO_ANULADO, ESTADO_EN_BORRADOR } from "./ddEstados";
+import { ESTADO_ANULADO, ESTADO_EN_BORRADOR, ESTADO_SIN_ASOCIAR } from "./ddEstados";
 
 /**
  * Normalizes values returned by Zoho CRM (e.g. converting null/undefined or string "null" to "").
@@ -561,7 +561,10 @@ export const zoho = {
           ddRecord.retirado === true ||
           String(ddRecord.retirado ?? "").toLowerCase() === "true" ||
           cleanValue(ddRecord.Estado) === ESTADO_ANULADO;
-        if (!anulado) apiPayload.Estado = "En borrador";
+        // Sin socio y "Sin Asociar" (formularios /registro/*): conserva el estado hasta
+        // que se asocie a un Socio de Negocio (ver /api/asociar-socio).
+        const sinAsociar = cleanValue(ddRecord.Estado) === ESTADO_SIN_ASOCIAR && !socioIdDe(ddRecord);
+        if (!anulado && !sinAsociar) apiPayload.Estado = "En borrador";
 
         apiPayload.Tag = tagsConDDDigital(ddRecord);
 
@@ -1786,6 +1789,37 @@ export const zoho = {
      * todos los contactos del Socio de Negocio en su lista relacionada. Zoho no
      * los relaciona solo por compartir el Account.
      */
+    /**
+     * Name "nombre-unidad-proyecto" que le corresponde a un expediente sin socio
+     * ("nombre-proyecto") cuando se le asigna su Socio de Negocio, junto con la
+     * unidad vendida del socio (lookup y texto) para escribirlas en el expediente.
+     * No escribe nada.
+     */
+    resolverNombreDDDeSocio: async (params: {
+      ddRecord: Record<string, any>;
+      socioId: string;
+      nombre: string;
+    }): Promise<{ name: string; unidadId: string; unidad: string }> => {
+      const { ddRecord, socioId, nombre } = params;
+      return executeWithRetry(async (accessToken) => {
+        let socioRecord: any = null;
+        const name = await resolveDDName(accessToken, {
+          ddRecord,
+          socioId,
+          overRideName: nombre,
+          fallback: { nombre, proyecto: firstValue(ddRecord, PROYECTO_KEYS) },
+          onSocioRecord: (r) => {
+            socioRecord = r;
+          },
+        });
+        return {
+          name: name || cleanValue(ddRecord.Name),
+          unidadId: cleanValue(socioRecord?.Unidad_Vendida1?.id),
+          unidad: socioRecord ? firstValue(socioRecord, UNIDAD_KEYS) : "",
+        };
+      });
+    },
+
     /** Escribe el Contact en el lookup Debida_Diligencia.Nombre_de_contacto del expediente (no dispara workflows). */
     setDDContacto: async (ddId: string, contactId: string): Promise<{ success: boolean; mocked?: boolean }> => {
       if (zohoSimulado(contactId) || zohoSimulado(ddId)) return { success: true, mocked: true };

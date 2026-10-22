@@ -142,6 +142,12 @@ export function extractFolderIdFromLink(link: string): string | null {
  * Si el expediente no tiene socio, o el socio no tiene un enlace con ID de
  * carpeta, se usa la carpeta raíz configurada en ZOHO_WORKDRIVE_ROOT_FOLDER_ID.
  *
+ * Un expediente sin socio (formularios /registro/*) comparte la raíz con todos
+ * los demás y su Name es solo "nombre-proyecto": para que dos clientes con el
+ * mismo nombre y proyecto no compartan carpeta, el nombre que se devuelve (y
+ * con el que se arman las carpetas) termina con los últimos 6 caracteres del ID
+ * del expediente. El Name del expediente en Zoho no cambia.
+ *
  * @param ddId ID del registro de Debida_Diligencia en Zoho CRM
  * @returns El ID de la carpeta del socio y el nombre del expediente
  */
@@ -169,7 +175,7 @@ export async function findFolderSocio(
   }
 
   console.warn(`[WorkDrive Service] Se usa la carpeta raíz ZOHO_WORKDRIVE_ROOT_FOLDER_ID: ${motivo}.`);
-  return { socioFolderId: rootFolderId, ddName };
+  return { socioFolderId: rootFolderId, ddName: socioId ? ddName : `${ddName}-${ddId.slice(-6)}` };
 }
 
 /** WorkDrive no admite estos caracteres en nombres de carpeta. */
@@ -684,6 +690,101 @@ export async function renameFolder(resourceId: string, newName: string, accessTo
     );
   }
   console.log(`[WorkDrive Service] Recurso ${resourceId} renombrado a "${newName}".`);
+}
+
+/** El Socio de Negocio no tiene una carpeta de documentos de WorkDrive (Link_documentos) a donde mover el expediente. */
+export class SocioSinCarpetaError extends Error {
+  constructor(public socioId: string, public linkDocumentos: string) {
+    super(
+      !linkDocumentos
+        ? `El Socio de Negocio ${socioId} no tiene enlace Link_documentos: no hay carpeta de WorkDrive a donde mover el expediente.`
+        : `El enlace Link_documentos del Socio de Negocio ${socioId} no contiene un ID de carpeta de WorkDrive (¿enlace público?).`
+    );
+    this.name = "SocioSinCarpetaError";
+  }
+}
+
+/**
+ * Lleva las carpetas de un expediente creado sin socio (/registro/*, en
+ * ZOHO_WORKDRIVE_ROOT_FOLDER_ID/DD/Principal-{TIPO}-{nombre}-{6 del ID}) a la
+ * carpeta del Socio de Negocio que ya se le asignó: se mueven a /{Socio}/DD y la
+ * principal se renombra a Principal-{TIPO}-{nombreNuevo}. También se mueven las
+ * de sus enlaces (por el sufijo de su token). Idempotente: lo que ya está en el
+ * socio solo se renombra, y sin carpeta de origen no hay nada que mover.
+ * Lanza SocioSinCarpetaError (antes de tocar nada) si el socio no tiene carpeta, y
+ * Error si ya hay una carpeta principal con el nombre nuevo.
+ */
+export async function migrarCarpetasASocio(params: {
+  ddId: string;
+  formType: string;
+  /** Name del expediente antes de asociarlo ("nombre-proyecto"). */
+  nombreAnterior: string;
+  /** Name del expediente ya con el socio ("nombre-unidad-proyecto"). */
+  nombreNuevo: string;
+  /** Tokens de los enlaces del expediente (cada uno con su carpeta). */
+  tokens: string[];
+}): Promise<{ principal: boolean; enlaces: number }> {
+  const { ddId, formType, nombreAnterior, nombreNuevo, tokens } = params;
+  const accessToken = await getAccessToken();
+
+  const { socioId, linkDocumentos } = await zoho.service.getSocioDocumentsLink(ddId);
+  const socioFolderId = extractFolderIdFromLink(linkDocumentos);
+  if (!socioFolderId) throw new SocioSinCarpetaError(socioId, linkDocumentos);
+
+  const rootFolderId = process.env.ZOHO_WORKDRIVE_ROOT_FOLDER_ID;
+  const hayRaiz = !!rootFolderId && rootFolderId !== "placeholder_root_folder_id" && rootFolderId !== socioFolderId;
+  const ddRaizId = hayRaiz ? await findFolderInParent(rootFolderId!, "DD", accessToken) : null;
+
+  let ddSocioId = await findFolderInParent(socioFolderId, "DD", accessToken);
+  const asegurarDDSocio = async () => (ddSocioId ??= await createFolderInParent(socioFolderId, "DD", accessToken));
+
+  // Nombre con el que nació la carpeta (sin socio lleva los últimos 6 del ID) y sin el sufijo
+  const nombresViejos = [`${nombreAnterior}-${ddId.slice(-6)}`, nombreAnterior];
+  const nombreFinal = nombreCarpetaPrincipal(formType, nombreNuevo);
+
+  let principal = false;
+  const destino = ddSocioId ? await buscarCarpetaPrincipal(ddSocioId, formType, nombreNuevo, accessToken) : null;
+
+  // Principal: en la raíz (mover y renombrar; allí siempre lleva el sufijo del ID) o ya en el socio
+  // con el nombre anterior (renombrar)
+  const enRaiz = ddRaizId ? await buscarPrimeraPrincipal(ddRaizId, formType, nombresViejos.slice(0, 1), accessToken) : null;
+  if (enRaiz) {
+    if (destino) {
+      throw new Error(`El socio ya tiene una carpeta "${nombreFinal}" en su carpeta DD: no se puede mover la del expediente sin mezclarlas.`);
+    }
+    await moveFolder(enRaiz, await asegurarDDSocio(), accessToken);
+    await renameFolder(enRaiz, nombreFinal, accessToken);
+    principal = true;
+  } else if (!destino && ddSocioId) {
+    const enSocio = await buscarPrimeraPrincipal(ddSocioId, formType, nombresViejos, accessToken);
+    if (enSocio) {
+      await renameFolder(enSocio, nombreFinal, accessToken);
+      principal = true;
+    }
+  }
+
+  // Enlaces del expediente (relacionado, representante, adicional): solo cambian de padre
+  let enlaces = 0;
+  if (ddRaizId) {
+    for (const token of tokens) {
+      const carpeta = await findFolderEndingWith(ddRaizId, sufijoAdicional(token), accessToken);
+      if (!carpeta) continue;
+      await moveFolder(carpeta, await asegurarDDSocio(), accessToken);
+      enlaces++;
+    }
+  }
+
+  console.log(`[WorkDrive Service] Expediente ${ddId} asociado al socio ${socioId}: principal ${principal ? "movida" : "sin cambios"}, ${enlaces} enlace(s) movido(s).`);
+  return { principal, enlaces };
+}
+
+/** Primera carpeta principal de `ddFolderId` que coincida con alguno de los nombres. */
+async function buscarPrimeraPrincipal(ddFolderId: string, formType: string, nombres: string[], accessToken: string): Promise<string | null> {
+  for (const nombre of nombres) {
+    const id = await buscarCarpetaPrincipal(ddFolderId, formType, nombre, accessToken);
+    if (id) return id;
+  }
+  return null;
 }
 
 /**

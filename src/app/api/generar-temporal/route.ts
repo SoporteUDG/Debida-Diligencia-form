@@ -47,13 +47,13 @@ function tipoDe(v: any): "NATURAL" | "JURIDICA" | null {
  * los TEMPORAL_EXPIRES_DAYS días.
  *
  * Body (del formulario del widget):
- *   { persona_de_tipo: "Natural" | "Jurídica", unidad_vendida: { id: string, name: string },
+ *   { persona_de_tipo: "Natural" | "Jurídica", unidad_vendida?: { id: string, name: string },
  *     modulo?: string, userId?: string, proyecto?: string }
  * persona_de_tipo es el Persona_de_Tipo del Socio de Negocio que se creará
- * (se acepta `tipo` como alias). unidad_vendida (requerida) es el lookup
+ * (se acepta `tipo` como alias). unidad_vendida (opcional) es el lookup
  * Unidad_Vendida1 del socio: el widget la busca por su ID_SAP y envía el id del
- * registro. Con ella y el proyecto se forma el Name "nombre-unidad-proyecto"
- * del Socio de Negocio y la DD.
+ * registro. Si viene, se agrega al Socio de Negocio y a la DD y el Name es
+ * "nombre-unidad-proyecto"; si no, "nombre-proyecto". Nunca bloquea la creación.
  */
 export async function POST(request: NextRequest) {
   console.log(`[API Generar Temporal] Solicitud recibida (x-api-key ${request.headers.get("x-api-key") ? "presente" : "ausente"}).`);
@@ -80,13 +80,6 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    if (!unidadVendida) {
-      return NextResponse.json(
-        { success: false, code: "SIN_UNIDAD", error: "Seleccione la unidad vendida." },
-        { status: 400 }
-      );
-    }
-
     // El proyecto del botón precarga el del formulario
     const data: Record<string, any> = proyecto ? { nombreProyecto: proyecto } : {};
 

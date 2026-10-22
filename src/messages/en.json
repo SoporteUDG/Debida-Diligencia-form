@@ -1120,8 +1120,8 @@
     "Badge": "Error 404",
     "Title": "Page Not Found",
     "Message": "The page you are looking for does not exist or is no longer available. Please check that the address is spelled correctly.",
-    "HelpTitle": "Looking for your form?",
-    "HelpBody": "The Due Diligence form can only be opened with the secure, personalized link sent to you by your business advisor or the UDG Compliance team. If you do not have it or it has expired, please ask for it to be resent."
+    "HelpTitle": "Need guidance?",
+    "HelpBody": "If you are looking for your form or have another request, please contact your business advisor or the UDG Compliance team for guidance. If you had a personalized link and it expired, ask for it to be resent."
   },
   "Temporal": {
     "Title": "Complete your information",
@@ -1143,5 +1143,39 @@
     "Loading": "Loading...",
     "DoneTitle": "Information submitted",
     "DoneMessage": "Thank you. We received the information for this step; your UDG advisor will continue with the process."
+  },
+  "Home": {
+    "Badge": "Due Diligence • UDG",
+    "Title": "Due Diligence Form",
+    "Description": "This Urban Development Group (UDG) portal collects regulatory compliance information from our clients. Choose the client type that applies and complete the form; your progress is saved automatically in this device.",
+    "NaturalTitle": "Individual",
+    "NaturalBody": "For people purchasing in their own name.",
+    "JuridicaTitle": "Legal Entity",
+    "JuridicaBody": "For companies, corporations and other legal entities.",
+    "Start": "Start",
+    "GuidanceTitle": "Need help or looking for something else?",
+    "GuidanceBody": "If your request is different, or you already received a personalized link from your advisor, please contact your business advisor or the UDG Compliance team for guidance."
+  },
+  "Standalone": {
+    "TitleNatural": "Due Diligence – Individual",
+    "TitleJuridica": "Due Diligence – Legal Entity",
+    "Subtitle": "Fill in the information for these sections. Your progress is saved automatically in this device.",
+    "Submit": "Continue",
+    "Submitting": "Processing...",
+    "FixErrors": "Please review the highlighted fields before continuing.",
+    "SubmitError": "We could not create your file right now. Your information is saved in this browser; please try again.",
+    "Loading": "Loading...",
+    "ProcessingTitle": "We are creating your file",
+    "ProcessingMessage": "This may take a few seconds. Please do not close or reload this page.",
+    "DoneTitle": "Information received",
+    "DoneMessage": "Thank you. We have completed this step.",
+    "RedirectingTitle": "All set!",
+    "RedirectingMessage": "We are taking you to your form to continue with the documents.",
+    "ExistingClientTitle": "You are already a UDG client",
+    "ExistingClientMessage": "Your identification number (RUC / tax ID) is already registered with us from a previous purchase. Are you sure your information is correct?",
+    "ExistingClientConfirm": "Yes, my information is correct",
+    "ExistingClientReview": "Review my information",
+    "RateLimited": "You have sent too many requests. Please try again in {minutes} minute(s).",
+    "VerifyError": "We could not verify your information right now. Please try again in a few minutes."
   }
 }

@@ -9,9 +9,10 @@
    *   /api/temporales, con su enlace para copiarlo.
    * - "Crear enlace adicional" desbloquea el formulario: Persona de Tipo
    *   (Persona_de_Tipo del Socio de Negocio que se creará), Proyecto e ID SAP
-   *   de la unidad. La unidad se valida en Zoho (exactamente un registro de
-   *   MODULO_UNIDADES con ese ID_SAP; si no, no se envía nada) y su id va a
-   *   /api/generar-temporal como Unidad_Vendida1. Al completarse el enlace se
+   *   de la unidad (opcional). Si se llena, se busca en Zoho (exactamente un
+   *   registro de MODULO_UNIDADES con ese ID_SAP) y su id va a
+   *   /api/generar-temporal como Unidad_Vendida1; si está vacío o no existe, el
+   *   enlace se genera igual, sin unidad. Al completarse el enlace se
    *   crean el Socio de Negocio y la Debida Diligencia.
    *
    * Requisitos en Zoho:
@@ -244,10 +245,10 @@
     }).catch(function () { return null; });
   }
 
-  function mostrarResultado(cuerpo, unidad) {
+  function mostrarResultado(cuerpo, unidad, aviso) {
     el.enlace.value = cuerpo.url;
     el.vence.textContent = cuerpo.expiresAt ? " (vence el " + fecha(cuerpo.expiresAt) + ")" : "";
-    el.unidadNombre.textContent = unidad.name;
+    el.unidadNombre.textContent = unidad ? unidad.name : "sin unidad" + (aviso ? " (" + aviso + ")" : "");
     el.resultado.hidden = false;
     el.enlace.focus();
     el.enlace.select();
@@ -264,38 +265,43 @@
     var proyecto = el.proyecto.value;
     var idSap = el.idSap.value.trim();
     if (!personaDeTipo) { mostrarError("Seleccione la Persona de Tipo (Natural o Jurídica)."); return; }
-    if (!idSap) { mostrarError("El ID SAP de la unidad es requerido."); el.idSap.focus(); return; }
 
-    var unidad;
-    ocupado(true, "Validando la unidad…");
-    unidadesPorIdSap(idSap)
+    // La unidad es opcional: sin ID SAP, o si no existe (o está duplicada), el enlace se genera sin ella
+    var unidad = null;
+    var avisoUnidad = "";
+    ocupado(true, idSap ? "Validando la unidad…" : "Generando enlace…");
+    (idSap ? unidadesPorIdSap(idSap) : Promise.resolve([]))
+      .catch(function (e) {
+        console.warn("[enlaces temporales] no se pudo validar la unidad", e);
+        avisoUnidad = "No se pudo validar la unidad.";
+        return [];
+      })
       .then(function (coincidencias) {
-        if (!coincidencias.length) {
-          throw new Error("No existe ninguna unidad con ID SAP \"" + idSap + "\". Revise el valor e intente de nuevo.");
+        if (idSap && !coincidencias.length && !avisoUnidad) avisoUnidad = "No existe ninguna unidad con ID SAP \"" + idSap + "\".";
+        if (coincidencias.length > 1) avisoUnidad = "Hay " + coincidencias.length + " unidades con ID SAP \"" + idSap + "\".";
+        if (coincidencias.length === 1) {
+          unidad = { id: String(coincidencias[0].id), name: String(coincidencias[0].Name || idSap).trim() };
         }
-        if (coincidencias.length > 1) {
-          throw new Error("Hay " + coincidencias.length + " unidades con ID SAP \"" + idSap + "\". Corrija el duplicado en Zoho.");
-        }
-        unidad = { id: String(coincidencias[0].id), name: String(coincidencias[0].Name || idSap).trim() };
         ocupado(true, "Generando enlace…");
         return usuarioActual();
       })
       .then(function (userId) {
-        return portal("/generar-temporal", {
+        var cuerpoEnvio = {
           persona_de_tipo: personaDeTipo,
           modulo: modulo,
           userId: userId,
-          // Lookup Unidad_Vendida1 y Name "nombre-unidad-proyecto" de lo que se crea
-          unidad_vendida: unidad,
           proyecto: proyecto
-        });
+        };
+        // Lookup Unidad_Vendida1 y Name "nombre-unidad-proyecto" de lo que se crea (opcional)
+        if (unidad) cuerpoEnvio.unidad_vendida = unidad;
+        return portal("/generar-temporal", cuerpoEnvio);
       })
       .then(function (cuerpo) {
         if (!cuerpo.success || !cuerpo.url) {
           throw new Error(cuerpo.error || "Respuesta inesperada del portal.");
         }
         cerrarFormulario();
-        mostrarResultado(cuerpo, unidad);
+        mostrarResultado(cuerpo, unidad, avisoUnidad);
         return cargarLista();
       })
       .catch(function (e) {

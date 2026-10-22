@@ -1130,8 +1130,8 @@
     "Badge": "Error 404",
     "Title": "Página no encontrada",
     "Message": "La página que busca no existe o ya no está disponible. Verifique que la dirección esté escrita correctamente.",
-    "HelpTitle": "¿Busca su formulario?",
-    "HelpBody": "El formulario de Debida Diligencia solo se abre con el enlace seguro y personalizado que le envió su asesor comercial o el equipo de Cumplimiento de UDG. Si no lo tiene o expiró, solicite que se lo reenvíen."
+    "HelpTitle": "¿Necesita orientación?",
+    "HelpBody": "Si busca su formulario o tiene otra solicitud, comuníquese con su asesor comercial o con el equipo de Cumplimiento de UDG para recibir orientación. Si ya tenía un enlace personalizado y expiró, solicite que se lo reenvíen."
   },
   "Temporal": {
     "Title": "Completar información",
@@ -1153,5 +1153,39 @@
     "Loading": "Cargando...",
     "DoneTitle": "Información enviada",
     "DoneMessage": "Gracias. Recibimos la información de este paso; su asesor de UDG continuará con el proceso."
+  },
+  "Home": {
+    "Badge": "Debida Diligencia • UDG",
+    "Title": "Formulario de Debida Diligencia",
+    "Description": "Este portal de Urban Development Group (UDG) recopila la información de cumplimiento normativo de nuestros clientes. Seleccione el tipo de cliente que corresponde y complete el formulario; su avance se guarda automáticamente en este dispositivo.",
+    "NaturalTitle": "Persona Natural",
+    "NaturalBody": "Para personas que realizan la compra a título personal.",
+    "JuridicaTitle": "Persona Jurídica",
+    "JuridicaBody": "Para sociedades, empresas y demás entidades legales.",
+    "Start": "Comenzar",
+    "GuidanceTitle": "¿Necesita ayuda o busca algo distinto?",
+    "GuidanceBody": "Si su solicitud es otra, o ya recibió un enlace personalizado de su asesor, comuníquese con su asesor comercial o con el equipo de Cumplimiento de UDG para recibir orientación."
+  },
+  "Standalone": {
+    "TitleNatural": "Debida Diligencia – Persona Natural",
+    "TitleJuridica": "Debida Diligencia – Persona Jurídica",
+    "Subtitle": "Complete la información de estas secciones. Su avance se guarda automáticamente en este dispositivo.",
+    "Submit": "Continuar",
+    "Submitting": "Procesando...",
+    "FixErrors": "Revise los campos marcados antes de continuar.",
+    "SubmitError": "No se pudo crear su expediente en este momento. Su información está guardada en este navegador; intente nuevamente.",
+    "Loading": "Cargando...",
+    "ProcessingTitle": "Estamos creando su expediente",
+    "ProcessingMessage": "Esto puede tardar unos segundos. Por favor no cierre ni recargue esta página.",
+    "DoneTitle": "Información recibida",
+    "DoneMessage": "Gracias. Hemos completado este paso.",
+    "RedirectingTitle": "¡Listo!",
+    "RedirectingMessage": "Lo estamos llevando a su formulario para continuar con los documentos.",
+    "ExistingClientTitle": "Ya es cliente de UDG",
+    "ExistingClientMessage": "Su número de identificación (RUC / ID tributaria) ya está registrado con nosotros por una compra anterior. ¿Está seguro de que su información es correcta?",
+    "ExistingClientConfirm": "Sí, mi información es correcta",
+    "ExistingClientReview": "Revisar mis datos",
+    "RateLimited": "Ha enviado demasiadas solicitudes. Intente nuevamente en {minutes} minuto(s).",
+    "VerifyError": "No pudimos verificar su información en este momento. Intente nuevamente en unos minutos."
   }
 }

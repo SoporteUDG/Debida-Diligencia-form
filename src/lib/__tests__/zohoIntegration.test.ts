@@ -294,7 +294,7 @@ describe("Zoho CRM & WorkDrive Integration Mocks", () => {
       expect(urls.some((u) => u.includes("/Contacts/") || u.includes("/Leads/"))).toBe(false);
     });
 
-    it("updateContact - should throw without updating when the record has no Socio de Negocio", async () => {
+    it("updateContact - updates a record without Socio de Negocio (expedientes de /registro)", async () => {
       const spyFetch = vi.spyOn(global, "fetch").mockImplementation(async (url, init) => {
         const urlStr = String(url);
         if (urlStr.includes("/oauth/v2/token")) return tokenResponse;
@@ -305,14 +305,20 @@ describe("Zoho CRM & WorkDrive Integration Mocks", () => {
             json: async () => ({ data: [{ id: "dd-sin-socio", Socio_de_Negocios: null }] }),
           } as any;
         }
-        return { ok: false, status: 404 } as any;
+        if (urlStr.includes("/Debida_Diligencia/dd-sin-socio") && (init as any)?.method === "PUT") {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({ data: [{ status: "success", code: "SUCCESS", details: { id: "dd-sin-socio" } }] }),
+          } as any;
+        }
+        return { ok: false, status: 404, text: async () => "Not Found" } as any;
       });
 
-      await expect(zoho.service.updateContact("dd-sin-socio", "NATURAL", {})).rejects.toThrow(
-        "no tiene Socio de Negocio"
-      );
+      // Los expedientes de /registro/* nacen sin socio: se actualizan igual
+      await expect(zoho.service.updateContact("dd-sin-socio", "NATURAL", {})).resolves.toMatchObject({ success: true });
       const put = spyFetch.mock.calls.find(([, init]) => (init as any)?.method === "PUT");
-      expect(put).toBeUndefined();
+      expect(put).toBeDefined();
     });
   });
 
@@ -437,7 +443,7 @@ describe("Zoho CRM & WorkDrive Integration Mocks", () => {
         if (urlStr.includes("/files/dd_id/files")) {
           return {
             ok: true,
-            json: async () => ({ data: [{ id: "client_id", attributes: { name: "JURIDICA-Ana Ruiz" } }] }),
+            json: async () => ({ data: [{ id: "client_id", attributes: { name: "JURIDICA-Ana Ruiz-_socio" } }] }),
           } as any;
         }
         return { ok: false, status: 404, text: async () => "" } as any;
@@ -447,6 +453,7 @@ describe("Zoho CRM & WorkDrive Integration Mocks", () => {
 
       expect(structure.socioFolderId).toBe("root_folder_12345");
       expect(structure.ddFolderId).toBe("dd_id");
+      // Sin socio la carpeta lleva los últimos 6 caracteres del ID del expediente (nombre único)
       expect(structure.clientFolderId).toBe("client_id");
     });
 

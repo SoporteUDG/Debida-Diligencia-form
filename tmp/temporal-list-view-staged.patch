@@ -1,0 +1,1105 @@
+diff --git a/prisma/migrations/20261015200000_temporal_token/migration.sql b/prisma/migrations/20261015200000_temporal_token/migration.sql
+new file mode 100644
+index 0000000..0c86003
+--- /dev/null
++++ b/prisma/migrations/20261015200000_temporal_token/migration.sql
+@@ -0,0 +1,2 @@
++-- AlterTable: token en claro para listar los enlaces temporales activos en el widget
++ALTER TABLE "Temporal" ADD COLUMN "token" TEXT;
+diff --git a/prisma/schema.prisma b/prisma/schema.prisma
+index 6872e7e..6f31bee 100644
+--- a/prisma/schema.prisma
++++ b/prisma/schema.prisma
+@@ -513,6 +513,9 @@ model Temporal {
+   type        FormType
+   data        Json
+   tokenHash   String    @unique
++  // Token en claro (como Token.token), para volver a mostrar el enlace en el
++  // widget de enlaces temporales. null en los temporales anteriores a la columna.
++  token       String?
+   // Registro de Zoho desde el que se generó (solo temporales antiguos, del
+   // Canvas). Los nuevos salen de la vista de lista y no se atan a un registro.
+   crmRecordId String?
+diff --git a/src/app/api/generar-temporal/route.ts b/src/app/api/generar-temporal/route.ts
+index 3524df9..ebf5cf2 100644
+--- a/src/app/api/generar-temporal/route.ts
++++ b/src/app/api/generar-temporal/route.ts
+@@ -34,24 +34,26 @@ function tipoDe(v: any): "NATURAL" | "JURIDICA" | null {
+ }
+ 
+ /**
+- * Botón "Generar temporal" de la vista de lista de Zoho CRM: crea un enlace
++ * Widget "Generar temporal" (zoho_widget/generar-temporal), abierto por el botón
++ * de la vista personalizada de Zoho CRM: crea un enlace
+  * temporal nuevo (tabla Temporal), sin atarlo a ningún registro existente, que
+  * solo muestra las secciones I a III del formulario, y devuelve su URL. Al
+  * completarse, /api/temporal llama a manageTemporal, que crea el Socio de
+  * Negocio y la Debida Diligencia.
+  *
+- * Seguridad: la llamada debe traer ZOHO_BUTTON_API_KEY (el botón la envía por
++ * Seguridad: la llamada debe traer ZOHO_BUTTON_API_KEY (el widget la envía por
+  * la Conexión "dd_portal", así la llave no queda en el navegador). El enlace
+  * lleva un token aleatorio de 256 bits del que solo se guarda el hash; vence a
+  * los TEMPORAL_EXPIRES_DAYS días.
+  *
+- * Body (del formulario emergente del botón):
++ * Body (del formulario del widget):
+  *   { persona_de_tipo: "Natural" | "Jurídica", unidad_vendida: { id: string, name: string },
+  *     modulo?: string, userId?: string, proyecto?: string }
+  * persona_de_tipo es el Persona_de_Tipo del Socio de Negocio que se creará
+  * (se acepta `tipo` como alias). unidad_vendida (requerida) es el lookup
+- * Unidad_Vendida1 del socio; las unidades salen de /api/unidades. Con ella y el
+- * proyecto se forma el Name "nombre-unidad-proyecto" del Socio de Negocio y la DD.
++ * Unidad_Vendida1 del socio: el widget la busca por su ID_SAP y envía el id del
++ * registro. Con ella y el proyecto se forma el Name "nombre-unidad-proyecto"
++ * del Socio de Negocio y la DD.
+  */
+ export async function POST(request: NextRequest) {
+   console.log(`[API Generar Temporal] Solicitud recibida (x-api-key ${request.headers.get("x-api-key") ? "presente" : "ausente"}).`);
+diff --git a/src/app/api/unidades/route.ts b/src/app/api/temporales/route.ts
+similarity index 51%
+rename from src/app/api/unidades/route.ts
+rename to src/app/api/temporales/route.ts
+index 029ee1c..c3ce891 100644
+--- a/src/app/api/unidades/route.ts
++++ b/src/app/api/temporales/route.ts
+@@ -1,6 +1,6 @@
+ import { NextRequest, NextResponse } from "next/server";
+ import { timingSafeEqual } from "crypto";
+-import { zoho } from "@/lib/zohoService";
++import { listarTemporalesActivos } from "@/lib/temporalService";
+ 
+ export const dynamic = "force-dynamic";
+ 
+@@ -15,18 +15,18 @@ function llaveValida(request: NextRequest): boolean | "sin-configurar" {
+ }
+ 
+ /**
+- * Unidades para el lookup "Unidad" del botón "Generar temporal" (vista de
+- * lista de Zoho CRM): los registros del módulo al que apunta
+- * Accounts.Unidad_Vendida1, filtrados por proyecto.
++ * Enlaces temporales activos (sin completar y sin vencer) para la lista del
++ * widget "Generar temporal" (zoho_widget/generar-temporal).
+  *
+  * Seguridad: ZOHO_BUTTON_API_KEY, enviada por la Conexión "dd_portal".
+  *
+- * Body: { proyecto?: string }  →  { success, unidades: [{ id, name }] }
++ * Respuesta: { success, temporales: [{ id, tipo, url, proyecto, unidad, createdBy, createdAt, expiresAt }] }
++ * `url` es null en los temporales creados antes de guardarse el token.
+  */
+ export async function POST(request: NextRequest) {
+   const llave = llaveValida(request);
+   if (llave === "sin-configurar") {
+-    console.error("[API Unidades] Falta ZOHO_BUTTON_API_KEY: solicitud rechazada.");
++    console.error("[API Temporales] Falta ZOHO_BUTTON_API_KEY: solicitud rechazada.");
+     return NextResponse.json({ success: false, error: "Servicio no configurado" }, { status: 503 });
+   }
+   if (!llave) {
+@@ -34,12 +34,14 @@ export async function POST(request: NextRequest) {
+   }
+ 
+   try {
+-    const body = await request.json().catch(() => ({}));
+-    const proyecto = typeof body.proyecto === "string" ? body.proyecto.trim() : "";
+-    const unidades = await zoho.service.getUnidades(proyecto || undefined);
+-    return NextResponse.json({ success: true, unidades });
++    const host = request.headers.get("host") || "debida-diligencia.duckdns.org";
++    const protocol = request.headers.get("x-forwarded-proto") || "https";
++    const appUrl = process.env.NEXT_PUBLIC_APP_URL || `${protocol}://${host}`;
++
++    const temporales = await listarTemporalesActivos(appUrl);
++    return NextResponse.json({ success: true, temporales });
+   } catch (error: any) {
+-    console.error("[API Unidades Error]:", error);
+-    return NextResponse.json({ success: false, error: "No se pudieron leer las unidades de Zoho" }, { status: 502 });
++    console.error("[API Temporales Error]:", error);
++    return NextResponse.json({ success: false, error: "Error interno del servidor" }, { status: 500 });
+   }
+ }
+diff --git a/src/lib/__tests__/generarTemporalRoute.test.ts b/src/lib/__tests__/generarTemporalRoute.test.ts
+index 9fdd4b6..131d503 100644
+--- a/src/lib/__tests__/generarTemporalRoute.test.ts
++++ b/src/lib/__tests__/generarTemporalRoute.test.ts
+@@ -47,6 +47,8 @@ describe("POST /api/generar-temporal", () => {
+       proyecto: "The Hub",
+     });
+     expect(data).not.toHaveProperty("crmRecordId");
++    // El token se guarda para volver a mostrar el enlace en el widget
++    expect(json.url).toBe(`https://portal.test/temporal?token=${data.token}`);
+     // No está atado a un registro: no invalida otros temporales
+     expect(prismaMock.temporal.updateMany).not.toHaveBeenCalled();
+   });
+diff --git a/src/lib/__tests__/temporalesRoute.test.ts b/src/lib/__tests__/temporalesRoute.test.ts
+new file mode 100644
+index 0000000..f516972
+--- /dev/null
++++ b/src/lib/__tests__/temporalesRoute.test.ts
+@@ -0,0 +1,64 @@
++import { vi, describe, it, expect, beforeEach } from "vitest";
++import { NextRequest } from "next/server";
++
++const { prismaMock } = vi.hoisted(() => ({
++  prismaMock: { temporal: { findMany: vi.fn() } },
++}));
++
++vi.mock("@/lib/prisma", () => ({ default: prismaMock }));
++vi.mock("@/lib/auditService", () => ({ logAuditEvent: vi.fn() }));
++
++import { POST } from "@/app/api/temporales/route";
++
++const LLAVE = "llave-de-prueba";
++const req = (llave = LLAVE) =>
++  new NextRequest("http://portal.test/api/temporales", {
++    method: "POST",
++    headers: { "x-api-key": llave, host: "portal.test", "content-type": "application/json" },
++    body: "{}",
++  });
++
++const creado = new Date("2026-10-15T10:00:00Z");
++const vence = new Date("2026-10-22T10:00:00Z");
++
++beforeEach(() => {
++  vi.clearAllMocks();
++  process.env.ZOHO_BUTTON_API_KEY = LLAVE;
++  delete process.env.NEXT_PUBLIC_APP_URL;
++});
++
++describe("POST /api/temporales", () => {
++  it("lista los temporales activos con su enlace (null si no hay token guardado)", async () => {
++    prismaMock.temporal.findMany.mockResolvedValue([
++      { id: "t2", type: "JURIDICA", token: "abc", proyecto: "The Hub", unidadVendidaNombre: "A-12", createdBy: "u1", createdAt: creado, expiresAt: vence },
++      { id: "t1", type: "NATURAL", token: null, proyecto: null, unidadVendidaNombre: null, createdBy: null, createdAt: creado, expiresAt: vence },
++    ]);
++
++    const res = await POST(req());
++    expect(res.status).toBe(200);
++    const json = await res.json();
++    expect(json.success).toBe(true);
++    expect(json.temporales).toEqual([
++      {
++        id: "t2", tipo: "JURIDICA", url: "https://portal.test/temporal?token=abc", proyecto: "The Hub",
++        unidad: "A-12", createdBy: "u1", createdAt: creado.toISOString(), expiresAt: vence.toISOString(),
++      },
++      {
++        id: "t1", tipo: "NATURAL", url: null, proyecto: null,
++        unidad: null, createdBy: null, createdAt: creado.toISOString(), expiresAt: vence.toISOString(),
++      },
++    ]);
++
++    // Solo los abiertos y sin vencer, del más reciente al más antiguo
++    const [consulta] = prismaMock.temporal.findMany.mock.calls[0];
++    expect(consulta.where.completedAt).toBeNull();
++    expect(consulta.where.expiresAt.gt).toBeInstanceOf(Date);
++    expect(consulta.orderBy).toEqual({ createdAt: "desc" });
++  });
++
++  it("rechaza la llave incorrecta", async () => {
++    const res = await POST(req("otra"));
++    expect(res.status).toBe(401);
++    expect(prismaMock.temporal.findMany).not.toHaveBeenCalled();
++  });
++});
+diff --git a/src/lib/__tests__/unidadesRoute.test.ts b/src/lib/__tests__/unidadesRoute.test.ts
+deleted file mode 100644
+index 587d659..0000000
+--- a/src/lib/__tests__/unidadesRoute.test.ts
++++ /dev/null
+@@ -1,82 +0,0 @@
+-import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
+-import { NextRequest } from "next/server";
+-
+-vi.mock("@/lib/zohoAuthService", () => ({
+-  executeWithRetry: (fn: (token: string) => Promise<unknown>) => fn("tok"),
+-}));
+-
+-import { POST } from "@/app/api/unidades/route";
+-
+-const LLAVE = "llave-de-prueba";
+-const req = (body: any, llave = LLAVE) =>
+-  new NextRequest("http://portal.test/api/unidades", {
+-    method: "POST",
+-    headers: { "x-api-key": llave, "content-type": "application/json" },
+-    body: JSON.stringify(body),
+-  });
+-
+-const json = (body: any, status = 200) => new Response(JSON.stringify(body), { status });
+-const fetchMock = vi.fn();
+-
+-beforeEach(() => {
+-  process.env.ZOHO_BUTTON_API_KEY = LLAVE;
+-  fetchMock.mockReset();
+-  vi.stubGlobal("fetch", fetchMock);
+-});
+-afterEach(() => vi.unstubAllGlobals());
+-
+-describe("POST /api/unidades", () => {
+-  it("lee el módulo del lookup Unidad_Vendida1 y filtra las unidades por proyecto", async () => {
+-    fetchMock.mockImplementation(async (url: string) => {
+-      if (url.includes("settings/fields?module=Accounts")) {
+-        return json({ fields: [{ api_name: "Otro" }, { api_name: "Unidad_Vendida1", lookup: { module: { api_name: "Inventario" } } }] });
+-      }
+-      if (url.includes("/Inventario?")) {
+-        return json({
+-          data: [
+-            { id: "2", Name: "A-10", Proyecto: { name: "The Hub", id: "p" } },
+-            { id: "1", Name: "A-9", Proyecto: "The Hub" },
+-            { id: "3", Name: "B-1", Proyecto: "Paramount" },
+-            { id: "4", Name: "C-1" },
+-          ],
+-          info: { more_records: false },
+-        });
+-      }
+-      throw new Error(`URL inesperada ${url}`);
+-    });
+-
+-    const res = await POST(req({ proyecto: "The Hub" }));
+-    expect(res.status).toBe(200);
+-    expect(await res.json()).toEqual({
+-      success: true,
+-      unidades: [
+-        { id: "1", name: "A-9" },
+-        { id: "2", name: "A-10" },
+-        { id: "4", name: "C-1" },
+-      ],
+-    });
+-  });
+-
+-  it("acepta el lookup.module como texto (API v2) y sin proyecto devuelve todas", async () => {
+-    fetchMock.mockImplementation(async (url: string) =>
+-      url.includes("settings/fields")
+-        ? json({ fields: [{ api_name: "Unidad_Vendida1", lookup: { module: "Unidades" } }] })
+-        : json({ data: [{ id: "3", Name: "B-1", Proyecto: "Paramount" }] })
+-    );
+-    const res = await POST(req({}));
+-    expect((await res.json()).unidades).toEqual([{ id: "3", name: "B-1" }]);
+-    expect(fetchMock.mock.calls[1][0]).toContain("/Unidades?");
+-  });
+-
+-  it("responde 502 si Zoho falla", async () => {
+-    fetchMock.mockResolvedValue(json({ code: "x" }, 500));
+-    const res = await POST(req({}));
+-    expect(res.status).toBe(502);
+-  });
+-
+-  it("rechaza la llave incorrecta", async () => {
+-    const res = await POST(req({}, "otra"));
+-    expect(res.status).toBe(401);
+-    expect(fetchMock).not.toHaveBeenCalled();
+-  });
+-});
+diff --git a/src/lib/temporalService.ts b/src/lib/temporalService.ts
+index 2d8dd26..2635181 100644
+--- a/src/lib/temporalService.ts
++++ b/src/lib/temporalService.ts
+@@ -7,7 +7,10 @@ import type { TokenFailureReason } from "./tokenAccess";
+ /** Vigencia del enlace temporal. */
+ export const TEMPORAL_EXPIRES_DAYS = 7;
+ 
+-/** Hash con el que se guarda y busca el token (el token en claro nunca se persiste). */
++/**
++ * Hash con el que se busca el token. El token en claro también se guarda
++ * (Temporal.token) para volver a mostrar el enlace en el widget de Zoho.
++ */
+ export function hashTemporalToken(token: string): string {
+   return crypto.createHash("sha256").update(token).digest("hex");
+ }
+@@ -39,6 +42,7 @@ export async function crearTemporal(params: {
+       type: params.type,
+       data: params.data ?? {},
+       tokenHash: hashTemporalToken(token),
++      token,
+       crmModule: params.crmModule,
+       createdBy: params.createdBy ?? null,
+       expiresAt,
+@@ -62,7 +66,52 @@ export async function crearTemporal(params: {
+     },
+   });
+ 
+-  return { temporal, url: `${params.appUrl}/temporal?token=${token}` };
++  return { temporal, url: urlDelTemporal(params.appUrl, token) };
++}
++
++function urlDelTemporal(appUrl: string, token: string): string {
++  return `${appUrl}/temporal?token=${token}`;
++}
++
++/** Enlace temporal activo, como lo muestra el widget de Zoho. */
++export interface TemporalActivo {
++  id: string;
++  tipo: FormType;
++  /** null en los temporales anteriores a la columna `token` (no se puede rearmar). */
++  url: string | null;
++  proyecto: string | null;
++  unidad: string | null;
++  createdBy: string | null;
++  createdAt: Date;
++  expiresAt: Date;
++}
++
++/** Enlaces temporales sin completar y sin vencer, del más reciente al más antiguo. */
++export async function listarTemporalesActivos(appUrl: string): Promise<TemporalActivo[]> {
++  const temporales = await prisma.temporal.findMany({
++    where: { completedAt: null, expiresAt: { gt: new Date() } },
++    orderBy: { createdAt: "desc" },
++    select: {
++      id: true,
++      type: true,
++      token: true,
++      proyecto: true,
++      unidadVendidaNombre: true,
++      createdBy: true,
++      createdAt: true,
++      expiresAt: true,
++    },
++  });
++  return temporales.map((t) => ({
++    id: t.id,
++    tipo: t.type,
++    url: t.token ? urlDelTemporal(appUrl, t.token) : null,
++    proyecto: t.proyecto,
++    unidad: t.unidadVendidaNombre,
++    createdBy: t.createdBy,
++    createdAt: t.createdAt,
++    expiresAt: t.expiresAt,
++  }));
+ }
+ 
+ /**
+diff --git a/src/lib/zohoService.ts b/src/lib/zohoService.ts
+index f436119..735c638 100644
+--- a/src/lib/zohoService.ts
++++ b/src/lib/zohoService.ts
+@@ -1477,48 +1477,6 @@ export const zoho = {
+       });
+     },
+ 
+-    /**
+-     * Unidades que se pueden elegir en el lookup Unidad_Vendida1 del Socio de
+-     * Negocio. El módulo destino se lee de la metadata del campo (no se fija en
+-     * el código). Con `proyecto`, solo las unidades cuyo campo Proyecto
+-     * coincide (las que no tienen Proyecto se incluyen siempre).
+-     */
+-    getUnidades: async (proyecto?: string): Promise<Array<{ id: string; name: string }>> => {
+-      return executeWithRetry(async (accessToken) => {
+-        const crmBaseUrl = process.env.ZOHO_CRM_BASE_URL || "https://www.zohoapis.com/crm/v2";
+-        const headers = { Authorization: `Zoho-oauthtoken ${accessToken}` };
+-
+-        // 1. Módulo al que apunta el lookup
+-        const metaRes = await fetch(`${crmBaseUrl}/settings/fields?module=Accounts`, { method: "GET", headers });
+-        if (!metaRes.ok) {
+-          throw new Error(`Zoho CRM settings/fields respondió HTTP ${metaRes.status}: ${await metaRes.text()}`);
+-        }
+-        const campo = ((await metaRes.json()).fields ?? []).find((f: any) => f.api_name === "Unidad_Vendida1");
+-        const destino = campo?.lookup?.module;
+-        const modulo = cleanValue(typeof destino === "object" ? destino?.api_name : destino);
+-        if (!modulo) throw new Error("No se encontró el módulo del lookup Unidad_Vendida1 en Accounts.");
+-
+-        // 2. Registros del módulo (hasta 2000)
+-        const filtro = cleanValue(proyecto).toLowerCase();
+-        const out: Array<{ id: string; name: string }> = [];
+-        for (let page = 1; page <= 10; page++) {
+-          const res = await fetch(`${crmBaseUrl}/${modulo}?per_page=200&page=${page}`, { method: "GET", headers });
+-          if (res.status === 204) break;
+-          if (!res.ok) throw new Error(`Zoho CRM ${modulo} respondió HTTP ${res.status}: ${await res.text()}`);
+-          const json = await res.json();
+-          for (const rec of json.data ?? []) {
+-            const recProyecto = firstValue(rec, PROYECTO_KEYS).toLowerCase();
+-            if (filtro && recProyecto && recProyecto !== filtro) continue;
+-            const id = cleanValue(rec.id);
+-            const name = firstValue(rec, ["Name", "Product_Name", ...UNIDAD_KEYS]);
+-            if (id) out.push({ id, name: name || id });
+-          }
+-          if (!json.info?.more_records) break;
+-        }
+-        return out.sort((a, b) => a.name.localeCompare(b.name, "es", { numeric: true }));
+-      });
+-    },
+-
+     /**
+      * Cambia el Estado de un expediente de Debida_Diligencia (no dispara workflows) y su marca
+      * `retirado`. Con retirado = true (anulación) el enlace queda "Retirado"; con false
+diff --git a/zoho_scripts/debida_diligencia/generarTemporal.js b/zoho_scripts/debida_diligencia/generarTemporal.js
+deleted file mode 100644
+index a96cb40..0000000
+--- a/zoho_scripts/debida_diligencia/generarTemporal.js
++++ /dev/null
+@@ -1,171 +0,0 @@
+-/**
+- * Botón "Generar temporal" de la vista de lista (Zoho CRM > módulo > vista de
+- * lista > botón > acción "Client Script"). No depende de ningún registro: el
+- * enlace crea un Socio de Negocio y una Debida Diligencia nuevos al completarse.
+- *
+- * Formulario emergente en dos pasos:
+- *  1. Persona de Tipo (Natural / Jurídica, la del Socio de Negocio que se
+- *     creará) y Proyecto.
+- *  2. Unidad (requerida): lookup a los registros del módulo de
+- *     Accounts.Unidad_Vendida1, filtrados por el proyecto (los da /api/unidades).
+- * Genera un enlace temporal con las secciones I a III del formulario (sin
+- * documentos ni firma) y lo copia al portapapeles (o lo muestra para copiarlo).
+- * Con la unidad y el proyecto se nombran ("nombre-unidad-proyecto") el Socio
+- * de Negocio y la Debida Diligencia que se crean.
+- *
+- * Requisitos en Zoho (los mismos del botón Eliminar):
+- *  - Conexión "dd_portal" (Custom Service, tipo API Key) que envía el
+- *    encabezado  x-api-key: <ZOHO_BUTTON_API_KEY>. La llave vive en la conexión.
+- *  - El dominio del portal agregado en Setup > Security Control > Trusted Domains.
+- */
+-var PORTAL = "https://debida-diligencia.udggroup.com/api";
+-var CONEXION = "dd_portal"; // nombre de enlace (Link Name) exacto de la conexión
+-var TITULO = "Generar enlace temporal";
+-var SIN_PROYECTO = "-Ninguno-";
+-// Opciones del picklist Proyecto de Accounts (las mismas que valida el portal)
+-var PROYECTOS = [
+-  "Altos del Parque", "Caminos de Centennial", "Deici", "Guayacán", "Living73",
+-  "New West I", "New West II", "Paramount", "Spotlight", "The Hub"
+-];
+-
+-// Zoho envuelve la respuesta del portal: { _details: { statusMessage: <cuerpo> } }
+-// (según la versión también en .response / .data, o ya como objeto)
+-function cuerpoDe(resp) {
+-  var crudo = resp;
+-  if (resp && resp._details && resp._details.statusMessage !== undefined) crudo = resp._details.statusMessage;
+-  else if (resp && resp.response !== undefined) crudo = resp.response;
+-  else if (resp && resp.data !== undefined) crudo = resp.data;
+-  if (typeof crudo === "string") {
+-    try { return JSON.parse(crudo); } catch (e) { return { error: crudo }; }
+-  }
+-  return crudo || {};
+-}
+-
+-// POST al portal por la conexión; devuelve el cuerpo ya interpretado
+-async function portal(ruta, parametros) {
+-  // invoke(conexion, url, método, tipo de parámetro (2 = cuerpo JSON), parámetros, encabezados)
+-  var resp = await ZDK.Apps.CRM.Connections.invoke(
+-    CONEXION, PORTAL + ruta, "POST", 2, parametros, { "Content-Type": "application/json" }
+-  );
+-  log("[generar temporal] " + ruta + ": " + JSON.stringify(resp));
+-  return cuerpoDe(resp);
+-}
+-
+-function mostrarEnlace(url, vence) {
+-  var texto = "Enlace temporal (vence el " + vence + "):\n\n" + url;
+-  if (typeof navigator !== "undefined" && navigator.clipboard) {
+-    navigator.clipboard.writeText(url).then(function () {
+-      ZDK.Client.showAlert("¡Copiado al portapapeles!\n\n" + texto, TITULO);
+-    }).catch(function () {
+-      ZDK.Client.showAlert("Copie el siguiente enlace:\n\n" + texto, TITULO);
+-    });
+-  } else {
+-    ZDK.Client.showAlert("Copie el siguiente enlace:\n\n" + texto, TITULO);
+-  }
+-}
+-
+-// Paso 1: Persona de Tipo y Proyecto; undefined si el usuario cancela
+-function pedirTipoYProyecto() {
+-  return ZDK.Client.getInput([
+-    {
+-      type: "picklist",
+-      label: "Persona de Tipo",
+-      list_options: [
+-        { actual_value: "Natural", display_value: "Persona Natural" },
+-        { actual_value: "Jurídica", display_value: "Persona Jurídica" }
+-      ],
+-      default_value: "Natural"
+-    },
+-    {
+-      type: "picklist",
+-      label: "Proyecto",
+-      list_options: [{ actual_value: SIN_PROYECTO, display_value: SIN_PROYECTO }].concat(
+-        PROYECTOS.map(function (p) { return { actual_value: p, display_value: p }; })
+-      ),
+-      default_value: SIN_PROYECTO
+-    }
+-  ], TITULO, "Siguiente", "Cancelar");
+-}
+-
+-// Paso 2: lookup de la unidad (id del registro); undefined si el usuario cancela
+-function pedirUnidad(unidades) {
+-  return ZDK.Client.getInput([
+-    {
+-      type: "picklist",
+-      label: "Unidad",
+-      list_options: unidades.map(function (u) { return { actual_value: u.id, display_value: u.name }; }),
+-      default_value: unidades[0].id
+-    }
+-  ], TITULO, "Generar", "Cancelar");
+-}
+-
+-// Módulo de la vista de lista donde está el botón (solo informativo para el portal)
+-function moduloActual() {
+-  try {
+-    return (typeof $Page !== "undefined" && $Page && $Page.module) ? String($Page.module) : "";
+-  } catch (e) {
+-    return "";
+-  }
+-}
+-
+-async function generarTemporal() {
+-  var paso1 = pedirTipoYProyecto();
+-  if (paso1 === undefined) {
+-    log("[generar temporal] El usuario canceló el formulario.");
+-    return;
+-  }
+-  var personaDeTipo = String(paso1[0] || "").trim();
+-  var proyecto = String(paso1[1] || "").trim();
+-  if (proyecto === SIN_PROYECTO) proyecto = "";
+-  if (!personaDeTipo) {
+-    ZDK.Client.showAlert("Seleccione la Persona de Tipo (Natural o Jurídica).", TITULO);
+-    return;
+-  }
+-
+-  ZDK.Client.showLoader({ type: "page", template: "vertical-bar", message: "Cargando unidades..." });
+-  var lista = await portal("/unidades", { proyecto: proyecto });
+-  ZDK.Client.hideLoader();
+-  if (!lista.success) {
+-    ZDK.Client.showAlert(lista.error || "No se pudieron cargar las unidades.", TITULO);
+-    return;
+-  }
+-  var unidades = lista.unidades || [];
+-  if (!unidades.length) {
+-    ZDK.Client.showAlert("No hay unidades" + (proyecto ? " del proyecto " + proyecto : "") + " para elegir.", TITULO);
+-    return;
+-  }
+-
+-  var paso2 = pedirUnidad(unidades);
+-  if (paso2 === undefined) {
+-    log("[generar temporal] El usuario canceló el formulario.");
+-    return;
+-  }
+-  var unidadId = String(paso2[0] || "").trim();
+-  var unidad = unidades.filter(function (u) { return String(u.id) === unidadId; })[0];
+-  if (!unidad) {
+-    ZDK.Client.showAlert("Seleccione la unidad.", TITULO);
+-    return;
+-  }
+-
+-  ZDK.Client.showLoader({ type: "page", template: "vertical-bar", message: "Generando enlace temporal..." });
+-  var cuerpo = await portal("/generar-temporal", {
+-    persona_de_tipo: personaDeTipo,
+-    modulo: moduloActual(),
+-    userId: $Crm.user.id,
+-    // Lookup Unidad_Vendida1 y Name "nombre-unidad-proyecto" de lo que se crea
+-    unidad_vendida: { id: unidad.id, name: unidad.name },
+-    proyecto: proyecto
+-  });
+-  ZDK.Client.hideLoader();
+-  if (cuerpo.success && cuerpo.url) {
+-    var vence = cuerpo.expiresAt ? new Date(cuerpo.expiresAt).toLocaleString() : "";
+-    mostrarEnlace(cuerpo.url, vence);
+-  } else {
+-    ZDK.Client.showAlert(cuerpo.error || ("Respuesta inesperada: " + JSON.stringify(cuerpo)), TITULO);
+-  }
+-}
+-
+-generarTemporal().catch(function (e) {
+-  ZDK.Client.hideLoader();
+-  ZDK.Client.showAlert("Error en el botón: " + (e && e.message ? e.message : JSON.stringify(e)), TITULO);
+-});
+diff --git a/zoho_widget/generar-temporal/app/app.js b/zoho_widget/generar-temporal/app/app.js
+new file mode 100644
+index 0000000..6855f07
+--- /dev/null
++++ b/zoho_widget/generar-temporal/app/app.js
+@@ -0,0 +1,318 @@
++(function () {
++  "use strict";
++
++  /**
++   * Widget "Enlaces temporales": lo abre el botón de la vista personalizada
++   * (custom view) del módulo. No depende de ningún registro.
++   *
++   * - Lista los enlaces temporales activos (sin completar y sin vencer) de
++   *   /api/temporales, con su enlace para copiarlo.
++   * - "Crear enlace adicional" desbloquea el formulario: Persona de Tipo
++   *   (Persona_de_Tipo del Socio de Negocio que se creará), Proyecto e ID SAP
++   *   de la unidad. La unidad se valida en Zoho (exactamente un registro de
++   *   MODULO_UNIDADES con ese ID_SAP; si no, no se envía nada) y su id va a
++   *   /api/generar-temporal como Unidad_Vendida1. Al completarse el enlace se
++   *   crean el Socio de Negocio y la Debida Diligencia.
++   *
++   * Requisitos en Zoho:
++   *  - Conexión "dd_portal" (Custom Service, tipo API Key) que envía el
++   *    encabezado  x-api-key: <ZOHO_BUTTON_API_KEY>, agregada al widget.
++   *  - El dominio del portal agregado en Setup > Security Control > Trusted Domains.
++   */
++  var PORTAL = "https://debida-diligencia.udggroup.com/api";
++  var CONEXION = "dd_portal"; // nombre de enlace (Link Name) exacto de la conexión
++  // API name del módulo al que apunta el lookup Unidad_Vendida1 de Accounts
++  // (Setup > Desarrollador > API > Nombres de API). VERIFICAR antes de publicar.
++  var MODULO_UNIDADES = "Unidades";
++  var CAMPO_ID_SAP = "ID_SAP";
++  var SIN_PROYECTO = "";
++  // Opciones del picklist Proyecto de Accounts (las mismas que valida el portal)
++  var PROYECTOS = [
++    "Altos del Parque", "Caminos de Centennial", "Deici", "Guayacán", "Living73",
++    "New West I", "New West II", "Paramount", "Spotlight", "The Hub"
++  ];
++
++  var el = {
++    crear: document.getElementById("crear"),
++    formulario: document.getElementById("formulario"),
++    tipo: document.getElementById("persona-de-tipo"),
++    proyecto: document.getElementById("proyecto"),
++    idSap: document.getElementById("id-sap"),
++    mensaje: document.getElementById("mensaje"),
++    generar: document.getElementById("generar"),
++    cancelar: document.getElementById("cancelar"),
++    resultado: document.getElementById("resultado"),
++    enlace: document.getElementById("enlace"),
++    vence: document.getElementById("vence"),
++    unidadNombre: document.getElementById("unidad-nombre"),
++    copiar: document.getElementById("copiar"),
++    tabla: document.getElementById("tabla-temporales"),
++    errorLista: document.getElementById("error-lista"),
++    cerrarBtn: document.getElementById("cerrar")
++  };
++
++  var modulo = ""; // módulo de la vista donde está el botón (informativo para el portal)
++  var temporales = [];
++
++  function escapeHtml(v) {
++    return String(v == null ? "" : v)
++      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
++      .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
++  }
++
++  function fecha(v) {
++    if (!v) return "—";
++    var d = new Date(v);
++    return isNaN(d.getTime()) ? "—" : d.toLocaleString();
++  }
++
++  el.proyecto.innerHTML = '<option value="' + SIN_PROYECTO + '">-Ninguno-</option>' +
++    PROYECTOS.map(function (p) { return '<option value="' + escapeHtml(p) + '">' + escapeHtml(p) + "</option>"; }).join("");
++
++  // ---------- Portal ----------
++
++  // Zoho envuelve la respuesta del portal (details.statusMessage, _details,
++  // response o data según la versión); el cuerpo puede venir como texto
++  function cuerpoDe(resp) {
++    var crudo = resp;
++    if (resp && resp.details && resp.details.statusMessage !== undefined) crudo = resp.details.statusMessage;
++    else if (resp && resp._details && resp._details.statusMessage !== undefined) crudo = resp._details.statusMessage;
++    else if (resp && resp.response !== undefined) crudo = resp.response;
++    else if (resp && resp.data !== undefined) crudo = resp.data;
++    if (typeof crudo === "string") {
++      try { return JSON.parse(crudo); } catch (e) { return { error: crudo }; }
++    }
++    return crudo || {};
++  }
++
++  // POST al portal por la conexión; devuelve el cuerpo ya interpretado
++  function portal(ruta, parametros) {
++    return ZOHO.CRM.CONNECTION.invoke(CONEXION, {
++      url: PORTAL + ruta,
++      method: "POST",
++      param_type: 2, // cuerpo JSON
++      headers: { "Content-Type": "application/json" },
++      parameters: parametros || {}
++    }).then(function (resp) {
++      console.log("[enlaces temporales] " + ruta + ":", resp);
++      return cuerpoDe(resp);
++    });
++  }
++
++  function mensajeDe(e, porDefecto) {
++    var texto = e && e.message ? e.message : (typeof e === "string" ? e : "");
++    return texto || porDefecto;
++  }
++
++  // ---------- Lista de enlaces activos ----------
++
++  function claseTipo(tipo) {
++    return tipo === "JURIDICA" ? "tipo tipo-juridica" : "tipo tipo-natural";
++  }
++
++  function fila(t, i) {
++    var enlace = t.url
++      ? '<a class="enlace" href="' + escapeHtml(t.url) + '" target="_blank" rel="noopener" title="' + escapeHtml(t.url) + '">' + escapeHtml(t.url) + "</a>"
++      : '<span class="sin-enlace" title="Creado antes de guardarse el enlace">No disponible</span>';
++    var copiar = t.url
++      ? '<button type="button" class="btn btn-sec" data-i="' + i + '">Copiar</button>'
++      : "";
++    return "<tr>" +
++      '<td><span class="' + claseTipo(t.tipo) + '">' + (t.tipo === "JURIDICA" ? "Jurídica" : "Natural") + "</span></td>" +
++      "<td>" + escapeHtml(t.proyecto || "—") + "</td>" +
++      "<td>" + escapeHtml(t.unidad || "—") + "</td>" +
++      '<td class="nowrap">' + escapeHtml(fecha(t.createdAt)) + "</td>" +
++      '<td class="nowrap">' + escapeHtml(fecha(t.expiresAt)) + "</td>" +
++      "<td>" + enlace + "</td>" +
++      '<td class="acciones">' + copiar + "</td>" +
++      "</tr>";
++  }
++
++  function renderLista() {
++    el.tabla.innerHTML = temporales.length
++      ? temporales.map(fila).join("")
++      : '<tr><td colspan="7" class="vacio">No hay enlaces temporales activos.</td></tr>';
++  }
++
++  function cargarLista() {
++    el.errorLista.hidden = true;
++    return portal("/temporales")
++      .then(function (cuerpo) {
++        if (!cuerpo.success) throw new Error(cuerpo.error || "Respuesta inesperada del portal.");
++        temporales = Array.isArray(cuerpo.temporales) ? cuerpo.temporales : [];
++        renderLista();
++      })
++      .catch(function (e) {
++        console.error("[enlaces temporales] lista", e);
++        temporales = [];
++        el.tabla.innerHTML = '<tr><td colspan="7" class="vacio">—</td></tr>';
++        el.errorLista.textContent = "No se pudieron cargar los enlaces: " + mensajeDe(e, "error desconocido.");
++        el.errorLista.hidden = false;
++      });
++  }
++
++  // ---------- Copiar ----------
++
++  function copiarTexto(texto, boton) {
++    var listo = function () {
++      var original = boton.textContent;
++      boton.textContent = "¡Copiado!";
++      setTimeout(function () { boton.textContent = original; }, 1500);
++    };
++    var respaldo = function () {
++      var area = document.createElement("textarea");
++      area.value = texto;
++      area.setAttribute("readonly", "");
++      area.style.position = "fixed";
++      area.style.opacity = "0";
++      document.body.appendChild(area);
++      area.select();
++      var ok = false;
++      try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
++      document.body.removeChild(area);
++      if (ok) listo();
++    };
++    if (navigator.clipboard && navigator.clipboard.writeText) {
++      navigator.clipboard.writeText(texto).then(listo).catch(respaldo);
++    } else {
++      respaldo();
++    }
++  }
++
++  el.tabla.addEventListener("click", function (ev) {
++    var btn = ev.target.closest("button[data-i]");
++    if (!btn) return;
++    var t = temporales[Number(btn.getAttribute("data-i"))];
++    if (t && t.url) copiarTexto(t.url, btn);
++  });
++
++  el.copiar.addEventListener("click", function () {
++    el.enlace.select();
++    copiarTexto(el.enlace.value, el.copiar);
++  });
++
++  // ---------- Formulario (bloqueado tras "Crear enlace adicional") ----------
++
++  function abrirFormulario() {
++    el.formulario.reset();
++    el.mensaje.hidden = true;
++    el.resultado.hidden = true;
++    el.formulario.hidden = false;
++    el.crear.disabled = true;
++    el.idSap.focus();
++  }
++
++  function cerrarFormulario() {
++    el.formulario.hidden = true;
++    el.crear.disabled = false;
++    ocupado(false);
++  }
++
++  function mostrarError(texto) {
++    el.mensaje.textContent = texto;
++    el.mensaje.hidden = false;
++  }
++
++  function ocupado(si, texto) {
++    el.generar.disabled = si;
++    el.cancelar.disabled = si;
++    el.generar.textContent = si ? texto : "Generar";
++  }
++
++  // Valor para un criterio de búsqueda de Zoho: paréntesis y comas van escapados
++  function valorCriterio(valor) {
++    return String(valor).replace(/([(),\\])/g, "\\$1");
++  }
++
++  // Unidades (registros de MODULO_UNIDADES) cuyo ID_SAP es exactamente `idSap`
++  function unidadesPorIdSap(idSap) {
++    return ZOHO.CRM.API.searchRecord({
++      Entity: MODULO_UNIDADES,
++      Type: "criteria",
++      Query: "(" + CAMPO_ID_SAP + ":equals:" + valorCriterio(idSap) + ")"
++    }).then(function (resp) {
++      // Sin resultados Zoho responde vacío (204)
++      var registros = resp && Array.isArray(resp.data) ? resp.data : [];
++      // La búsqueda no distingue mayúsculas: se confirma la coincidencia exacta
++      return registros.filter(function (r) { return String(r[CAMPO_ID_SAP] || "").trim() === idSap; });
++    });
++  }
++
++  function usuarioActual() {
++    return ZOHO.CRM.CONFIG.getCurrentUser().then(function (r) {
++      return r && r.users && r.users[0] ? String(r.users[0].id) : null;
++    }).catch(function () { return null; });
++  }
++
++  function mostrarResultado(cuerpo, unidad) {
++    el.enlace.value = cuerpo.url;
++    el.vence.textContent = cuerpo.expiresAt ? " (vence el " + fecha(cuerpo.expiresAt) + ")" : "";
++    el.unidadNombre.textContent = unidad.name;
++    el.resultado.hidden = false;
++    el.enlace.focus();
++    el.enlace.select();
++  }
++
++  el.crear.addEventListener("click", abrirFormulario);
++  el.cancelar.addEventListener("click", cerrarFormulario);
++
++  el.formulario.addEventListener("submit", function (ev) {
++    ev.preventDefault();
++    el.mensaje.hidden = true;
++
++    var personaDeTipo = el.tipo.value;
++    var proyecto = el.proyecto.value;
++    var idSap = el.idSap.value.trim();
++    if (!personaDeTipo) { mostrarError("Seleccione la Persona de Tipo (Natural o Jurídica)."); return; }
++    if (!idSap) { mostrarError("El ID SAP de la unidad es requerido."); el.idSap.focus(); return; }
++
++    var unidad;
++    ocupado(true, "Validando la unidad…");
++    unidadesPorIdSap(idSap)
++      .then(function (coincidencias) {
++        if (!coincidencias.length) {
++          throw new Error("No existe ninguna unidad con ID SAP \"" + idSap + "\". Revise el valor e intente de nuevo.");
++        }
++        if (coincidencias.length > 1) {
++          throw new Error("Hay " + coincidencias.length + " unidades con ID SAP \"" + idSap + "\". Corrija el duplicado en Zoho.");
++        }
++        unidad = { id: String(coincidencias[0].id), name: String(coincidencias[0].Name || idSap).trim() };
++        ocupado(true, "Generando enlace…");
++        return usuarioActual();
++      })
++      .then(function (userId) {
++        return portal("/generar-temporal", {
++          persona_de_tipo: personaDeTipo,
++          modulo: modulo,
++          userId: userId,
++          // Lookup Unidad_Vendida1 y Name "nombre-unidad-proyecto" de lo que se crea
++          unidad_vendida: unidad,
++          proyecto: proyecto
++        });
++      })
++      .then(function (cuerpo) {
++        if (!cuerpo.success || !cuerpo.url) {
++          throw new Error(cuerpo.error || "Respuesta inesperada del portal.");
++        }
++        cerrarFormulario();
++        mostrarResultado(cuerpo, unidad);
++        return cargarLista();
++      })
++      .catch(function (e) {
++        console.error("[enlaces temporales] generar", e);
++        mostrarError(mensajeDe(e, "No se pudo generar el enlace."));
++        ocupado(false);
++      });
++  });
++
++  el.cerrarBtn.addEventListener("click", function () {
++    try { ZOHO.CRM.UI.Popup.close(); } catch (e) { console.error("No se pudo cerrar el popup", e); }
++  });
++
++  ZOHO.embeddedApp.on("PageLoad", function (payload) {
++    console.log("PageLoad payload:", payload);
++    modulo = payload && payload.Entity ? String(payload.Entity) : "";
++    cargarLista();
++  });
++  ZOHO.embeddedApp.init();
++})();
+diff --git a/zoho_widget/generar-temporal/app/index.html b/zoho_widget/generar-temporal/app/index.html
+new file mode 100644
+index 0000000..d5ba03d
+--- /dev/null
++++ b/zoho_widget/generar-temporal/app/index.html
+@@ -0,0 +1,84 @@
++<!DOCTYPE html>
++<html lang="es">
++<head>
++  <meta charset="UTF-8">
++  <meta name="viewport" content="width=device-width, initial-scale=1">
++  <title>Enlaces temporales</title>
++  <link rel="stylesheet" href="style.css">
++</head>
++<body>
++  <main class="card">
++    <div class="encabezado">
++      <h1>Enlaces temporales</h1>
++      <button type="button" class="btn btn-primario" id="crear">Crear enlace adicional</button>
++    </div>
++
++    <!-- Formulario: bloqueado hasta pulsar "Crear enlace adicional" -->
++    <form id="formulario" class="panel" novalidate hidden>
++      <h2>Nuevo enlace temporal</h2>
++      <p class="ayuda">
++        El enlace muestra las secciones I a III del formulario. Al completarse se crean
++        el Socio de Negocio y la Debida Diligencia.
++      </p>
++
++      <label for="persona-de-tipo">Persona de Tipo <span class="req">*</span></label>
++      <select id="persona-de-tipo" required>
++        <option value="Natural">Persona Natural</option>
++        <option value="Jurídica">Persona Jurídica</option>
++      </select>
++
++      <label for="proyecto">Proyecto</label>
++      <select id="proyecto"></select>
++
++      <label for="id-sap">ID SAP de la unidad <span class="req">*</span></label>
++      <input id="id-sap" type="text" autocomplete="off" required>
++
++      <p id="mensaje" class="mensaje" role="alert" hidden></p>
++
++      <div class="botones">
++        <button type="button" class="btn btn-sec" id="cancelar">Cancelar</button>
++        <button type="submit" class="btn btn-primario" id="generar">Generar</button>
++      </div>
++    </form>
++
++    <!-- Enlace recién generado -->
++    <section id="resultado" class="panel panel-ok" hidden>
++      <p class="ok">Enlace temporal generado<span id="vence"></span>. Unidad: <strong id="unidad-nombre"></strong></p>
++      <div class="copiar">
++        <input id="enlace" type="text" readonly>
++        <button type="button" class="btn btn-primario" id="copiar">Copiar</button>
++      </div>
++    </section>
++
++    <section class="seccion">
++      <h2>Enlaces activos</h2>
++      <p id="error-lista" class="mensaje" role="alert" hidden></p>
++      <div class="tabla-wrap">
++        <table>
++          <thead>
++            <tr>
++              <th>Tipo</th>
++              <th>Proyecto</th>
++              <th>Unidad</th>
++              <th>Creado</th>
++              <th>Vence</th>
++              <th>Enlace</th>
++              <th class="col-acciones">Acciones</th>
++            </tr>
++          </thead>
++          <tbody id="tabla-temporales">
++            <tr><td colspan="7" class="vacio">Cargando enlaces…</td></tr>
++          </tbody>
++        </table>
++      </div>
++    </section>
++
++    <div class="botones">
++      <button type="button" class="btn btn-sec" id="cerrar">Cerrar</button>
++    </div>
++  </main>
++
++  <script src="https://live.zwidgets.com/js-sdk/1.2/ZohoEmbededAppSDK.min.js"></script>
++  <script src="app.js"></script>
++</body>
++</html>
+diff --git a/zoho_widget/generar-temporal/app/style.css b/zoho_widget/generar-temporal/app/style.css
+new file mode 100644
+index 0000000..d2d6f75
+--- /dev/null
++++ b/zoho_widget/generar-temporal/app/style.css
+@@ -0,0 +1,88 @@
++:root {
++  --texto: #1d2433;
++  --suave: #4b5565;
++  --borde: #dfe3ea;
++  --enlace: #4a56f0;
++  --primario: #0b5fcb;
++  --primario-hover: #094fa8;
++  --sec-fondo: #e8ecf3;
++  --sec-hover: #d9dfe9;
++  --ok: #1e7b4a;
++  --error: #b42318;
++}
++* { box-sizing: border-box; }
++[hidden] { display: none !important; }
++html, body {
++  margin: 0;
++  font-family: "Zoho Puvi", "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, Arial, sans-serif;
++  font-size: 15px;
++  color: var(--texto);
++  background: #f4f6f9;
++}
++.card {
++  margin: 12px;
++  padding: 24px 28px;
++  background: #fff;
++  border: 1px solid var(--borde);
++  border-radius: 16px;
++  box-shadow: 0 1px 4px rgba(20, 30, 50, .08);
++}
++.encabezado { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
++.encabezado .btn { margin-left: 0; }
++h1 { margin: 0; font-size: 22px; font-weight: 500; }
++h2 { margin: 0 0 8px; font-size: 17px; font-weight: 500; }
++.panel {
++  margin-bottom: 24px; padding: 18px 20px;
++  border: 1px solid var(--borde); border-radius: 12px; background: #fafbfd;
++}
++.panel-ok { background: #f0f8f3; border-color: #cfe8d9; }
++.ayuda { margin: 0 0 12px; color: var(--suave); font-size: 14px; }
++label { display: block; margin: 14px 0 6px; font-weight: 500; }
++.req { color: var(--error); }
++select, input[type="text"] {
++  width: 100%; font: inherit; color: var(--texto);
++  padding: 9px 12px; border: 1px solid var(--borde); border-radius: 8px; background: #fff;
++}
++select:focus, input:focus { outline: 2px solid var(--primario); outline-offset: 1px; }
++.mensaje { margin: 14px 0 0; color: var(--error); font-weight: 500; }
++.seccion .mensaje { margin: 0 0 10px; }
++.ok { margin: 0 0 12px; color: var(--ok); font-weight: 600; }
++.ok strong { color: var(--texto); }
++.copiar { display: flex; gap: 8px; }
++.copiar input { flex: 1; min-width: 0; }
++.copiar .btn { margin-left: 0; }
++.botones { display: flex; justify-content: flex-end; margin-top: 20px; }
++.tabla-wrap { overflow-x: auto; }
++table { width: 100%; border-collapse: collapse; }
++th {
++  text-align: left; font-weight: 400; color: var(--suave);
++  padding: 8px 14px 10px 0; border-bottom: 1px solid var(--borde); white-space: nowrap;
++}
++td { padding: 12px 14px 12px 0; border-bottom: 1px solid var(--borde); vertical-align: middle; }
++tbody tr:last-child td { border-bottom: none; }
++.nowrap { white-space: nowrap; }
++.tipo {
++  display: inline-block; padding: 2px 10px; border-radius: 999px;
++  font-size: 13px; background: var(--sec-fondo); color: var(--suave); white-space: nowrap;
++}
++.tipo-juridica { background: #f1e9fb; color: #5b2d9e; }
++.tipo-natural { background: #e3edfb; color: var(--primario); }
++.enlace {
++  display: block; max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
++  color: var(--enlace); text-decoration: none;
++}
++.enlace:hover { text-decoration: underline; }
++.sin-enlace { color: var(--suave); font-size: 13px; }
++.col-acciones, td.acciones { text-align: center; padding-right: 0; white-space: nowrap; }
++.vacio { text-align: center; color: var(--suave); padding: 32px 0; }
++.btn {
++  font: inherit; font-weight: 500; padding: 8px 20px; margin-left: 8px;
++  border: 0; border-radius: 8px; cursor: pointer;
++}
++td.acciones .btn { margin-left: 0; padding: 6px 16px; }
++.btn:focus-visible { outline: 2px solid var(--primario); outline-offset: 2px; }
++.btn-primario { background: var(--primario); color: #fff; }
++.btn-primario:hover { background: var(--primario-hover); }
++.btn-sec { background: var(--sec-fondo); color: var(--texto); }
++.btn-sec:hover { background: var(--sec-hover); }
++.btn:disabled { opacity: .45; cursor: not-allowed; pointer-events: none; }

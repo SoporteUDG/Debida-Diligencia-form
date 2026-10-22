@@ -67,13 +67,14 @@ describe("POST /api/generar-temporal", () => {
     expect(prismaMock.temporal.create).not.toHaveBeenCalled();
   });
 
-  it("rechaza la solicitud sin la unidad (o con la unidad sin id)", async () => {
+  it("la unidad es opcional: sin unidad (o con una sin id) se crea igual, sin unidad", async () => {
     for (const unidad_vendida of [undefined, { name: "A-12" }]) {
       const res = await POST(req({ persona_de_tipo: "Natural", unidad_vendida }));
-      expect(res.status).toBe(400);
-      expect((await res.json()).code).toBe("SIN_UNIDAD");
+      expect(res.status).toBe(200);
     }
-    expect(prismaMock.temporal.create).not.toHaveBeenCalled();
+    for (const [{ data }] of prismaMock.temporal.create.mock.calls) {
+      expect(data).toMatchObject({ unidadVendidaId: null, unidadVendidaNombre: null });
+    }
   });
 
   it("rechaza la llave incorrecta", async () => {

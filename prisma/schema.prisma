@@ -96,6 +96,8 @@ model CrmContact {
   deletedAt          DateTime?
   // Socio de Negocio (Accounts) al que pertenece el expediente (Socio_de_Negocios)
   accountCrmId       String?
+  // Identificador que genera el navegador al enviar /registro/*: un reintento no duplica el expediente en Zoho
+  submissionId       String?                 @unique
   // Contacto de Zoho (Contacts) cuyos datos personales actualiza este expediente
   accountContactId   String?
   accountContact     AccountContact?         @relation(fields: [accountContactId], references: [id], onDelete: SetNull)
