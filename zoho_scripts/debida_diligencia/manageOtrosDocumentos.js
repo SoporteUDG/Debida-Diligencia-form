@@ -32,14 +32,17 @@ async function mostrarDocumentosAdicionales() {
         log("HTTP Status: " + statusCode);
         log("Response Body: " + responseBody);
 
-        const data = JSON.parse(responseBody);
-      
-        if (statusCode === 200 || statusCode === 201) {
-            
-        } else {
+        // 404: el expediente no tiene enlaces que mostrar
+        if (statusCode === 404) {
+            ZDK.Client.showMessage("No hay enlaces disponibles que visualizar", { type: "info" });
+            return;
+        }
+        if (statusCode !== 200 && statusCode !== 201) {
             ZDK.Client.showMessage("El servidor devolvió status: " + statusCode, { type: "error" });
             return;
-            }
+        }
+
+        const data = JSON.parse(responseBody);
 
         // Fila del widget a partir de un enlace del portal
         function aFila(link) {

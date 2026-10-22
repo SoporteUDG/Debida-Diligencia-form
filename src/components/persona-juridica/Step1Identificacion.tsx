@@ -52,6 +52,7 @@ export default function Step1Identificacion({
               required
             >
               <option value="">{p("NombreProyectoPlaceholder")}</option>
+              <option value="Alive">Alive</option>
               <option value="Altos del Parque">Altos del Parque</option>
               <option value="Caminos de Centennial">Caminos de Centennial</option>
               <option value="Deici">Deici</option>

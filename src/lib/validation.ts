@@ -296,7 +296,7 @@ const naturalStep1Shape = {
   paisResidenciaFiscal: requiredString("País de Residencia Fiscal"),
   nationality: requiredString("Nacionalidad"),
   tipoIdentificacion: requiredString("Tipo de Identificación"),
-  otraNacionalidad: requiredString("Otra nacionalidad"),
+  otraNacionalidad: optionalString,
   idNumber: idNumberValidator("N° de Identificación"),
   fechaVencimientoId: idExpirationDateValidator("Fecha de Vencimiento de Identificación"),
   estatusMigratorio: requiredString("Estatus Migratorio"),

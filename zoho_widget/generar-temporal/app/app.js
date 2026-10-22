@@ -29,7 +29,7 @@
   var SIN_PROYECTO = "";
   // Opciones del picklist Proyecto de Accounts (las mismas que valida el portal)
   var PROYECTOS = [
-    "Altos del Parque", "Caminos de Centennial", "Deici", "Guayacán", "Living73",
+    "Alive", "Altos del Parque", "Caminos de Centennial", "Deici", "Guayacán", "Living73",
     "New West I", "New West II", "Paramount", "Spotlight", "The Hub"
   ];
 

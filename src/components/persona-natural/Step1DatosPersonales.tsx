@@ -54,6 +54,7 @@ export default function Step1DatosPersonales({
               required
             >
               <option value="">{p("ProjectPlaceholder")}</option>
+              <option value="Alive">Alive</option>
               <option value="Altos del Parque">Altos del Parque</option>
               <option value="Caminos de Centennial">Caminos de Centennial</option>
               <option value="Deici">Deici</option>

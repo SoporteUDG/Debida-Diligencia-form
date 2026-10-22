@@ -60,74 +60,17 @@ export async function crearEstructuraDelTemporal(temporal: Temporal, appUrl: str
     ? telefono(d.celularCodigo, d.celular) ?? telefono(d.telefonoCodigo, d.telefono) ?? ""
     : telefono(d.empresaTelefonoCodigo, d.empresaTelefono) ?? "";
 
-  // ---------- 1. Contact (solo natural) ----------
-  let contactCrmId: string | null = null;
-  if (esNatural) {
-    // Requeridos al crear en Zoho: Proyecto, Celular, Direcci_n_F_sica, Empresa,
-    // Fecha_Nacimiento, Nacionalidad_2 y Profesi_n.
-    const contacto: Record<string, unknown> = {
-      // Datos de identificación de la persona (mismo mapeo que al completar el formulario)
-      ...mapFormToContactPayload("NATURAL", d),
-      First_Name: texto(d.firstName) || undefined,
-      Last_Name: texto(d.lastName) || texto(d.firstName),
-      Email: email || undefined,
-      Proyecto: proyecto || undefined,
-      Celular: telefono(d.celularCodigo, d.celular),
-      Phone: telefono(d.telefonoCodigo, d.telefono),
-      Direcci_n_F_sica: texto(d.direccionResidencial) || undefined,
-      Empresa: texto(d.employer) || undefined,
-      Fecha_Nacimiento: fecha(d.fechaNacimiento),
-      Nacionalidad_2: texto(d.nationality) || undefined,
-      Profesi_n: texto(esOtros(d.profession) ? d.profesionOtros : d.profession) || undefined,
-      C_I_P_Pasaporte: texto(d.idNumber) || undefined,
-      // Contacto estándar (principal) del Socio de Negocio
-      [CONTACT_STANDARD_FIELD]: true,
-    };
-    contactCrmId = temporal.contactCrmId;
-    if (!contactCrmId) {
-      ({ id: contactCrmId } = await zoho.service.createRecord("Contacts", sinVacios(contacto)));
-      await guardar({ contactCrmId });
-    }
-  }
+  const { contactCrmId, accountCrmId } = await crearContactoYSocio({
+    type,
+    data: d,
+    nombreRegistro,
+    proyecto,
+    unidadVendidaId: temporal.unidadVendidaId,
+    contactCrmId: temporal.contactCrmId,
+    accountCrmId: temporal.accountCrmId,
+    guardar,
+  });
 
-  // ---------- 2. Socio de Negocio ----------
-  // Opciones de los picklists de Accounts que escribe el portal. Un valor
-  // fuera de la lista no se envía (se avisa en el log).
-  const OPCIONES_SOCIO = {
-    Persona_de_Tipo: ["Natural", "Jurídica"],
-    Proyecto: [
-      "Altos del Parque", "Caminos de Centennial", "Deici", "Guayacán", "Living73",
-      "New West I", "New West II", "Paramount", "Spotlight", "The Hub",
-    ],
-  } as const;
-
-  const socio: Record<string, unknown> = {
-    Account_Name: nombreRegistro,
-    Persona_de_Tipo: opcion(OPCIONES_SOCIO, "Persona_de_Tipo", esNatural ? "Natural" : "Jurídica"),
-    Proyecto: opcion(OPCIONES_SOCIO, "Proyecto", proyecto),
-    Unidad_Vendida1: temporal.unidadVendidaId ? { id: temporal.unidadVendidaId } : undefined,
-    [ACCOUNT_RUC_FIELD]: identificadorDelTemporal(type, d) || undefined,
-    // Representante legal (lo lee generar-expediente)
-    Nombre_Extranjero_No_en_Peachtree: esNatural ? undefined : texto(d.rlNombre) || undefined,
-    Phone: celular || undefined,
-    Billing_Street: texto(esNatural ? d.direccionResidencial : d.empresaDireccion) || undefined,
-    Billing_City: texto(esNatural ? d.ciudad : d.empresaCiudad) || undefined,
-    Billing_State: texto(esNatural ? d.provinciaEstado : d.empresaProvincia) || undefined,
-    Billing_Country: texto(esNatural ? d.paisResidencial : d.empresaPais) || undefined,
-    // Requerido al crear: el socio nuevo se replica a SAP
-    Replicar_SAP1: "No",
-  };
-  let accountCrmId = temporal.accountCrmId;
-  if (!accountCrmId) {
-    ({ id: accountCrmId } = await zoho.service.createRecord("Accounts", sinVacios(socio), {
-      dispararWorkflows: true,
-    }));
-    await guardar({ accountCrmId });
-  }
-  // Natural: el Contact se ata al socio (idempotente: en un reintento no cambia nada)
-  if (contactCrmId) {
-    await zoho.service.updateRecord("Contacts", contactCrmId, { Account_Name: { id: accountCrmId } });
-  }
 
   // ---------- 3. Expediente de Debida_Diligencia ----------
   // Opciones de Forma_de_contacto (las del formulario). "Otros" se reemplaza por
@@ -280,6 +223,103 @@ export async function registrarClienteExistente(temporal: Temporal, coincidencia
     entityId: temporal.id,
     details: { coincidencias: coincidencias.map((c) => `${c.module}:${c.id}`) },
   });
+}
+
+/**
+ * Pasos 1 y 2 del temporal, reutilizables: crea el Contact (solo natural, como
+ * contacto estándar) y el Socio de Negocio (Accounts, dispara workflows) del
+ * cliente a partir de los datos de su formulario, y ata el Contact al socio.
+ * Con `contactCrmId` / `accountCrmId` ya conocidos no vuelve a crearlos (reintentos);
+ * `guardar` se llama con cada id apenas se crea.
+ */
+export async function crearContactoYSocio(params: {
+  type: "NATURAL" | "JURIDICA";
+  data: Record<string, any>;
+  /** Account_Name del socio ("nombre-unidad-proyecto"). */
+  nombreRegistro: string;
+  proyecto: string;
+  unidadVendidaId?: string | null;
+  contactCrmId?: string | null;
+  accountCrmId?: string | null;
+  guardar?: (ids: { contactCrmId?: string; accountCrmId?: string }) => Promise<unknown>;
+}): Promise<{ contactCrmId: string | null; accountCrmId: string }> {
+  const { type, data: d, nombreRegistro, proyecto, guardar } = params;
+  const esNatural = type === "NATURAL";
+  const temporal = { unidadVendidaId: params.unidadVendidaId, contactCrmId: params.contactCrmId, accountCrmId: params.accountCrmId };
+  const email = texto(esNatural ? d.email : d.empresaEmail || d.contactoEmail);
+  const celular = esNatural
+    ? telefono(d.celularCodigo, d.celular) ?? telefono(d.telefonoCodigo, d.telefono) ?? ""
+    : telefono(d.empresaTelefonoCodigo, d.empresaTelefono) ?? "";
+
+  // ---------- 1. Contact (solo natural) ----------
+  let contactCrmId: string | null = null;
+  if (esNatural) {
+    // Requeridos al crear en Zoho: Proyecto, Celular, Direcci_n_F_sica, Empresa,
+    // Fecha_Nacimiento, Nacionalidad_2 y Profesi_n.
+    const contacto: Record<string, unknown> = {
+      // Datos de identificación de la persona (mismo mapeo que al completar el formulario)
+      ...mapFormToContactPayload("NATURAL", d),
+      First_Name: texto(d.firstName) || undefined,
+      Last_Name: texto(d.lastName) || texto(d.firstName),
+      Email: email || undefined,
+      Proyecto: proyecto || undefined,
+      Celular: telefono(d.celularCodigo, d.celular),
+      Phone: telefono(d.telefonoCodigo, d.telefono),
+      Direcci_n_F_sica: texto(d.direccionResidencial) || undefined,
+      Empresa: texto(d.employer) || undefined,
+      Fecha_Nacimiento: fecha(d.fechaNacimiento),
+      Nacionalidad_2: texto(d.nationality) || undefined,
+      Profesi_n: texto(esOtros(d.profession) ? d.profesionOtros : d.profession) || undefined,
+      C_I_P_Pasaporte: texto(d.idNumber) || undefined,
+      // Contacto estándar (principal) del Socio de Negocio
+      [CONTACT_STANDARD_FIELD]: true,
+    };
+    contactCrmId = temporal.contactCrmId ?? null;
+    if (!contactCrmId) {
+      ({ id: contactCrmId } = await zoho.service.createRecord("Contacts", sinVacios(contacto)));
+      await guardar?.({ contactCrmId });
+    }
+  }
+
+  // ---------- 2. Socio de Negocio ----------
+  // Opciones de los picklists de Accounts que escribe el portal. Un valor
+  // fuera de la lista no se envía (se avisa en el log).
+  const OPCIONES_SOCIO = {
+    Persona_de_Tipo: ["Natural", "Jurídica"],
+    Proyecto: [
+      "Alive", "Altos del Parque", "Caminos de Centennial", "Deici", "Guayacán", "Living73",
+      "New West I", "New West II", "Paramount", "Spotlight", "The Hub",
+    ],
+  } as const;
+
+  const socio: Record<string, unknown> = {
+    Account_Name: nombreRegistro,
+    Persona_de_Tipo: opcion(OPCIONES_SOCIO, "Persona_de_Tipo", esNatural ? "Natural" : "Jurídica"),
+    Proyecto: opcion(OPCIONES_SOCIO, "Proyecto", proyecto),
+    Unidad_Vendida1: temporal.unidadVendidaId ? { id: temporal.unidadVendidaId } : undefined,
+    [ACCOUNT_RUC_FIELD]: identificadorDelTemporal(type, d) || undefined,
+    // Representante legal (lo lee generar-expediente)
+    Nombre_Extranjero_No_en_Peachtree: esNatural ? undefined : texto(d.rlNombre) || undefined,
+    Phone: celular || undefined,
+    Billing_Street: texto(esNatural ? d.direccionResidencial : d.empresaDireccion) || undefined,
+    Billing_City: texto(esNatural ? d.ciudad : d.empresaCiudad) || undefined,
+    Billing_State: texto(esNatural ? d.provinciaEstado : d.empresaProvincia) || undefined,
+    Billing_Country: texto(esNatural ? d.paisResidencial : d.empresaPais) || undefined,
+    // Requerido al crear: el socio nuevo se replica a SAP
+    Replicar_SAP1: "No",
+  };
+  let accountCrmId = temporal.accountCrmId ?? null;
+  if (!accountCrmId) {
+    ({ id: accountCrmId } = await zoho.service.createRecord("Accounts", sinVacios(socio), {
+      dispararWorkflows: true,
+    }));
+    await guardar?.({ accountCrmId });
+  }
+  // Natural: el Contact se ata al socio (idempotente: en un reintento no cambia nada)
+  if (contactCrmId) {
+    await zoho.service.updateRecord("Contacts", contactCrmId, { Account_Name: { id: accountCrmId } });
+  }
+  return { contactCrmId, accountCrmId: accountCrmId! };
 }
 
 // ==========================================
