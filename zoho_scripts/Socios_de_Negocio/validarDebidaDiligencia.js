@@ -427,7 +427,7 @@ async function abrirPopup(popupData) {
 
 // ---------- API ----------
 
-async function enviarSolicitud(data) {
+async function enviarSolicitud(data, sinRepresentante) {
     var body = {
         name: String(data.name).trim(),
         type: data.tipo,
@@ -436,6 +436,8 @@ async function enviarSolicitud(data) {
         // Contactos marcados en el widget: cada uno recibe su enlace relacionado en la DD del socio
         contactos: data.contactos
     };
+    // Confirmado por el usuario: sin Representante Legal solo se crea el enlace de la jurídica
+    if (sinRepresentante) body.sinRepresentante = true;
 
     ZDK.Client.showLoader({
         type: "page",
@@ -471,11 +473,22 @@ async function enviarSolicitud(data) {
         } else {
             // El servidor explica el motivo en "error" (p. ej. falta el Representante Legal)
             var detalle = "";
+            var json = null;
             try {
-                var json = typeof respuesta === "string" ? JSON.parse(respuesta) : respuesta;
+                json = typeof respuesta === "string" ? JSON.parse(respuesta) : respuesta;
                 detalle = (json && json.error) || "";
             } catch (e) {
                 // Respuesta no JSON
+            }
+            if (statusCode === 422 && json && json.code === "SIN_REPRESENTANTE_LEGAL") {
+                if (ZDK.Client.showConfirmation(
+        "El Socio de Negocio no tiene Representante Legal.\n\nSi continúa, solo se generará el enlace de Persona Jurídica (sin el del Representante Legal ni los de los contactos).",
+        "Generar solo el enlace",
+        "Cancelar"
+      )) {
+                    return enviarSolicitud(data, true);
+                }
+                return;
             }
             ZDK.Client.showMessage(detalle || "El servidor devolvió status: " + statusCode, { type: "error" });
         }

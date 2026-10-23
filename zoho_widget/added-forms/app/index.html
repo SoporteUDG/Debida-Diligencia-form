@@ -18,6 +18,7 @@
             <tr>
               <th>Contacto</th>
               <th>Rol</th>
+              <th>Nivel de riesgo</th>
               <th>Enlace de formulario</th>
               <th>Vigencia del enlace</th>
               <th>Estado del enlace</th>
@@ -25,7 +26,7 @@
             </tr>
           </thead>
           <tbody id="tabla-contactos">
-            <tr><td colspan="6" class="vacio">Cargando enlaces…</td></tr>
+            <tr><td colspan="7"class="vacio">Cargando enlaces…</td></tr>
           </tbody>
         </table>
       </div>
@@ -51,6 +52,22 @@
       </div>
     </section>
   </main>
+
+  <div id="dialogo-borrar" class="overlay" hidden>
+    <div class="dialogo" role="alertdialog" aria-modal="true" aria-labelledby="borrar-titulo">
+      <h3 id="borrar-titulo">¿Borrar este enlace?</h3>
+      <p>Esta acción no se puede deshacer desde aquí.</p>
+      <div class="dialogo-acciones">
+        <button type="button" id="borrar-cancelar" class="btn btn-reactivar">Cancelar</button>
+        <button type="button" id="borrar-confirmar" class="btn btn-borrar">Sí, borrar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="cargando" class="overlay overlay-cargando" role="status" aria-live="polite" hidden>
+    <div class="spinner" aria-hidden="true"></div>
+    <span>Procesando…</span>
+  </div>
 
   <script src="https://live.zwidgets.com/js-sdk/1.2/ZohoEmbededAppSDK.min.js"></script>
   <script src="app.js"></script>

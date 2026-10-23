@@ -66,4 +66,45 @@ td.acciones { text-align: center; padding-right: 0; white-space: nowrap; }
 .btn-borrar { background: #fdecea; color: #b42318; }
 .btn-borrar:hover { background: #fad4d0; }
 .btn:disabled { opacity: .45; cursor: not-allowed; pointer-events: none; }
-.confirmar-texto { font-weight: 500; margin-right: 4px; }
+.confirmar-texto { font-weight: 500; margin-right: 4px; }.riesgo { font: inherit; padding: 6px 8px; border: 1px solid var(--borde); border-radius: 8px; background: #fff; }
+.riesgo:disabled { opacity: .6; }
+.riesgo-error { color: var(--error); font-size: 12px; display: block; margin-top: 4px; }
+.id-contacto { font-family: Consolas, monospace; font-size: 13px; color: var(--suave); }
+
+.btn-icono {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px; margin-left: 6px; padding: 0;
+  border: 0; border-radius: 8px; cursor: pointer;
+}
+.btn-icono svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.btn-icono:focus-visible { outline: 2px solid var(--primario); outline-offset: 2px; }
+.btn-icono:disabled { opacity: .45; cursor: not-allowed; pointer-events: none; }
+.icono-reactivar { background: var(--sec-fondo); color: var(--texto); }
+.icono-reactivar:hover { background: var(--sec-hover); }
+.icono-ver { background: var(--primario); color: #fff; }
+.icono-ver:hover { background: var(--primario-hover); }
+.icono-borrar { background: #fdecea; color: var(--error); }
+.icono-borrar:hover { background: #fad4d0; }
+
+/* Capas sobre la lista (no la desplazan) */
+.overlay {
+  position: fixed; inset: 0; z-index: 10;
+  display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 12px;
+  background: rgba(20, 30, 50, .45);
+}
+.overlay[hidden] { display: none; }
+.overlay-cargando { z-index: 20; background: rgba(255, 255, 255, .7); color: var(--texto); font-weight: 500; }
+.dialogo {
+  width: min(380px, calc(100% - 32px)); padding: 22px 24px;
+  background: #fff; border-radius: 14px; box-shadow: 0 8px 28px rgba(20, 30, 50, .25);
+}
+.dialogo h3 { margin: 0 0 8px; font-size: 17px; font-weight: 600; }
+.dialogo p { margin: 0 0 18px; color: var(--suave); }
+.dialogo-acciones { display: flex; justify-content: flex-end; gap: 8px; }
+.dialogo-acciones .btn { margin-left: 0; }
+.spinner {
+  width: 38px; height: 38px; border-radius: 50%;
+  border: 4px solid var(--sec-fondo); border-top-color: var(--primario);
+  animation: girar .8s linear infinite;
+}
+@keyframes girar { to { transform: rotate(360deg); } }

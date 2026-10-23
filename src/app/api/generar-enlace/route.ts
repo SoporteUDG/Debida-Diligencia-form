@@ -68,7 +68,8 @@ const idDe = (v: any): string => String((v && typeof v === "object" ? v.id : v) 
  *   Sin contactos: 422 SIN_CONTACTO; debe haber exactamente un estándar (422
  *   CONTACTO_ESTANDAR): solo el contacto estándar escribe el expediente.
  * - Jurídica: no requiere contacto. Sin Representante legal (socio o
- *   Nombre_natural del expediente) y su enlace falta: 422 SIN_REPRESENTANTE_LEGAL.
+ *   Nombre_natural del expediente) y su enlace falta: 422 SIN_REPRESENTANTE_LEGAL
+ *   (requiereConfirmacion); con sinRepresentante: true solo se crea el enlace de la jurídica.
  * - El Contact del expediente cambió en Zoho: si el formulario principal sigue
  *   en borrador se actualiza el vínculo (CONTACT_UPDATED); si ya se envió, 409.
  * - Ya existe todo: 409 ALREADY_EXISTS (aun así ata los contactos).
@@ -261,12 +262,18 @@ export async function POST(request: NextRequest) {
     const representanteLegal = isNatural
       ? ""
       : texto(account?.Nombre_Extranjero_No_en_Peachtree) || texto(ddRecord.Nombre_natural);
+    // Sin Representante Legal y confirmado por el usuario: solo el enlace de la jurídica (ni representante ni contactos)
+    if (!isNatural && !representanteLegal && body.sinRepresentante === true) {
+      plan.faltaRepresentante = false;
+    }
     if (plan.faltaRepresentante && !representanteLegal) {
+      // Requiere confirmación del usuario: se reenvía con sinRepresentante: true
       return NextResponse.json(
         {
           success: false,
           code: "SIN_REPRESENTANTE_LEGAL",
-          error: "El Socio de Negocio no tiene Representante Legal: complete el campo Representante legal para generar su enlace.",
+          requiereConfirmacion: true,
+          error: "El Socio de Negocio no tiene Representante Legal. ¿Generar solo el enlace de Persona Jurídica?",
           crmId: recordId,
         },
         { status: 422, headers: corsHeaders }

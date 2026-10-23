@@ -4,7 +4,7 @@
   // Dos secciones: "Enlaces de Contactos" (principal + relacionados) y
   // "Enlaces adicionales" (generar-adicional). Cada una con su tabla y sus filas.
   var secciones = {
-    contactos: { tbody: document.getElementById("tabla-contactos"), columnas: 6, registros: [] },
+    contactos: { tbody: document.getElementById("tabla-contactos"), columnas: 8, registros: [] },
     adicionales: { tbody: document.getElementById("tabla-adicionales"), columnas: 5, registros: [] }
   };
 
@@ -88,28 +88,74 @@
     return { contactos: [], adicionales: lista(d) };
   }
 
-  var confirmar = null; // { seccion, i } de la fila que espera confirmación de borrado
+  var riesgos = {};   // contactId -> Nivel_de_Riesgo ("" si está vacío)
+  var guardando = {}; // contactId -> true mientras se envía a Zoho
+  var errores = {};   // contactId -> mensaje del último intento fallido
+
+  function cargarRiesgos() {
+    secciones.contactos.registros.forEach(function (r) {
+      var id = campo(r, "contactId");
+      if (!id || riesgos[id] !== undefined) return;
+      ZOHO.CRM.API.getRecord({ Entity: "Contacts", RecordID: id }).then(function (resp) {
+        var rec = resp && resp.data && resp.data[0];
+        riesgos[id] = rec && rec.Nivel_de_Riesgo ? rec.Nivel_de_Riesgo : "";
+      }).catch(function (e) {
+        console.error("No se pudo leer Nivel_de_Riesgo de " + id, e);
+        riesgos[id] = "";
+        errores[id] = "No se pudo leer el nivel";
+      }).then(render);
+    });
+  }
+
+  function guardarRiesgo(i, nivel) {
+    var id = campo(secciones.contactos.registros[i], "contactId");
+    var previo = riesgos[id];
+    guardando[id] = true;
+    delete errores[id];
+    riesgos[id] = nivel;
+    setOcupado(true);
+    render();
+    ZOHO.CRM.API.updateRecord({ Entity: "Contacts", APIData: { id: id, Nivel_de_Riesgo: nivel }, Trigger: [] })
+      .then(function (resp) {
+        var d = resp && resp.data && resp.data[0];
+        if (!d || d.code !== "SUCCESS") throw new Error((d && d.message) || "Respuesta inesperada");
+      })
+      .catch(function (e) {
+        console.error("No se pudo guardar Nivel_de_Riesgo de " + id, e);
+        riesgos[id] = previo;
+        errores[id] = "No se pudo guardar";
+      })
+      .then(function () { delete guardando[id]; setOcupado(false); render(); });
+  }
+
+  secciones.contactos.tbody.addEventListener("change", function (ev) {
+    var sel = ev.target.closest("select.riesgo");
+    if (sel) guardarRiesgo(Number(sel.getAttribute("data-i")), sel.value);
+  });
+
+  var confirmar = null; // { seccion, i } del enlace que espera confirmación de borrado (diálogo sobre la lista)
+
+  var ICONOS = {
+    reactivar: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6"/></svg>',
+    ver: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>',
+    borrar: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2m-9 0 1 14h8l1-14M10 11v6M14 11v6"/></svg>'
+  };
+
+  function botonIcono(clase, tipo, titulo, attrs, extra) {
+    return '<button type="button" class="btn-icono ' + clase + '"' + attrs + ' data-type="' + tipo + '"' +
+      ' title="' + titulo + '" aria-label="' + titulo + '"' + (extra || "") + ">" + ICONOS[tipo] + "</button>";
+  }
 
   function celdaAcciones(seccion, i, r) {
     var attrs = ' data-s="' + seccion + '" data-i="' + i + '"';
-    if (confirmar && confirmar.seccion === seccion && confirmar.i === i) {
-      return '<td class="acciones">' +
-        '<span class="confirmar-texto">¿Borrar este enlace?</span>' +
-        '<button type="button" class="btn btn-borrar"' + attrs + ' data-type="confirmar-borrar">Sí, borrar</button>' +
-        '<button type="button" class="btn btn-reactivar"' + attrs + ' data-type="cancelar-borrar">Cancelar</button>' +
-        "</td>";
-    }
     var activo = claseEstado(campo(r, "estado")) === "estado-ok";
     // Un enlace anulado no se reactiva aquí (extendería un token sobre algo archivado)
     var anulado = /anulad/i.test(String(campo(r, "estado")));
     // El enlace principal es el del expediente: se elimina con el expediente, no aquí
-    var borrar = esPrincipal(r)
-      ? ""
-      : '<button type="button" class="btn btn-borrar"' + attrs + ' data-type="borrar">Borrar</button>';
+    var borrar = esPrincipal(r) ? "" : botonIcono("icono-borrar", "borrar", "Borrar enlace", attrs);
     return '<td class="acciones">' +
-      '<button type="button" class="btn btn-reactivar" ' + (activo || anulado ? "disabled" : "") +
-        (anulado ? ' title="Enlace anulado"' : "") + attrs + ' data-type="reactivar">Reactivar</button>' +
-      '<button type="button" class="btn btn-ver"' + attrs + ' data-type="ver">Ver</button>' +
+      botonIcono("icono-reactivar", "reactivar", anulado ? "Enlace anulado" : "Reactivar enlace", attrs, activo || anulado ? " disabled" : "") +
+      botonIcono("icono-ver", "ver", "Ver enlace", attrs) +
       borrar +
       "</td>";
   }
@@ -122,10 +168,29 @@
       '<td class="valor ' + claseEstado(estado) + '">' + escapeHtml(estado || "—") + "</td>";
   }
 
+  var NIVELES = ["Alto", "Medio", "Bajo"];
+
+  // Select de Nivel_de_Riesgo del Contact; sin contacto (empresa, representante) no aplica
+  function celdaRiesgo(r, i) {
+    var id = campo(r, "contactId");
+    if (!id) return '<td class="valor">—</td>';
+    var actual = riesgos[id];
+    if (actual === undefined) return '<td class="valor">…</td>';
+    var opciones = (NIVELES.indexOf(actual) < 0 ? ['<option value="">—</option>'] : []).concat(
+      NIVELES.map(function (n) {
+        return '<option value="' + n + '"' + (n === actual ? " selected" : "") + ">" + n + "</option>";
+      })
+    ).join("");
+    var err = errores[id] ? '<span class="riesgo-error">' + escapeHtml(errores[id]) + "</span>" : "";
+    return '<td><select class="riesgo" data-i="' + i + '"' + (guardando[id] ? " disabled" : "") + ">" + opciones + "</select>" + err + "</td>";
+  }
+
   function filaContacto(r, i) {
+    var id = campo(r, "contactId");
     return "<tr>" +
       "<td>" + escapeHtml(campo(r, "nombre") || "No definido") + "</td>" +
       "<td>" + rolHtml(r) + "</td>" +
+      celdaRiesgo(r, i) +
       celdasEnlace(r) +
       celdaAcciones("contactos", i, r) +
       "</tr>";
@@ -150,9 +215,14 @@
     renderSeccion("contactos", filaContacto, "No hay enlaces de contactos para mostrar.");
     renderSeccion("adicionales", filaAdicional, "No hay enlaces adicionales para mostrar.");
 
+    document.getElementById("dialogo-borrar").hidden = !confirmar;
     // Foco en la opción segura al pedir confirmación
-    var cancelar = document.querySelector('[data-type="cancelar-borrar"]');
-    if (cancelar) cancelar.focus();
+    if (confirmar) document.getElementById("borrar-cancelar").focus();
+  }
+
+  // Overlay con loader mientras se guarda el riesgo o se envía una acción
+  function setOcupado(v) {
+    document.getElementById("cargando").hidden = !v;
   }
 
   function alHacerClic(ev) {
@@ -163,11 +233,15 @@
     var seccion = btn.getAttribute("data-s");
     var i = Number(btn.getAttribute("data-i"));
 
-    if (tipo === "borrar")          { confirmar = { seccion: seccion, i: i }; render(); return; }
-    if (tipo === "cancelar-borrar") { confirmar = null; render(); return; }
+    if (tipo === "borrar") { confirmar = { seccion: seccion, i: i }; render(); return; }
+    enviarAccion(tipo, seccion, i);
+  }
 
-    if (tipo === "confirmar-borrar") tipo = "delete";
+  function enviarAccion(tipo, seccion, i) {
+    confirmar = null;
+    render();
     var r = secciones[seccion].registros[i];
+    setOcupado(true);
     cerrar({
       token: obtenerToken(r),
       type: tipo,
@@ -177,6 +251,18 @@
   }
   secciones.contactos.tbody.addEventListener("click", alHacerClic);
   secciones.adicionales.tbody.addEventListener("click", alHacerClic);
+
+  function cancelarBorrar() { confirmar = null; render(); }
+  document.getElementById("borrar-cancelar").addEventListener("click", cancelarBorrar);
+  document.getElementById("borrar-confirmar").addEventListener("click", function () {
+    if (confirmar) enviarAccion("delete", confirmar.seccion, confirmar.i);
+  });
+  document.getElementById("dialogo-borrar").addEventListener("click", function (ev) {
+    if (ev.target === this) cancelarBorrar();
+  });
+  document.addEventListener("keydown", function (ev) {
+    if (ev.key === "Escape" && confirmar) cancelarBorrar();
+  });
 
   // Lo enviado a $Client.close() es lo que retorna `await ZDK.Client.openPopup(...)`
   function cerrar(resultado) {
@@ -193,6 +279,7 @@
     secciones.adicionales.registros = n.adicionales;
     confirmar = null;
     render();
+    cargarRiesgos();
   });
   ZOHO.embeddedApp.init();
 })();

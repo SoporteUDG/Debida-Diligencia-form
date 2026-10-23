@@ -261,9 +261,13 @@ export async function crearContactoYSocio(params: {
       ...mapFormToContactPayload("NATURAL", d),
       First_Name: texto(d.firstName) || undefined,
       Last_Name: texto(d.lastName) || texto(d.firstName),
+      Nombre_Completo: texto(d.firstName) || undefined,
+      Apellido: texto(d.lastName) || texto(d.firstName),
+      ID_de_Contacto: `${texto(d.firstName)} ${texto(d.lastName)}` || texto(d.firstName),
       Email: email || undefined,
       Proyecto: proyecto || undefined,
       Celular: telefono(d.celularCodigo, d.celular),
+      Mobile: telefono(d.celularCodigo, d.celular),
       Phone: telefono(d.telefonoCodigo, d.telefono),
       Direcci_n_F_sica: texto(d.direccionResidencial) || undefined,
       Empresa: texto(d.employer) || undefined,
@@ -305,6 +309,7 @@ export async function crearContactoYSocio(params: {
     Billing_City: texto(esNatural ? d.ciudad : d.empresaCiudad) || undefined,
     Billing_State: texto(esNatural ? d.provinciaEstado : d.empresaProvincia) || undefined,
     Billing_Country: texto(esNatural ? d.paisResidencial : d.empresaPais) || undefined,
+    Estatus_Debida_Diligencia: "En borrador",
     // Requerido al crear: el socio nuevo se replica a SAP
     Replicar_SAP1: "No",
   };

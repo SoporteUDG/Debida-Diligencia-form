@@ -52,6 +52,7 @@ async function mostrarDocumentosAdicionales() {
                 estado: link.linkStatus,
                 vigencia: link.expiresAt ? new Date(link.expiresAt).toLocaleDateString('es-ES') : "",
                 token: link.token,
+                contactId: link.contactId || "",
                 rol: link.role === "PRINCIPAL" ? "principal"
                     : link.representante ? "representante"
                     : link.role === "RELATED" ? "relacionado" : "adicional",
