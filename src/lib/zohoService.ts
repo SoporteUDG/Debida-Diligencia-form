@@ -1239,6 +1239,12 @@ export const zoho = {
       });
     },
 
+    /** Link_documentos (carpeta de WorkDrive) de un Socio de Negocio por su ID; "" si no tiene. */
+    getSocioLinkDocumentos: async (socioId: string): Promise<string> => {
+      const record = await zoho.service.getAccountRecord(socioId);
+      return record ? findValue(record, ["Link_documentos", "Link_Documentos", "Link_documents", "Link_de_documentos"]) : "";
+    },
+
     /**
      * Asigna el lookup DD_relacionado de un expediente de Debida_Diligencia.
      *
@@ -2026,6 +2032,10 @@ export function mapFormToContactPayload(clientType: "NATURAL" | "JURIDICA", form
       "C_I_P_Pasaporte": text(d.idNumber),
       "Fecha_de_Expiraci_n_CIP": toDate(d.fechaVencimientoId),
       "Fecha_Nacimiento": toDate(d.fechaNacimiento),
+      // Teléfonos del Contact: Mobile repite el Celular
+      "Celular": phone(d.celularCodigo, d.celular),
+      "Mobile": phone(d.celularCodigo, d.celular),
+      "Phone": phone(d.telefonoCodigo, d.telefono),
     });
   }
 

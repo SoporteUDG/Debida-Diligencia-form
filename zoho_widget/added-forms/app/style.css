@@ -108,3 +108,5 @@ td.acciones { text-align: center; padding-right: 0; white-space: nowrap; }
   animation: girar .8s linear infinite;
 }
 @keyframes girar { to { transform: rotate(360deg); } }
+
+.sin-enlace { color: var(--suave); font-weight: 500; }

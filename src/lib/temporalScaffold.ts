@@ -266,9 +266,6 @@ export async function crearContactoYSocio(params: {
       ID_de_Contacto: `${texto(d.firstName)} ${texto(d.lastName)}` || texto(d.firstName),
       Email: email || undefined,
       Proyecto: proyecto || undefined,
-      Celular: telefono(d.celularCodigo, d.celular),
-      Mobile: telefono(d.celularCodigo, d.celular),
-      Phone: telefono(d.telefonoCodigo, d.telefono),
       Direcci_n_F_sica: texto(d.direccionResidencial) || undefined,
       Empresa: texto(d.employer) || undefined,
       Fecha_Nacimiento: fecha(d.fechaNacimiento),
@@ -312,6 +309,8 @@ export async function crearContactoYSocio(params: {
     Estatus_Debida_Diligencia: "En borrador",
     // Requerido al crear: el socio nuevo se replica a SAP
     Replicar_SAP1: "No",
+    // Lookup al Contact estándar recién creado (la jurídica no tiene Contact)
+    Contacto_Principal: contactCrmId ? { id: contactCrmId } : undefined,
   };
   let accountCrmId = temporal.accountCrmId ?? null;
   if (!accountCrmId) {

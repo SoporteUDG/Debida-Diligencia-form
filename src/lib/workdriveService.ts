@@ -711,6 +711,9 @@ export class SocioSinCarpetaError extends Error {
  * principal se renombra a Principal-{TIPO}-{nombreNuevo}. También se mueven las
  * de sus enlaces (por el sufijo de su token). Idempotente: lo que ya está en el
  * socio solo se renombra, y sin carpeta de origen no hay nada que mover.
+ * Con `socioAnteriorId` (el expediente ya estaba en otro socio) también se toman las
+ * carpetas de /{SocioAnterior}/DD. `socioId` (el nuevo) evita leerlo del expediente,
+ * que en Zoho puede no estar guardado todavía.
  * Lanza SocioSinCarpetaError (antes de tocar nada) si el socio no tiene carpeta, y
  * Error si ya hay una carpeta principal con el nombre nuevo.
  */
@@ -723,17 +726,32 @@ export async function migrarCarpetasASocio(params: {
   nombreNuevo: string;
   /** Tokens de los enlaces del expediente (cada uno con su carpeta). */
   tokens: string[];
+  /** Socio de Negocio nuevo; sin él se lee del expediente. */
+  socioId?: string;
+  /** Socio de Negocio al que pertenecía antes, si lo tenía. */
+  socioAnteriorId?: string | null;
 }): Promise<{ principal: boolean; enlaces: number }> {
-  const { ddId, formType, nombreAnterior, nombreNuevo, tokens } = params;
+  const { ddId, formType, nombreAnterior, nombreNuevo, tokens, socioAnteriorId } = params;
   const accessToken = await getAccessToken();
 
-  const { socioId, linkDocumentos } = await zoho.service.getSocioDocumentsLink(ddId);
+  const { socioId, linkDocumentos } = params.socioId
+    ? { socioId: params.socioId, linkDocumentos: await zoho.service.getSocioLinkDocumentos(params.socioId) }
+    : await zoho.service.getSocioDocumentsLink(ddId);
   const socioFolderId = extractFolderIdFromLink(linkDocumentos);
   if (!socioFolderId) throw new SocioSinCarpetaError(socioId, linkDocumentos);
 
   const rootFolderId = process.env.ZOHO_WORKDRIVE_ROOT_FOLDER_ID;
   const hayRaiz = !!rootFolderId && rootFolderId !== "placeholder_root_folder_id" && rootFolderId !== socioFolderId;
   const ddRaizId = hayRaiz ? await findFolderInParent(rootFolderId!, "DD", accessToken) : null;
+
+  // Carpeta DD del socio anterior (si cambió de socio): segundo origen de las carpetas
+  let ddAnteriorId: string | null = null;
+  if (socioAnteriorId && socioAnteriorId !== socioId) {
+    const anteriorFolderId = extractFolderIdFromLink(await zoho.service.getSocioLinkDocumentos(socioAnteriorId));
+    if (anteriorFolderId && anteriorFolderId !== socioFolderId) {
+      ddAnteriorId = await findFolderInParent(anteriorFolderId, "DD", accessToken);
+    }
+  }
 
   let ddSocioId = await findFolderInParent(socioFolderId, "DD", accessToken);
   const asegurarDDSocio = async () => (ddSocioId ??= await createFolderInParent(socioFolderId, "DD", accessToken));
@@ -747,7 +765,13 @@ export async function migrarCarpetasASocio(params: {
 
   // Principal: en la raíz (mover y renombrar; allí siempre lleva el sufijo del ID) o ya en el socio
   // con el nombre anterior (renombrar)
-  const enRaiz = ddRaizId ? await buscarPrimeraPrincipal(ddRaizId, formType, nombresViejos.slice(0, 1), accessToken) : null;
+  const origenes = [ddRaizId, ddAnteriorId].filter((id): id is string => !!id);
+  let enRaiz: string | null = null;
+  for (const origen of origenes) {
+    // En la raíz la carpeta lleva el sufijo del ID; en un socio, el Name anterior
+    enRaiz = await buscarPrimeraPrincipal(origen, formType, origen === ddRaizId ? nombresViejos.slice(0, 1) : nombresViejos, accessToken);
+    if (enRaiz) break;
+  }
   if (enRaiz) {
     if (destino) {
       throw new Error(`El socio ya tiene una carpeta "${nombreFinal}" en su carpeta DD: no se puede mover la del expediente sin mezclarlas.`);
@@ -765,12 +789,13 @@ export async function migrarCarpetasASocio(params: {
 
   // Enlaces del expediente (relacionado, representante, adicional): solo cambian de padre
   let enlaces = 0;
-  if (ddRaizId) {
-    for (const token of tokens) {
-      const carpeta = await findFolderEndingWith(ddRaizId, sufijoAdicional(token), accessToken);
+  for (const token of tokens) {
+    for (const origen of origenes) {
+      const carpeta = await findFolderEndingWith(origen, sufijoAdicional(token), accessToken);
       if (!carpeta) continue;
       await moveFolder(carpeta, await asegurarDDSocio(), accessToken);
       enlaces++;
+      break;
     }
   }
 

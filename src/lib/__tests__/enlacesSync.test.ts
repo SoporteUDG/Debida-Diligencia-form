@@ -60,7 +60,7 @@ describe("Campos que escribe cada formulario", () => {
 
   it("Contact natural: exactamente los campos 'Zoho Contactos' de la guía", () => {
     expect(Object.keys(mapFormToContactPayload("NATURAL", natural)).sort()).toEqual(
-      ["First_Name", "Last_Name", "Pais_de_Nacimiento_2", "Nacionalidad_2", "Otra_Nacionalidad", "C_I_P_Pasaporte", "Fecha_de_Expiraci_n_CIP", "Fecha_Nacimiento"].sort()
+      ["First_Name", "Last_Name", "Pais_de_Nacimiento_2", "Nacionalidad_2", "Otra_Nacionalidad", "C_I_P_Pasaporte", "Fecha_de_Expiraci_n_CIP", "Fecha_Nacimiento", "Celular", "Mobile", "Phone"].sort()
     );
   });
 });

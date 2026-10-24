@@ -32,11 +32,8 @@ async function mostrarDocumentosAdicionales() {
         log("HTTP Status: " + statusCode);
         log("Response Body: " + responseBody);
 
-        // 404: el expediente no tiene enlaces que mostrar
-        if (statusCode === 404) {
-            ZDK.Client.showMessage("No hay enlaces disponibles que visualizar", { type: "info" });
-            return;
-        }
+        // Sin enlaces (o expediente desconocido para el portal) no se bloquea: el servidor responde
+        // con listas vacías y el widget muestra los contactos como "enlace no creado"
         if (statusCode !== 200 && statusCode !== 201) {
             ZDK.Client.showMessage("El servidor devolvió status: " + statusCode, { type: "error" });
             return;
@@ -62,6 +59,18 @@ async function mostrarDocumentosAdicionales() {
         // "Enlaces de Contactos": principal + relacionados. "Enlaces adicionales": los de generar-adicional.
         // (data.forms son los mismos enlaces ya enviados: no se agregan otra vez)
         var contactos = (data.contactLinks || []).map(aFila);
+        // Contactos del socio sin enlace todavía: solo permiten cambiar su nivel de riesgo
+        (data.contactsWithoutLink || []).forEach(function (c) {
+            contactos.push({
+                nombre: c.name,
+                enlace: "",
+                estado: "Enlace no creado",
+                vigencia: "",
+                token: "",
+                contactId: c.contactId,
+                rol: "sinEnlace",
+            });
+        });
         var adicionales = (data.links || []).map(aFila);
         var linkList = contactos.concat(adicionales);
 

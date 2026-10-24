@@ -1,18 +1,21 @@
 // ==========================================
-// Asociar socio (botón del módulo Debida Diligencia)
+// Asociar socio (Client Script del módulo Debida Diligencia)
 //
-// Para expedientes creados desde /registro/* (Estado "Sin Asociar"): cuando ya
-// tienen un Socio de Negocio, el portal lo guarda en su base, renombra el
-// registro, mueve sus carpetas de WorkDrive a la del socio y el Estado pasa a
-// "En borrador". En la natural, además, toma el Contacto estándar (lo guarda en
-// Nombre de contacto) y le copia los datos del cliente si ya completó el formulario.
+// Se ejecuta en cada cambio del Socio de Negocio:
+//   Client Script > Canvas de detalle > Evento de Campo > onBeforeUpdate,
+//   campo "Socio_de_Negocios".
+//
+// El portal valida que el socio nuevo no tenga otra Debida Diligencia, mueve las
+// carpetas de WorkDrive (de la raíz o del socio anterior) a la del socio nuevo, ata
+// todos los contactos del socio al expediente y, en la natural, guarda el Contacto
+// estándar en Nombre de contacto. Si lo rechaza, el portal restaura el socio anterior
+// y este script cancela el cambio. No genera enlaces.
+//
+// En onBeforeUpdate el registro todavía trae la información ANTERIOR: de ahí sale el
+// socio anterior, y el nuevo se consulta de nuevo (ver obtenerSocioNuevo).
 // ==========================================
 
 var API_URL = "https://debida-diligencia.udggroup.com/api/asociar-socio";
-
-function esJuridica(tipo) {
-  return String(tipo || "").toLowerCase().indexOf("jur") !== -1;
-}
 
 // Cuerpo de la respuesta como objeto (Zoho puede entregarlo como texto)
 function leerJson(cuerpo) {
@@ -23,29 +26,25 @@ function leerJson(cuerpo) {
   }
 }
 
-async function asociarSocio() {
-  if ($Page.record.Estado !== "Sin Asociar") {
-    ZDK.Client.showMessage("El expediente no está en estado \"Sin Asociar\".", { type: "info" });
-    return;
-  }
-  if (!$Page.record.Socio_de_Negocios) {
-    ZDK.Client.showMessage("Asigne primero el Socio de Negocio al expediente.", { type: "warning" });
-    return;
-  }
+// ID de un lookup (objeto con id, función o texto); "" si está vacío
+function idDe(lookup) {
+  var v = typeof lookup === "function" ? lookup() : lookup;
+  return v && typeof v === "object" ? String(v.id || "") : String(v || "");
+}
 
-  var mensaje =
-    "Se asociará este expediente al Socio de Negocio:\n" +
-    "- El registro se renombrará a \"nombre-unidad-proyecto\" y su estado pasará a \"En borrador\".\n" +
-    "- Las carpetas de documentos se moverán a la carpeta del Socio de Negocio.\n";
-  if (!esJuridica($Page.record.Tipo_de_Persona)) {
-    mensaje +=
-      "- Se tomará el Contacto estándar del Socio de Negocio (o, si no tiene contactos, el de este expediente) " +
-      "y se guardará en Nombre de contacto.\n" +
-      "- Si el cliente ya completó su formulario, sus datos personales se copiarán a ese contacto " +
-      "(también quedan en este registro). Si aún no lo completa, al hacerlo se guardarán en ese contacto.\n";
-  }
-  var continuar = ZDK.Client.showConfirmation(mensaje + "\n¿Desea continuar?", "Confirmar", "Volver");
-  if (!continuar) return;
+// Socio nuevo: se consulta el registro otra vez, porque $Page.record trae el valor anterior
+function obtenerSocioNuevo() {
+  var registro = ZDK.Apps.CRM.Debida_Diligencia.fetchById($Page.record_id);
+  return idDe(registro && registro.Socio_de_Negocios);
+}
+
+async function asociarSocio() {
+  var socioAnteriorId = idDe($Page.record.Socio_de_Negocios);
+  var socioId = obtenerSocioNuevo();
+  log("Socio anterior: " + socioAnteriorId + " / nuevo: " + socioId);
+
+  // Sin cambio real (o el nuevo valor aún no se refleja): nada que asociar
+  if (!socioId || socioId === socioAnteriorId) return true;
 
   ZDK.Client.showLoader({
     type: "page",
@@ -57,7 +56,11 @@ async function asociarSocio() {
     var response = await ZDK.HTTP.request({
       url: API_URL,
       method: "POST",
-      content: JSON.stringify({ recordId: $Page.record_id }),
+      content: JSON.stringify({
+        recordId: $Page.record_id,
+        socioId: socioId,
+        socioAnteriorId: socioAnteriorId
+      }),
       headers: { "Content-Type": "application/json" }
     });
     ZDK.Client.hideLoader();
@@ -71,17 +74,22 @@ async function asociarSocio() {
     if (statusCode === 200 || statusCode === 201) {
       ZDK.Client.showMessage(json.message || "¡Expediente asociado exitosamente!", { type: "success" });
       $Client.refresh();
-    } else if (statusCode === 409 || statusCode === 422) {
-      // El portal explica el motivo (sin socio, sin Contacto estándar, anulado...)
-      ZDK.Client.showMessage(json.error || "No se pudo asociar el expediente (status " + statusCode + ").", { type: "warning" });
-    } else {
-      ZDK.Client.showMessage(json.error || "El servidor devolvió status: " + statusCode, { type: "error" });
+      return true;
     }
+    // Rechazado (socio con otra DD, sin carpeta, sin contacto estándar, anulado...):
+    // el portal explica el motivo y, si había socio anterior, ya lo restauró
+    ZDK.Client.showMessage(
+      json.error || "No se pudo asociar el expediente (status " + statusCode + ").",
+      { type: statusCode === 409 || statusCode === 422 ? "warning" : "error" }
+    );
+    if (json.restaurado) $Client.refresh();
+    return false;
   } catch (error) {
     ZDK.Client.hideLoader();
     log("Error ZDK: " + error.message);
     ZDK.Client.showMessage("Error: " + error.message, { type: "error" });
+    return false;
   }
 }
 
-asociarSocio();
+return await asociarSocio();

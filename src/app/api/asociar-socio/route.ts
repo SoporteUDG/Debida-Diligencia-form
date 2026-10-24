@@ -6,6 +6,7 @@ import { expedienteRetirado, MENSAJE_RETIRADO } from "@/lib/ddRetireService";
 import { ESTADO_EN_BORRADOR, ESTADO_SIN_ASOCIAR } from "@/lib/ddEstados";
 import { migrarCarpetasASocio, SocioSinCarpetaError } from "@/lib/workdriveService";
 import { nombreDe } from "@/lib/enlacesSocioService";
+import { vincularContactosAlExpediente } from "@/lib/contactLinkService";
 import {
   obtenerContactosDeCuenta,
   obtenerContactosDeDD,
@@ -54,12 +55,27 @@ const idDe = (v: any): string => String((v && typeof v === "object" ? v.id : v) 
  * - Zoho: el Name pasa de "nombre-proyecto" a "nombre-unidad-proyecto" (con la
  *   unidad del socio) y el Estado de "Sin Asociar" a "En borrador".
  *
- * Errores: 404 inexistente; 409 RETIRADO / NO_SIN_ASOCIAR (otro Estado);
+ * Se ejecuta en cada cambio del Socio de Negocio (Client Script onBeforeUpdate), no
+ * solo desde "Sin Asociar":
+ * - El socio nuevo no puede tener otra Debida Diligencia vigente (409 SOCIO_CON_DD).
+ * - Si el expediente ya estaba en otro socio, sus carpetas pasan de /{Anterior}/DD a
+ *   /{Nuevo}/DD, y el Estado solo cambia a "En borrador" cuando venía de "Sin Asociar".
+ * - Todos los contactos del socio se atan al expediente (Contacts.Debida_Diligencia),
+ *   sin generar enlaces; en la natural, además, el Contacto estándar se guarda en
+ *   Nombre de contacto.
+ * - Si el cambio se rechaza (SOCIO_CON_DD, SIN_CARPETA_SOCIO, SIN_CONTACTO,
+ *   CONTACTO_ESTANDAR) y el expediente tenía un socio, se restaura en Zoho
+ *   (`restaurado: true`).
+ *
+ * Errores: 404 inexistente; 409 RETIRADO / SOCIO_CON_DD;
  * 422 SIN_SOCIO, SIN_CONTACTO, CONTACTO_ESTANDAR o SIN_CARPETA_SOCIO.
  *
- * Body: { recordId (ID del expediente) }
+ * Body: { recordId (ID del expediente), socioId? (el nuevo; el guardado en Zoho puede
+ * no haber llegado), socioAnteriorId? (el que tenía; si falta se usa el del portal) }
  */
 export async function POST(request: NextRequest) {
+  // Devuelve el Socio de Negocio anterior al expediente cuando se rechaza el cambio
+  let restaurar: () => Promise<boolean> = async () => false;
   try {
     let body: any = {};
     try {
@@ -97,19 +113,21 @@ export async function POST(request: NextRequest) {
         { status: 409, headers: corsHeaders }
       );
     }
-    if (texto(ddRecord.Estado) !== ESTADO_SIN_ASOCIAR) {
-      return NextResponse.json(
-        {
-          success: false,
-          code: "NO_SIN_ASOCIAR",
-          error: `El expediente no está en estado "${ESTADO_SIN_ASOCIAR}" (Estado actual: ${texto(ddRecord.Estado) || "vacío"}).`,
-          crmId: recordId,
-        },
-        { status: 409, headers: corsHeaders }
-      );
-    }
+    const sinAsociar = texto(ddRecord.Estado) === ESTADO_SIN_ASOCIAR;
+    // El socio nuevo viene del script (el guardado puede no haber llegado a Zoho); si no, del registro
+    const socioId = String(body.socioId ?? "").trim() || idDe(ddRecord.Socio_de_Negocios ?? ddRecord.Socio_de_Negocio);
+    const socioAnteriorId = String(body.socioAnteriorId ?? "").trim() || contact.accountCrmId || null;
+    restaurar = async () => {
+      if (!socioAnteriorId || socioAnteriorId === socioId) return false;
+      try {
+        await zoho.service.updateDDFields(recordId, { Socio_de_Negocios: { id: socioAnteriorId } });
+        return true;
+      } catch (err) {
+        console.error(`[API Asociar Socio] No se pudo restaurar el socio ${socioAnteriorId} del expediente ${recordId}:`, err);
+        return false;
+      }
+    };
 
-    const socioId = idDe(ddRecord.Socio_de_Negocios ?? ddRecord.Socio_de_Negocio);
     if (!socioId) {
       return NextResponse.json(
         {
@@ -122,26 +140,56 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Sin cambio de socio en un expediente ya asociado: nada que hacer
+    if (!sinAsociar && contact.accountCrmId === socioId) {
+      return NextResponse.json(
+        { success: true, status: "unchanged", message: "El expediente ya está asociado a este Socio de Negocio.", crmId: recordId, socioId },
+        { headers: corsHeaders }
+      );
+    }
+
+    // El socio no puede tener otra Debida Diligencia vigente (la propia y las retiradas no cuentan)
+    const otras = (await zoho.service.searchDDsByAccount(socioId)).filter((d) => d.id !== recordId && !d.retirado);
+    if (otras.length) {
+      const restaurado = await restaurar();
+      return NextResponse.json(
+        {
+          success: false,
+          code: "SOCIO_CON_DD",
+          error:
+            `El Socio de Negocio ya tiene una Debida Diligencia asociada (${otras[0].name || otras[0].id}).` +
+            (restaurado ? " Se restauró el Socio de Negocio anterior." : ""),
+          crmId: recordId,
+          socioId,
+          ddExistente: otras[0].id,
+          restaurado,
+        },
+        { status: 409, headers: corsHeaders }
+      );
+    }
+
     const isNatural = !/jur/i.test(texto(ddRecord.Tipo_de_Persona));
     const clientType = isNatural ? "NATURAL" : "JURIDICA";
 
-    // Natural: Contacto estándar del socio (o, si no tiene contactos, de los atados al expediente)
+    // Contactos del socio (o, si no tiene, los atados al expediente); natural: el estándar
     let estandar: AccountContactRow | null = null;
+    let contactos: AccountContactRow[] = [];
+    try {
+      contactos = await obtenerContactosDeCuenta(socioId, clientType, { todos: true });
+    } catch (err) {
+      if (!(err instanceof SinContactosError)) throw err;
+    }
+    if (!contactos.length) contactos = await obtenerContactosDeDD(recordId, socioId);
     if (isNatural) {
-      let contactos: AccountContactRow[] = [];
-      try {
-        contactos = await obtenerContactosDeCuenta(socioId, clientType, { todos: true });
-      } catch (err) {
-        if (!(err instanceof SinContactosError)) throw err;
-      }
-      if (!contactos.length) contactos = await obtenerContactosDeDD(recordId, socioId);
       if (!contactos.length) {
+        const restaurado = await restaurar();
         return NextResponse.json(
           {
             success: false,
             code: "SIN_CONTACTO",
             error: "Ni el Socio de Negocio ni el expediente tienen contactos: vincule el Contacto estándar para asociar el expediente.",
             crmId: recordId,
+            restaurado,
           },
           { status: 422, headers: corsHeaders }
         );
@@ -175,6 +223,8 @@ export async function POST(request: NextRequest) {
       nombreAnterior: texto(ddRecord.Name),
       nombreNuevo,
       tokens: drafts.filter((d) => d.role !== "PRINCIPAL").map((d) => d.token),
+      socioId,
+      socioAnteriorId,
     });
 
     // 2. Natural con el formulario ya enviado: sus datos pasan al Contacto estándar del socio
@@ -198,11 +248,18 @@ export async function POST(request: NextRequest) {
     // 4. Zoho: Name, unidad, contacto y Estado, en una sola actualización
     await zoho.service.updateDDFields(recordId, {
       Name: nombreNuevo,
-      Estado: ESTADO_EN_BORRADOR,
+      // Solo cambia el Estado cuando venía de "Sin Asociar"
+      ...(sinAsociar ? { Estado: ESTADO_EN_BORRADOR } : {}),
       ...(unidadId ? { Unidad_Vendida: { id: unidadId } } : {}),
       ...(unidad ? { Unidad: unidad } : {}),
       ...(estandar ? { [DD_CONTACT_FIELD]: { id: estandar.crmId } } : {}),
     });
+
+    // 5. Todos los contactos del socio quedan atados al expediente (sin generar enlaces)
+    const contactosVinculados = await vincularContactosAlExpediente(
+      recordId,
+      contactos.map((c) => c.crmId)
+    );
 
     await logAuditEvent({
       action: "DD_SOCIO_ASOCIADO",
@@ -211,6 +268,8 @@ export async function POST(request: NextRequest) {
       details: {
         crmId: recordId,
         socioId,
+        socioAnteriorId,
+        contactosVinculados,
         contactCrmId: estandar?.crmId ?? null,
         nombreAnterior: texto(ddRecord.Name),
         nombreNuevo,
@@ -223,30 +282,34 @@ export async function POST(request: NextRequest) {
       {
         success: true,
         status: "success",
-        message: `Expediente asociado al Socio de Negocio y renombrado a "${nombreNuevo}". Estado: ${ESTADO_EN_BORRADOR}.`,
+        message: `Expediente asociado al Socio de Negocio y renombrado a "${nombreNuevo}".${sinAsociar ? ` Estado: ${ESTADO_EN_BORRADOR}.` : ""}`,
         crmId: recordId,
         socioId,
         name: nombreNuevo,
         contactId: estandar?.crmId ?? null,
         datosPasadosAlContacto: !!(estandar && enviado),
         carpetas,
+        contactosVinculados,
       },
       { headers: corsHeaders }
     );
   } catch (error: any) {
     if (error instanceof SocioSinCarpetaError) {
+      const restaurado = await restaurar();
       return NextResponse.json(
-        { success: false, error: error.message, code: "SIN_CARPETA_SOCIO", socioId: error.socioId },
+        { success: false, error: error.message, code: "SIN_CARPETA_SOCIO", socioId: error.socioId, restaurado },
         { status: 422, headers: corsHeaders }
       );
     }
     console.error("[API Asociar Socio Error]:", error);
     if (error instanceof ContactoEstandarError) {
+      const restaurado = await restaurar();
       return NextResponse.json(
         {
           success: false,
           error: error.message,
           code: "CONTACTO_ESTANDAR",
+          restaurado,
           socioId: error.accountCrmId,
           estandares: error.estandares.map((c) => c.crmId),
         },

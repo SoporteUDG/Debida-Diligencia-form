@@ -40,7 +40,13 @@
     return String(campo(r, "rol")).toLowerCase() === "representante";
   }
 
+  // Contacto del socio al que aún no se le creó enlace: solo se le puede cambiar el nivel de riesgo
+  function esSinEnlace(r) {
+    return String(campo(r, "rol")).toLowerCase() === "sinenlace";
+  }
+
   function rolHtml(r) {
+    if (esSinEnlace(r)) return '<span class="rol">Contacto</span>';
     if (esPrincipal(r)) return '<span class="rol rol-principal">Principal</span>';
     if (esRepresentante(r)) return '<span class="rol rol-representante">Representante Legal</span>';
     return '<span class="rol">Relacionado</span>';
@@ -147,6 +153,7 @@
   }
 
   function celdaAcciones(seccion, i, r) {
+    if (esSinEnlace(r)) return '<td class="acciones valor">—</td>';
     var attrs = ' data-s="' + seccion + '" data-i="' + i + '"';
     var activo = claseEstado(campo(r, "estado")) === "estado-ok";
     // Un enlace anulado no se reactiva aquí (extendería un token sobre algo archivado)
@@ -161,6 +168,9 @@
   }
 
   function celdasEnlace(r) {
+    if (esSinEnlace(r)) {
+      return '<td class="valor">—</td><td class="valor">—</td><td class="valor sin-enlace">Enlace no creado</td>';
+    }
     var enlace = campo(r, "enlace");
     var estado = campo(r, "estado");
     return '<td><a class="enlace" href="' + escapeHtml(enlace) + '" target="_blank" rel="noopener" title="' + escapeHtml(enlace) + '">' + escapeHtml(enlace || "—") + "</a></td>" +

@@ -131,6 +131,8 @@ describe("crearEstructuraDelTemporal - Jurídica", () => {
       Billing_Street: "Calle 50",
       Replicar_SAP1: "No",
     });
+    // Jurídica: sin Contact, no hay Contacto_Principal
+    expect(serviceMock.createRecord.mock.calls[0][1]).not.toHaveProperty("Contacto_Principal");
     const dd = serviceMock.createDebidaDiligenciaRecord.mock.calls[0][0];
     expect(dd).toMatchObject({
       accountCrmId: "acc1",
@@ -220,12 +222,15 @@ describe("crearEstructuraDelTemporal - Natural", () => {
       Nacionalidad_2: "Panamá",
       Profesi_n: "Piloto",
     });
-    for (const campo of ["Mobile", "Lead_Source"]) expect(contacto).not.toHaveProperty(campo);
+    // Mobile repite el Celular
+    expect(contacto.Mobile).toBe(contacto.Celular);
+    expect(contacto).not.toHaveProperty("Lead_Source");
 
     expect(serviceMock.createRecord.mock.calls[1][1]).toMatchObject({
       Account_Name: "Luis Mora-A-12-The Hub",
       Persona_de_Tipo: "Natural",
       Replicar_SAP1: "No",
+      Contacto_Principal: { id: expect.any(String) },
     });
     // "Otros" -> su detalle
     expect(serviceMock.createDebidaDiligenciaRecord.mock.calls[0][0]).toMatchObject({

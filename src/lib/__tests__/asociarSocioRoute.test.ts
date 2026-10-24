@@ -1,17 +1,24 @@
 import { vi, describe, it, expect, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 
-const { prismaMock, zohoMock, contactoMock, driveMock } = vi.hoisted(() => ({
+const { prismaMock, zohoMock, contactoMock, driveMock, linkMock } = vi.hoisted(() => ({
   prismaMock: {
     crmContact: { findUnique: vi.fn(), update: vi.fn() },
     draft: { findMany: vi.fn(), update: vi.fn() },
     form: { findFirst: vi.fn() },
   },
   zohoMock: {
-    service: { getDDRecord: vi.fn(), resolverNombreDDDeSocio: vi.fn(), updateAccountContact: vi.fn(), updateDDFields: vi.fn() },
+    service: {
+      getDDRecord: vi.fn(),
+      resolverNombreDDDeSocio: vi.fn(),
+      updateAccountContact: vi.fn(),
+      updateDDFields: vi.fn(),
+      searchDDsByAccount: vi.fn(),
+    },
   },
   contactoMock: { obtenerContactosDeCuenta: vi.fn(), obtenerContactosDeDD: vi.fn() },
   driveMock: { migrarCarpetasASocio: vi.fn() },
+  linkMock: { vincularContactosAlExpediente: vi.fn() },
 }));
 
 vi.mock("@/lib/prisma", () => ({ default: prismaMock }));
@@ -27,6 +34,7 @@ vi.mock("@/lib/workdriveService", () => {
 vi.mock("@/lib/enlacesSocioService", () => ({
   nombreDe: (c: any) => `${c.firstName} ${c.lastName}`.trim() || c.crmId,
 }));
+vi.mock("@/lib/contactLinkService", () => linkMock);
 vi.mock("@/lib/auditService", () => ({ logAuditEvent: vi.fn() }));
 vi.mock("@/lib/ddRetireService", () => ({
   MENSAJE_RETIRADO: "retirado",
@@ -42,14 +50,16 @@ import { POST } from "@/app/api/asociar-socio/route";
 const ana = { id: "ac1", crmId: "zc1", accountCrmId: "s1", firstName: "Ana", lastName: "Paz", isStandard: true };
 const luis = { id: "ac2", crmId: "zc2", accountCrmId: "s1", firstName: "Luis", lastName: "Mora", isStandard: false };
 const ddSinAsociar = { Name: "Ana Paz-Torre", Tipo_de_Persona: "Natural", Estado: "Sin Asociar", Socio_de_Negocios: { id: "s1" } };
-const post = () =>
-  POST(new NextRequest("http://localhost/api/asociar-socio", { method: "POST", body: JSON.stringify({ recordId: "dd1" }) }));
+const post = (extra: Record<string, unknown> = {}) =>
+  POST(new NextRequest("http://localhost/api/asociar-socio", { method: "POST", body: JSON.stringify({ recordId: "dd1", ...extra }) }));
 
 beforeEach(() => {
   vi.clearAllMocks();
   zohoMock.service.getDDRecord.mockResolvedValue(ddSinAsociar);
   zohoMock.service.resolverNombreDDDeSocio.mockResolvedValue({ name: "Ana Paz-A12-Torre", unidadId: "u1", unidad: "A12" });
-  prismaMock.crmContact.findUnique.mockResolvedValue({ id: "cc1", crmId: "dd1", firstName: "Ana", lastName: "Paz", retiredAt: null });
+  zohoMock.service.searchDDsByAccount.mockResolvedValue([{ id: "dd1", name: "Ana Paz-Torre", retirado: false }]);
+  linkMock.vincularContactosAlExpediente.mockResolvedValue(["zc1", "zc2"]);
+  prismaMock.crmContact.findUnique.mockResolvedValue({ id: "cc1", crmId: "dd1", firstName: "Ana", lastName: "Paz", retiredAt: null, accountCrmId: null });
   prismaMock.draft.findMany.mockResolvedValue([
     { id: "d1", role: "PRINCIPAL", token: "tk1", data: { firstName: "Ana" } },
     { id: "d2", role: "RELATED", token: "tk2", data: {} },
@@ -69,7 +79,11 @@ describe("POST /api/asociar-socio", () => {
       nombreAnterior: "Ana Paz-Torre",
       nombreNuevo: "Ana Paz-A12-Torre",
       tokens: ["tk2"],
+      socioId: "s1",
+      socioAnteriorId: null,
     });
+    // Todos los contactos del socio quedan atados al expediente, sin generar enlaces
+    expect(linkMock.vincularContactosAlExpediente).toHaveBeenCalledWith("dd1", ["zc1", "zc2"]);
     expect(prismaMock.crmContact.update).toHaveBeenCalledWith({
       where: { id: "cc1" },
       data: { accountCrmId: "s1", accountContactId: "ac1" },
@@ -114,11 +128,48 @@ describe("POST /api/asociar-socio", () => {
     expect(zohoMock.service.updateDDFields).not.toHaveBeenCalled();
   });
 
-  it("fuera de Sin Asociar: 409 NO_SIN_ASOCIAR", async () => {
+  it("cambio de socio en un expediente ya asociado: mueve del socio anterior y conserva el Estado", async () => {
+    zohoMock.service.getDDRecord.mockResolvedValue({ ...ddSinAsociar, Estado: "Enviado" });
+    prismaMock.crmContact.findUnique.mockResolvedValue({ id: "cc1", crmId: "dd1", firstName: "Ana", lastName: "Paz", retiredAt: null, accountCrmId: "s0" });
+    const res = await post({ socioId: "s1" });
+    expect(res.status).toBe(200);
+    expect(driveMock.migrarCarpetasASocio).toHaveBeenCalledWith(expect.objectContaining({ socioId: "s1", socioAnteriorId: "s0" }));
+    expect(zohoMock.service.updateDDFields).toHaveBeenCalledWith("dd1", expect.not.objectContaining({ Estado: expect.anything() }));
+  });
+
+  it("el socio nuevo ya tiene otra DD: 409 SOCIO_CON_DD, restaura el socio anterior y no cambia nada", async () => {
     zohoMock.service.getDDRecord.mockResolvedValue({ ...ddSinAsociar, Estado: "En borrador" });
-    const res = await post();
+    prismaMock.crmContact.findUnique.mockResolvedValue({ id: "cc1", crmId: "dd1", firstName: "Ana", lastName: "Paz", retiredAt: null, accountCrmId: "s0" });
+    zohoMock.service.searchDDsByAccount.mockResolvedValue([
+      { id: "dd1", name: "Ana Paz-Torre", retirado: false },
+      { id: "dd9", name: "Otra DD", retirado: false },
+    ]);
+    const res = await post({ socioId: "s1" });
     expect(res.status).toBe(409);
-    expect((await res.json()).code).toBe("NO_SIN_ASOCIAR");
+    const json = await res.json();
+    expect(json).toMatchObject({ code: "SOCIO_CON_DD", restaurado: true, ddExistente: "dd9" });
+    expect(zohoMock.service.updateDDFields).toHaveBeenCalledTimes(1);
+    expect(zohoMock.service.updateDDFields).toHaveBeenCalledWith("dd1", { Socio_de_Negocios: { id: "s0" } });
+    expect(driveMock.migrarCarpetasASocio).not.toHaveBeenCalled();
+  });
+
+  it("socio con DD y expediente sin socio anterior: bloquea sin restaurar; las DD retiradas no cuentan", async () => {
+    zohoMock.service.searchDDsByAccount.mockResolvedValue([{ id: "dd9", name: "Otra", retirado: false }]);
+    const bloqueado = await post();
+    expect(bloqueado.status).toBe(409);
+    expect((await bloqueado.json()).restaurado).toBe(false);
+    expect(zohoMock.service.updateDDFields).not.toHaveBeenCalled();
+
+    zohoMock.service.searchDDsByAccount.mockResolvedValue([{ id: "dd9", name: "Otra", retirado: true }]);
+    expect((await post()).status).toBe(200);
+  });
+
+  it("mismo socio en un expediente ya asociado: sin cambios", async () => {
+    zohoMock.service.getDDRecord.mockResolvedValue({ ...ddSinAsociar, Estado: "En borrador" });
+    prismaMock.crmContact.findUnique.mockResolvedValue({ id: "cc1", crmId: "dd1", firstName: "Ana", lastName: "Paz", retiredAt: null, accountCrmId: "s1" });
+    const json = await (await post()).json();
+    expect(json.status).toBe("unchanged");
+    expect(driveMock.migrarCarpetasASocio).not.toHaveBeenCalled();
   });
 
   it("jurídica: no escribe contacto ni copia datos", async () => {
