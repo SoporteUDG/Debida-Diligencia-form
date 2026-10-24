@@ -1,0 +1,29 @@
+// ==========================================
+// Asociar socio (función personalizada de un workflow, módulo Debida Diligencia)
+//
+// Workflow Rules > Debida_Diligencia
+//   Cuándo:   Al editar un registro > el campo "Socio de Negocios" se modifica (cualquier valor)
+//   Acción:   Función personalizada > esta, con el argumento
+//               ddId = ID del registro de Debida Diligencia
+//
+// El workflow corre DESPUÉS del guardado, así que el portal lee el socio nuevo ya
+// guardado. El resultado (asociado o rechazado) queda como nota del expediente: un
+// workflow no puede mostrar mensajes. El portal escribe con trigger vacío, por lo que
+// no vuelve a disparar este workflow al restaurar el socio.
+// ==========================================
+
+void asociarSocio(String ddId)
+{
+	cuerpo = Map();
+	cuerpo.put("recordId", ddId);
+	cuerpo.put("notificar", true);
+
+	respuesta = invokeurl
+	[
+		url :"https://debida-diligencia.udggroup.com/api/asociar-socio"
+		type :POST
+		parameters :cuerpo.toString()
+		headers :{"Content-Type":"application/json"}
+	];
+	info respuesta;
+}

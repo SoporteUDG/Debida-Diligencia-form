@@ -14,6 +14,7 @@ const { prismaMock, zohoMock, contactoMock, driveMock, linkMock } = vi.hoisted((
       updateAccountContact: vi.fn(),
       updateDDFields: vi.fn(),
       searchDDsByAccount: vi.fn(),
+      createNote: vi.fn(),
     },
   },
   contactoMock: { obtenerContactosDeCuenta: vi.fn(), obtenerContactosDeDD: vi.fn() },
@@ -162,6 +163,17 @@ describe("POST /api/asociar-socio", () => {
 
     zohoMock.service.searchDDsByAccount.mockResolvedValue([{ id: "dd9", name: "Otra", retirado: true }]);
     expect((await post()).status).toBe(200);
+  });
+
+  it("desde el workflow (notificar): el resultado queda como nota del expediente", async () => {
+    prismaMock.crmContact.findUnique.mockResolvedValue({ id: "cc1", crmId: "dd1", firstName: "Ana", lastName: "Paz", retiredAt: null, accountCrmId: "s0" });
+    zohoMock.service.searchDDsByAccount.mockResolvedValue([{ id: "dd9", name: "Otra", retirado: false }]);
+    await post({ notificar: true });
+    expect(zohoMock.service.createNote).toHaveBeenCalledWith("dd1", "Cambio de Socio de Negocio rechazado", expect.stringContaining("Otra"));
+
+    zohoMock.service.createNote.mockClear();
+    await post({});
+    expect(zohoMock.service.createNote).not.toHaveBeenCalled();
   });
 
   it("mismo socio en un expediente ya asociado: sin cambios", async () => {

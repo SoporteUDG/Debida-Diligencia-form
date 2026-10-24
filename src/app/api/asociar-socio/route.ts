@@ -71,11 +71,15 @@ const idDe = (v: any): string => String((v && typeof v === "object" ? v.id : v) 
  * 422 SIN_SOCIO, SIN_CONTACTO, CONTACTO_ESTANDAR o SIN_CARPETA_SOCIO.
  *
  * Body: { recordId (ID del expediente), socioId? (el nuevo; el guardado en Zoho puede
- * no haber llegado), socioAnteriorId? (el que tenía; si falta se usa el del portal) }
+ * no haber llegado), socioAnteriorId? (el que tenía; si falta se usa el del portal),
+ * notificar? (true desde el workflow de Zoho, que no puede mostrar mensajes: el resultado
+ * queda como nota del expediente) }
  */
 export async function POST(request: NextRequest) {
   // Devuelve el Socio de Negocio anterior al expediente cuando se rechaza el cambio
   let restaurar: () => Promise<boolean> = async () => false;
+  // Nota en el expediente con el resultado (solo cuando lo llama el workflow); nunca lanza
+  let avisar: (titulo: string, contenido: string) => Promise<void> = async () => {};
   try {
     let body: any = {};
     try {
@@ -90,6 +94,16 @@ export async function POST(request: NextRequest) {
         { success: false, error: "El ID del registro de Zoho CRM (recordId) es requerido" },
         { status: 400, headers: corsHeaders }
       );
+    }
+
+    if (body.notificar === true) {
+      avisar = async (titulo, contenido) => {
+        try {
+          await zoho.service.createNote(recordId, titulo, contenido);
+        } catch (err) {
+          console.warn(`[API Asociar Socio] No se pudo crear la nota del expediente ${recordId}:`, err);
+        }
+      };
     }
 
     const ddRecord = await zoho.service.getDDRecord(recordId);
@@ -152,6 +166,11 @@ export async function POST(request: NextRequest) {
     const otras = (await zoho.service.searchDDsByAccount(socioId)).filter((d) => d.id !== recordId && !d.retirado);
     if (otras.length) {
       const restaurado = await restaurar();
+      await avisar(
+        "Cambio de Socio de Negocio rechazado",
+        `El Socio de Negocio ya tiene una Debida Diligencia asociada (${otras[0].name || otras[0].id}).` +
+          (restaurado ? " Se restauró el Socio de Negocio anterior." : " No había un Socio de Negocio anterior que restaurar.")
+      );
       return NextResponse.json(
         {
           success: false,
@@ -183,6 +202,10 @@ export async function POST(request: NextRequest) {
     if (isNatural) {
       if (!contactos.length) {
         const restaurado = await restaurar();
+        await avisar(
+          "Cambio de Socio de Negocio rechazado",
+          "Ni el Socio de Negocio ni el expediente tienen contactos." + (restaurado ? " Se restauró el Socio de Negocio anterior." : "")
+        );
         return NextResponse.json(
           {
             success: false,
@@ -261,6 +284,11 @@ export async function POST(request: NextRequest) {
       contactos.map((c) => c.crmId)
     );
 
+    await avisar(
+      "Socio de Negocio asociado",
+      `Expediente renombrado a "${nombreNuevo}". Carpetas movidas: ${carpetas.principal ? "principal" : "sin cambios"}, ${carpetas.enlaces} enlace(s). Contactos atados: ${contactosVinculados.length}.`
+    );
+
     await logAuditEvent({
       action: "DD_SOCIO_ASOCIADO",
       entityName: "CrmContact",
@@ -296,6 +324,7 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     if (error instanceof SocioSinCarpetaError) {
       const restaurado = await restaurar();
+      await avisar("Cambio de Socio de Negocio rechazado", error.message + (restaurado ? " Se restauró el Socio de Negocio anterior." : ""));
       return NextResponse.json(
         { success: false, error: error.message, code: "SIN_CARPETA_SOCIO", socioId: error.socioId, restaurado },
         { status: 422, headers: corsHeaders }
@@ -304,6 +333,7 @@ export async function POST(request: NextRequest) {
     console.error("[API Asociar Socio Error]:", error);
     if (error instanceof ContactoEstandarError) {
       const restaurado = await restaurar();
+      await avisar("Cambio de Socio de Negocio rechazado", error.message + (restaurado ? " Se restauró el Socio de Negocio anterior." : ""));
       return NextResponse.json(
         {
           success: false,
