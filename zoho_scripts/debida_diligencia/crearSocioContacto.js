@@ -29,11 +29,12 @@ function leerJson(cuerpo) {
   }
 }
 
-async function llamar(url) {
+async function llamar(url, estricto) {
   var response = await ZDK.HTTP.request({
     url: url,
     method: "POST",
-    content: JSON.stringify({ recordId: $Page.record_id }),
+    // estricto: asociar-socio devuelve error (en vez de omitirlo) si falta el expediente, el contacto o el estándar
+    content: JSON.stringify({ recordId: $Page.record_id, estricto: estricto === true }),
     headers: { "Content-Type": "application/json" }
   });
   var statusCode = await response.getStatusCode();
@@ -84,7 +85,7 @@ async function crearSocioContacto() {
     }
 
     // 4. Asociar el expediente al socio recién creado
-    var asociado = await llamar(API_ASOCIAR);
+    var asociado = await llamar(API_ASOCIAR, true);
     ZDK.Client.hideLoader();
     if (asociado.status === 200 || asociado.status === 201) {
       ZDK.Client.showMessage(asociado.json.message || "¡Socio de Negocio creado y expediente asociado!", { type: "success" });

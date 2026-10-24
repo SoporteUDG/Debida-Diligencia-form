@@ -176,6 +176,41 @@ describe("POST /api/asociar-socio", () => {
     expect(zohoMock.service.createNote).not.toHaveBeenCalled();
   });
 
+  it("sin contactos: se asocia igual, sin contacto estándar; estricto responde 422 SIN_CONTACTO", async () => {
+    contactoMock.obtenerContactosDeCuenta.mockResolvedValue([]);
+    contactoMock.obtenerContactosDeDD.mockResolvedValue([]);
+    const res = await post();
+    expect(res.status).toBe(200);
+    expect(prismaMock.crmContact.update).toHaveBeenCalledWith({ where: { id: "cc1" }, data: { accountCrmId: "s1" } });
+    expect(zohoMock.service.updateDDFields).toHaveBeenCalledWith("dd1", expect.not.objectContaining({ Nombre_de_contacto: expect.anything() }));
+
+    const estricto = await post({ estricto: true });
+    expect(estricto.status).toBe(422);
+    expect((await estricto.json()).code).toBe("SIN_CONTACTO");
+  });
+
+  it("natural con contactos pero sin estándar: se asocia igual sin escribir contacto", async () => {
+    contactoMock.obtenerContactosDeCuenta.mockResolvedValue([{ ...ana, isStandard: false }, luis]);
+    const res = await post();
+    expect(res.status).toBe(200);
+    expect(zohoMock.service.updateDDFields).toHaveBeenCalledWith("dd1", expect.not.objectContaining({ Nombre_de_contacto: expect.anything() }));
+    expect(linkMock.vincularContactosAlExpediente).toHaveBeenCalledWith("dd1", ["zc1", "zc2"]);
+  });
+
+  it("expediente que el portal no conoce: solo actualiza Zoho (sin carpetas ni Prisma); estricto responde 404", async () => {
+    prismaMock.crmContact.findUnique.mockResolvedValue(null);
+    const res = await post();
+    expect(res.status).toBe(200);
+    expect(driveMock.migrarCarpetasASocio).not.toHaveBeenCalled();
+    expect(prismaMock.crmContact.update).not.toHaveBeenCalled();
+    expect(prismaMock.draft.findMany).not.toHaveBeenCalled();
+    expect(zohoMock.service.updateDDFields).toHaveBeenCalledWith("dd1", expect.objectContaining({ Name: "Ana Paz-A12-Torre" }));
+    expect(linkMock.vincularContactosAlExpediente).toHaveBeenCalled();
+
+    const estricto = await post({ estricto: true });
+    expect(estricto.status).toBe(404);
+  });
+
   it("mismo socio en un expediente ya asociado: sin cambios", async () => {
     zohoMock.service.getDDRecord.mockResolvedValue({ ...ddSinAsociar, Estado: "En borrador" });
     prismaMock.crmContact.findUnique.mockResolvedValue({ id: "cc1", crmId: "dd1", firstName: "Ana", lastName: "Paz", retiredAt: null, accountCrmId: "s1" });
@@ -193,9 +228,9 @@ describe("POST /api/asociar-socio", () => {
     expect(zohoMock.service.updateDDFields).toHaveBeenCalledWith("dd1", expect.not.objectContaining({ Nombre_de_contacto: expect.anything() }));
   });
 
-  it("natural sin contacto estándar: 422 CONTACTO_ESTANDAR y no cambia nada", async () => {
+  it("estricto, natural sin contacto estándar: 422 CONTACTO_ESTANDAR y no cambia nada", async () => {
     contactoMock.obtenerContactosDeCuenta.mockResolvedValue([{ ...ana, isStandard: false }, luis]);
-    const res = await post();
+    const res = await post({ estricto: true });
     expect(res.status).toBe(422);
     expect((await res.json()).code).toBe("CONTACTO_ESTANDAR");
     expect(prismaMock.crmContact.update).not.toHaveBeenCalled();

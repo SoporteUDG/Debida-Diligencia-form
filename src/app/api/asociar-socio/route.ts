@@ -73,7 +73,13 @@ const idDe = (v: any): string => String((v && typeof v === "object" ? v.id : v) 
  * Body: { recordId (ID del expediente), socioId? (el nuevo; el guardado en Zoho puede
  * no haber llegado), socioAnteriorId? (el que tenía; si falta se usa el del portal),
  * notificar? (true desde el workflow de Zoho, que no puede mostrar mensajes: el resultado
- * queda como nota del expediente) }
+ * queda como nota del expediente), estricto? (true desde crear-socio-contacto, que muestra
+ * el error al usuario) }
+ *
+ * Por defecto lo relacionado con Prisma y los contactos no falla: sin el expediente en el
+ * portal no hay carpetas ni enlaces que mover y solo se actualiza Zoho, y un socio sin
+ * contactos (o sin Contacto estándar) se asocia igual, sin atar ni escribir contacto.
+ * Con `estricto` esos casos responden 404 NOT_FOUND / 422 SIN_CONTACTO / CONTACTO_ESTANDAR.
  */
 export async function POST(request: NextRequest) {
   // Devuelve el Socio de Negocio anterior al expediente cuando se rechaza el cambio
@@ -114,8 +120,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const estricto = body.estricto === true;
     const contact = await prisma.crmContact.findUnique({ where: { crmId: recordId } });
-    if (!contact) {
+    if (!contact && estricto) {
       return NextResponse.json(
         { success: false, error: `El expediente ${recordId} no existe en el portal.`, code: "NOT_FOUND" },
         { status: 404, headers: corsHeaders }
@@ -130,7 +137,7 @@ export async function POST(request: NextRequest) {
     const sinAsociar = texto(ddRecord.Estado) === ESTADO_SIN_ASOCIAR;
     // El socio nuevo viene del script (el guardado puede no haber llegado a Zoho); si no, del registro
     const socioId = String(body.socioId ?? "").trim() || idDe(ddRecord.Socio_de_Negocios ?? ddRecord.Socio_de_Negocio);
-    const socioAnteriorId = String(body.socioAnteriorId ?? "").trim() || contact.accountCrmId || null;
+    const socioAnteriorId = String(body.socioAnteriorId ?? "").trim() || contact?.accountCrmId || null;
     restaurar = async () => {
       if (!socioAnteriorId || socioAnteriorId === socioId) return false;
       try {
@@ -155,7 +162,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Sin cambio de socio en un expediente ya asociado: nada que hacer
-    if (!sinAsociar && contact.accountCrmId === socioId) {
+    if (!sinAsociar && contact?.accountCrmId === socioId) {
       return NextResponse.json(
         { success: true, status: "unchanged", message: "El expediente ya está asociado a este Socio de Negocio.", crmId: recordId, socioId },
         { headers: corsHeaders }
@@ -200,7 +207,9 @@ export async function POST(request: NextRequest) {
     }
     if (!contactos.length) contactos = await obtenerContactosDeDD(recordId, socioId);
     if (isNatural) {
-      if (!contactos.length) {
+      if (!contactos.length && !estricto) {
+        // Sin contactos no hay Contacto estándar: se asocia igual
+      } else if (!contactos.length) {
         const restaurado = await restaurar();
         await avisar(
           "Cambio de Socio de Negocio rechazado",
@@ -217,17 +226,26 @@ export async function POST(request: NextRequest) {
           { status: 422, headers: corsHeaders }
         );
       }
-      estandar = contactoPrincipal(socioId, contactos); // lanza ContactoEstandarError
+      if (contactos.length) {
+        try {
+          estandar = contactoPrincipal(socioId, contactos); // lanza ContactoEstandarError
+        } catch (err) {
+          if (estricto || !(err instanceof ContactoEstandarError)) throw err;
+          await avisar("Contacto estándar sin asignar", err.message);
+        }
+      }
     }
 
     // Enlaces del expediente (el principal no tiene carpeta propia) y su formulario ya enviado, si lo hay
-    const drafts = await prisma.draft.findMany({
-      where: { crmContactId: contact.id },
-      orderBy: { createdAt: "desc" },
-      select: { id: true, role: true, token: true, data: true },
-    });
+    const drafts = contact
+      ? await prisma.draft.findMany({
+          where: { crmContactId: contact.id },
+          orderBy: { createdAt: "desc" },
+          select: { id: true, role: true, token: true, data: true },
+        })
+      : [];
     const draft = drafts.find((d) => d.role === "PRINCIPAL");
-    const enviado = estandar
+    const enviado = estandar && contact
       ? await prisma.form.findFirst({
           where: { crmContactId: contact.id, role: "PRINCIPAL", deletedAt: null },
           orderBy: { createdAt: "desc" },
@@ -238,17 +256,20 @@ export async function POST(request: NextRequest) {
     // 1. Name nuevo ("nombre-unidad-proyecto") y carpetas de WorkDrive al socio. Antes de
     // cambiar nada más: si falla, el expediente sigue "Sin Asociar" y se puede reintentar.
     const nombreCliente = estandar ? nombreDe(estandar) : "";
-    const nombre = nombreCliente || `${contact.firstName} ${contact.lastName}`.trim() || texto(ddRecord.Name);
+    const nombre = nombreCliente || (contact ? `${contact.firstName} ${contact.lastName}`.trim() : "") || texto(ddRecord.Name);
     const { name: nombreNuevo, unidadId, unidad } = await zoho.service.resolverNombreDDDeSocio({ ddRecord, socioId, nombre });
-    const carpetas = await migrarCarpetasASocio({
-      ddId: recordId,
-      formType: clientType,
-      nombreAnterior: texto(ddRecord.Name),
-      nombreNuevo,
-      tokens: drafts.filter((d) => d.role !== "PRINCIPAL").map((d) => d.token),
-      socioId,
-      socioAnteriorId,
-    });
+    // Sin el expediente en el portal no hay carpetas de WorkDrive que mover
+    const carpetas = contact
+      ? await migrarCarpetasASocio({
+          ddId: recordId,
+          formType: clientType,
+          nombreAnterior: texto(ddRecord.Name),
+          nombreNuevo,
+          tokens: drafts.filter((d) => d.role !== "PRINCIPAL").map((d) => d.token),
+          socioId,
+          socioAnteriorId,
+        })
+      : { principal: false, enlaces: 0 };
 
     // 2. Natural con el formulario ya enviado: sus datos pasan al Contacto estándar del socio
     // (los que se escribieron en el expediente quedan también ahí)
@@ -257,10 +278,12 @@ export async function POST(request: NextRequest) {
     }
 
     // 3. Prisma
-    await prisma.crmContact.update({
-      where: { id: contact.id },
-      data: { accountCrmId: socioId, ...(estandar ? { accountContactId: estandar.id } : {}) },
-    });
+    if (contact) {
+      await prisma.crmContact.update({
+        where: { id: contact.id },
+        data: { accountCrmId: socioId, ...(estandar ? { accountContactId: estandar.id } : {}) },
+      });
+    }
     if (estandar && draft) {
       await prisma.draft.update({
         where: { id: draft.id },
@@ -292,7 +315,7 @@ export async function POST(request: NextRequest) {
     await logAuditEvent({
       action: "DD_SOCIO_ASOCIADO",
       entityName: "CrmContact",
-      entityId: contact.id,
+      entityId: contact?.id ?? recordId,
       details: {
         crmId: recordId,
         socioId,
