@@ -360,7 +360,7 @@ Los widgets no llaman directamente a la API ni a Zoho: solo muestran datos y dev
 | Widget (carpeta) | API name en Zoho | Abierto desde | Uso |
 | :--- | :--- | :--- | :--- |
 | `zoho_widget/validar-dd` | `Validaci_n_Debida_Diligencia` | `zoho_scripts/Socios_de_Negocio/validarDebidaDiligencia.js` y `zoho_scripts/Tramites/validarDebidaDiligencia.js` | Validar y solicitar los expedientes de Debida Diligencia de un Socio de Negocio. |
-| `zoho_widget/added-forms` | `Adicionales_Debida_Diligencia` | `zoho_scripts/debida_diligencia/manageOtrosDocumentos.js` | Gestionar los enlaces de formularios adicionales de un expediente. |
+| `zoho_widget/added-forms` | `Adicionales_Debida_Diligencia` | Related list del canvas del expediente (el widget llama al portal; `manageOtrosDocumentos.js` ya no se usa) | Gestionar los enlaces del expediente: ver, reactivar, borrar y el nivel de riesgo de cada contacto. |
 
 ### Publicar o actualizar un widget
 

@@ -16,17 +16,9 @@ html, body {
   font-family: "Zoho Puvi", "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, Arial, sans-serif;
   font-size: 15px;
   color: var(--texto);
-  background: #f4f6f9;
+  background: transparent;
 }
-.card {
-  margin: 12px;
-  padding: 24px 28px;
-  background: #fff;
-  border: 1px solid var(--borde);
-  border-radius: 16px;
-  box-shadow: 0 1px 4px rgba(20, 30, 50, .08);
-}
-h1 { margin: 0 0 18px; font-size: 22px; font-weight: 500; }
+.card { margin: 0; padding: 0; background: transparent; }
 h2 { margin: 0 0 8px; font-size: 17px; font-weight: 500; }
 .seccion + .seccion { margin-top: 28px; }
 .rol {
@@ -36,15 +28,24 @@ h2 { margin: 0 0 8px; font-size: 17px; font-weight: 500; }
 .rol-principal { background: #e3edfb; color: var(--primario); font-weight: 600; }
 .rol-representante { background: #f1e9fb; color: #5b2d9e; font-weight: 600; }
 .tabla-wrap { overflow-x: auto; }
-table { width: 100%; border-collapse: collapse; }
+/* Anchos fijos por columna (colgroup); el asa de cada encabezado los ajusta */
+table { width: 100%; border-collapse: collapse; table-layout: fixed; }
 th {
+  position: relative; overflow: hidden; text-overflow: ellipsis;
   text-align: left; font-weight: 400; color: var(--suave);
   padding: 8px 14px 10px 0; border-bottom: 1px solid var(--borde); white-space: nowrap;
 }
-td { padding: 14px 14px 14px 0; border-bottom: 1px solid var(--borde); vertical-align: middle; }
+td { padding: 14px 14px 14px 0; border-bottom: 1px solid var(--borde); vertical-align: middle; overflow: hidden; text-overflow: ellipsis; }
+.col-asa {
+  position: absolute; top: 0; right: 0; bottom: 0; width: 8px;
+  cursor: col-resize; user-select: none; touch-action: none;
+}
+.col-asa::after { content: ""; position: absolute; top: 25%; bottom: 25%; right: 3px; width: 2px; background: var(--borde); }
+.col-asa:hover::after, .col-asa.activa::after { background: var(--primario); }
+body.redimensionando { cursor: col-resize; user-select: none; }
 tbody tr:last-child td { border-bottom: none; }
 .enlace {
-  display: block; max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   color: var(--enlace); text-decoration: none;
 }
 .enlace:hover { text-decoration: underline; }
@@ -110,3 +111,12 @@ td.acciones { text-align: center; padding-right: 0; white-space: nowrap; }
 @keyframes girar { to { transform: rotate(360deg); } }
 
 .sin-enlace { color: var(--suave); font-weight: 500; }
+
+.aviso {
+  position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 30;
+  max-width: calc(100% - 32px); padding: 10px 16px; border-radius: 8px;
+  background: var(--texto); color: #fff; box-shadow: 0 4px 16px rgba(20, 30, 50, .25);
+}
+.aviso[hidden] { display: none; }
+.aviso-ok { background: var(--ok); }
+.aviso-error { background: var(--error); }

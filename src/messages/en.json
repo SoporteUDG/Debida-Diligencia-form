@@ -615,7 +615,7 @@
         "MemberFechaNacimiento": "Date of Birth",
         "MemberNroId": "ID No.",
         "MemberDireccion": "Address",
-        "LegalRepTitle": "LEGAL REPRESENTATIVE OR ATTORNEY-IN-FACT",
+        "LegalRepTitle": "LEGAL REPRESENTATIVE - ATTORNEY-IN-FACT - FOUNDER",
         "LegalRepSubtitle": "Personal Information",
         "RlNombre": "First and Last Name",
         "RlFechaNacimiento": "Date of Birth",
@@ -629,7 +629,7 @@
         "RlTelefono": "Phone",
         "AmlTitle": "AML LEGAL QUESTION",
         "AmlRequired": "Required",
-        "AmlQuestion": "Indicate whether the Legal Representative, Attorney-in-Fact, or the Company itself has been or is currently under investigation, inquiry, or convicted for illegal activity, money laundering, terrorist financing, fraud, or public corruption, or any of the crimes established in Article 254-A of the Criminal Code."
+        "AmlQuestion": "Indicate whether the Legal Representative, Attorney-in-Fact, Founder or the Company itself has been or is currently under investigation, inquiry, or convicted for illegal activity, money laundering, terrorist financing, fraud, or public corruption, or any of the crimes established in Article 254-A of the Criminal Code."
       },
       "JuridicaFormStep2Placeholders": {
         "SelectCargo": "Select position",

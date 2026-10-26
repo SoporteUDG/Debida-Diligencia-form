@@ -616,7 +616,7 @@
         "MemberFechaNacimiento": "Fecha de Nacimiento",
         "MemberNroId": "No. de ID (Identificación)",
         "MemberDireccion": "Dirección",
-        "LegalRepTitle": "REPRESENTANTE LEGAL O APODERADO",
+        "LegalRepTitle": "Representante Legal - Apoderado - Fundador",
         "LegalRepSubtitle": "Datos Personales",
         "RlNombre": "Nombre y Apellido",
         "RlFechaNacimiento": "Fecha de Nacimiento",
@@ -630,7 +630,7 @@
         "RlTelefono": "Teléfono",
         "AmlTitle": "PREGUNTA LEGAL AML",
         "AmlRequired": "Requerido",
-        "AmlQuestion": "Indique si el Representante Legal, Apoderado o la Sociedad misma son o han sido objeto de investigación, indagación, condena por actividad ilícita, delitos de blanqueo de capitales o financiamiento de terrorismo, fraude o corrupción pública o algunos de los delitos establecidos en el ART.254-A del código penal."
+        "AmlQuestion": "Indique si el Representante Legal, Apoderado, Fundador o la Sociedad misma son o han sido objeto de investigación, indagación, condena por actividad ilícita, delitos de blanqueo de capitales o financiamiento de terrorismo, fraude o corrupción pública o algunos de los delitos establecidos en el ART.254-A del código penal."
       },
       "JuridicaFormStep2Placeholders": {
         "SelectCargo": "Selecciona cargo",

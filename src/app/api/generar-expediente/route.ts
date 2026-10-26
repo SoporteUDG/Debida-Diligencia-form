@@ -80,8 +80,7 @@ const texto = (v: any): string =>
  *   · Contactos con su propio expediente (anterior a este esquema) se respetan
  *     y no reciben enlace. Lo mismo un Representante Legal con expediente natural
  *     relacionado (DD_relacionado) de antes.
- *   · Jurídica sin Representante_legal y su enlace falta: 422 SIN_REPRESENTANTE_LEGAL
- *     (requiereConfirmacion); con sinRepresentante: true solo se crea el enlace de la jurídica.
+ *   · Jurídica sin Representante_legal y su enlace falta: 422 SIN_REPRESENTANTE_LEGAL.
  *   · Más de un expediente jurídico vigente: 409 DUPLICADOS.
  *   · Expediente anulado y hay enlaces por crear: 409 RETIRADO.
  */
@@ -182,18 +181,12 @@ export async function POST(request: NextRequest) {
       seleccion,
     });
     const representanteLegal = isNatural ? "" : texto(account?.Nombre_Extranjero_No_en_Peachtree);
-    // Sin Representante Legal y confirmado por el usuario: solo el enlace de la jurídica (ni representante ni contactos)
-    if (!isNatural && !representanteLegal && body.sinRepresentante === true) {
-      plan.faltaRepresentante = false;
-    }
     if (plan.faltaRepresentante && !representanteLegal) {
-      // Requiere confirmación del usuario: se reenvía con sinRepresentante: true
       return NextResponse.json(
         {
           success: false,
           code: "SIN_REPRESENTANTE_LEGAL",
-          requiereConfirmacion: true,
-          error: "El Socio de Negocio no tiene Representante Legal. ¿Generar solo el enlace de Persona Jurídica?",
+          error: "El Socio de Negocio no tiene Representante Legal: complete el campo Representante legal para generar su enlace.",
           socioId,
         },
         { status: 422, headers: corsHeaders }

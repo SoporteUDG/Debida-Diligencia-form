@@ -26,11 +26,11 @@ function leerJson(cuerpo) {
   }
 }
 
-async function generarEnlace(sinRepresentante) {
+async function generarEnlace() {
   var tipo = $Page.record.Tipo_de_Persona;
   var juridica = esJuridica(tipo);
 
-  if (juridica && !sinRepresentante) {
+  if (juridica) {
     var continuar = ZDK.Client.showConfirmation(
       "Se generará el enlace de Persona Jurídica, el del Representante Legal y el de cada contacto del Socio de Negocio, " +
       "todos sobre este mismo registro.",
@@ -53,9 +53,7 @@ async function generarEnlace(sinRepresentante) {
       content: {
         recordId: $Page.record_id,
         modulo: "Debida_Diligencia",
-        tipo: tipo,
-        // Confirmado por el usuario: sin Representante Legal solo se crea el enlace de la jurídica
-        sinRepresentante: sinRepresentante === true
+        tipo: tipo
       },
       headers: { "Content-Type": "application/json" }
     });
@@ -72,14 +70,6 @@ async function generarEnlace(sinRepresentante) {
       $Client.refresh();
     } else if (statusCode === 409 && json.code === "ALREADY_EXISTS") {
       ZDK.Client.showMessage(json.error || "Los enlaces de este expediente ya fueron creados.", { type: "info" });
-    } else if (statusCode === 422 && json.code === "SIN_REPRESENTANTE_LEGAL") {
-      if (ZDK.Client.showConfirmation(
-        "El Socio de Negocio no tiene Representante Legal.\n\nSi continúa, solo se generará el enlace de Persona Jurídica (sin el del Representante Legal ni los de los contactos).",
-        "Generar solo el enlace",
-        "Cancelar"
-      )) {
-        return generarEnlace(true);
-      }
     } else if (statusCode === 409 || statusCode === 422) {
       // El portal explica el motivo (sin contactos, sin Contacto estándar, sin Representante Legal, anulado...)
       ZDK.Client.showMessage(json.error || "No se pudo generar el enlace (status " + statusCode + ").", { type: "warning" });
