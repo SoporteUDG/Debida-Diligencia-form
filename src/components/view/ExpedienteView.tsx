@@ -64,7 +64,7 @@ function Header() {
         <div className="flex items-center gap-4">
           <div className="relative w-24 h-16 flex items-center justify-center">
             <Image
-              src="/Logo UDG V2.png"
+              src="/UDG_LOGO.png"
               alt="Logo UDG"
               width={110}
               height={80}

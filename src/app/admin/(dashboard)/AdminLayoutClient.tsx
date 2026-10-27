@@ -147,7 +147,7 @@ export default function AdminLayoutClient({
           <div className="flex items-center gap-3 overflow-hidden select-none">
             <div className="relative w-12 h-12 flex items-center justify-center shrink-0">
               <Image
-                src="/Logo UDG V2.png"
+                src="/UDG_LOGO.png"
                 alt="Logo UDG"
                 fill
                 className="object-contain"

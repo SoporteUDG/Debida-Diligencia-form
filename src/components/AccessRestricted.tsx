@@ -19,7 +19,7 @@ export default function AccessRestricted({ customMessage }: AccessRestrictedProp
           <div className="flex items-center gap-4">
             <div className="relative w-28 h-20 flex items-center justify-center">
               <Image
-                src="/Logo UDG V2.png"
+                src="/UDG_LOGO.png"
                 alt={t("LogoAlt")}
                 width={125}
                 height={90}
@@ -29,12 +29,7 @@ export default function AccessRestricted({ customMessage }: AccessRestrictedProp
               />
             </div>
             <div>
-              <span className="font-serif text-2xl font-medium tracking-[0.15em] bg-gradient-to-r from-zinc-100 via-amber-100 to-[#c8a788] bg-clip-text text-transparent">
-                UDG
-              </span>
-              <span className="block text-[11px] tracking-[0.3em] text-[#c8a788] uppercase font-semibold">
-                URBAN DEVELOPMENT GROUP
-              </span>
+             
             </div>
           </div>
         </div>
