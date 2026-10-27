@@ -22,8 +22,18 @@ export const metadata: Metadata = {
   description: "Formulario de Debida Diligencia para clientes de Urban Development Group",
   icons: {
     icon: "/UDG_LOGO_SMALL.png",
-    shortcut: "/SMALL_BG.png",
+    shortcut: "/UDG_LOGO_SMALL.png",
     apple: "/UDG_LOGO_SMALL.png",
+  },
+  openGraph: {
+    images: [
+      {
+        url: "https://debida-diligencia.udggroup.com/SMALL_BG.png",
+        width: 1200,
+        height: 630,
+        alt: "UDG Logo",
+      },
+    ],
   },
 };
 
