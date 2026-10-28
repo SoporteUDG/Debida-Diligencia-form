@@ -29,8 +29,8 @@ export const metadata: Metadata = {
     images: [
       {
         url: "https://debida-diligencia.udggroup.com/SMALL_BG.png",
-        width: 1200,
-        height: 630,
+        width: 256,
+        height: 256,
         alt: "UDG Logo",
       },
     ],
