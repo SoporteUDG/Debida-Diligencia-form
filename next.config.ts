@@ -61,10 +61,25 @@ const nextConfig: NextConfig = {
         ],
       },
       {
+        // Vista previa de documentos: solo la embeben los formularios de este sitio.
+        source: "/api/documents/preview",
+        headers: [
+          ...COMMON_HEADERS,
+          {
+            key: "X-Frame-Options",
+            value: "SAMEORIGIN",
+          },
+          {
+            key: "Content-Security-Policy",
+            value: `${CSP_BASE}; frame-ancestors 'self';`,
+          },
+        ],
+      },
+      {
         // Todo lo demás (incluye /admin, /persona-*, /api): framing prohibido.
-        // El source excluye /view para no emitir dos cabeceras CSP en esa ruta:
-        // el navegador aplicaría la intersección y 'none' volvería a ganar.
-        source: "/((?!view/?$).*)",
+        // El source excluye /view y la vista previa para no emitir dos cabeceras CSP
+        // en esas rutas: el navegador aplicaría la intersección y 'none' volvería a ganar.
+        source: "/((?!view/?$|api/documents/preview/?$).*)",
         headers: [
           ...COMMON_HEADERS,
           {

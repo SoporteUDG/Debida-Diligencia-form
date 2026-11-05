@@ -121,6 +121,7 @@ export interface FormState {
   origenFondosFile: string[]; // multi-file field
   pactoSocialFile: string[];
   avisoOperacionesFile: string;
+  actaFundacionalFile: string;
   serviciosPublicosFile: string;
   certBancariaFile: string;
   certRegistroFile: string;
@@ -248,6 +249,7 @@ export const INITIAL_FORM_STATE: FormState = {
   origenFondosFile: [""],
   pactoSocialFile: [""],
   avisoOperacionesFile: "",
+  actaFundacionalFile: "",
   serviciosPublicosFile: "",
   certBancariaFile: "",
   certRegistroFile: "",

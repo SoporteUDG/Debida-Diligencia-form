@@ -873,6 +873,7 @@
     "DocumentsStep": {
       "Titles": {
         "AvisoOperacionesTitle": "Certificado de Aviso de Operaciones o Equivalente",
+        "ActaFundacionalTitle": "Acta Fundacional",
         "OrigenFondosTitle": "Origen de Fondos (declaración de renta, estados financieros, etc.)",
         "OrigenFondosSubtitle": "(Multiples archivos)",
         "PactoSocialTitle": "Pacto Social y sus Adendas",
@@ -942,6 +943,10 @@
     }
   },
 
+  "DocumentPreview": {
+    "Close": "Cerrar",
+    "OpenInNewTab": "Abrir en otra pestaña"
+  },
   "Validation": {
     "Messages": {
       "Required": "{field} es requerido(a)",
@@ -953,6 +958,7 @@
       "Underage": "{field} indica menor de edad (se requiere ser mayor de 18 años)",
       "FutureDate": "{field} no puede ser una fecha futura",
       "InvalidPercentage": "{field} debe ser un porcentaje válido entre 0 y 100%",
+      "InvalidAmountWithExample": "{field} debe ser un monto numérico válido (ej: 5000 o 5,000.00)",
       "InvalidPositiveAmount": "{field} debe ser un monto numérico válido mayor a 0 (ej: 5000 o 5,000.00)",
       "InvalidAmount": "{field} debe ser un monto numérico válido",
       "SelectAtLeastOne": "Debe seleccionar al menos un {field}",
@@ -1071,6 +1077,7 @@
       "PreguntaDePepDePersonaJuridica": "Pregunta de PEP de Persona Jurídica",
       "DestinoDeFondos": "Destino de Fondos",
       "CopiaDeCertificadoDeAvisoDeOperaciones": "Copia de Certificado de Aviso de Operaciones",
+      "CopiaDeActaFundacional": "Copia de Acta Fundacional",
       "AunqueSeaUnArchivoDeOrigenDeFondos": "Aunque sea un Archivo de Origen de Fondos",
       "AunqueSeaUnArchivoDePactoSocial": "Aunque sea un Archivo de Pacto Social",
       "OrigenDeFondos": "Origen de Fondos",

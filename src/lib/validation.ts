@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isFundacion } from "./documentFields";
 
 // ==========================================
 // SHARED VALIDATORS & REGEXES
@@ -164,10 +165,8 @@ const monetaryValidator = (fieldName: string, isRequired = true) => {
       .refine((val) => {
         const clean = val.replace(/[\$,\s]/g, "");
         if (!clean) return false;
-        if (!/^\d+(\.\d{1,2})?$/.test(clean)) return false;
-        const num = parseFloat(clean);
-        return !isNaN(num) && num > 0;
-      }, `${fieldName} debe ser un monto numérico válido mayor a 0 (ej: 5000 o 5,000.00)`);
+        return /^\d+(\.\d{1,2})?$/.test(clean);
+      }, `${fieldName} debe ser un monto numérico válido (ej: 5000 o 5,000.00)`);
   }
   return z.string()
     .trim()
@@ -181,6 +180,8 @@ const monetaryValidator = (fieldName: string, isRequired = true) => {
       return !isNaN(num) && num >= 0;
     }, `${fieldName} debe ser un monto numérico válido`);
 };
+
+const isZeroAmount = (val: string | undefined) => !!val && parseFloat(val.replace(/[\$,\s]/g, "")) === 0;
 
 // Multi-select validator for Medio de Pago
 const medioPagoValidator = (fieldName: string) =>
@@ -584,6 +585,18 @@ type JuridicaStep1Data = z.infer<z.ZodObject<typeof juridicaStep1Shape>>;
 function refineJuridicaStep1(data: JuridicaStep1Data, ctx: z.RefinementCtx) {
   refineFormaContacto(data, ctx);
 
+  // Solo las fundaciones pueden declarar ingresos en 0 y omitir el vencimiento
+  if (!isFundacion(data.tipoSociedad)) {
+    requireIfEmpty(ctx, data.fechaVencimientoId, "Fecha de Vencimiento de Identificación", "fechaVencimientoId");
+    if (isZeroAmount(data.ingresosMensuales)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Ingresos Mensuales debe ser un monto numérico válido mayor a 0 (ej: 5000 o 5,000.00)",
+        path: ["ingresosMensuales"],
+      });
+    }
+  }
+
   // Conditional: la persona de contacto ocupa un cargo → cuál
   if (isYes(data.ifContacto)) {
     requireIfEmpty(ctx, data.contactoCargo, "Cargo que ocupa dentro de la sociedad", "contactoCargo");
@@ -652,9 +665,11 @@ function refineJuridicaStep1(data: JuridicaStep1Data, ctx: z.RefinementCtx) {
 export const juridicaStep1Schema = z.object(juridicaStep1Shape).superRefine(refineJuridicaStep1);
 
 // Paso 2: Documentos (Anterior Paso 4)
-export const juridicaStep2Schema = z.object({
+const juridicaStep2Shape = {
 
-  avisoOperacionesFile: requiredValue("Copia de Certificado de Aviso de Operaciones"),
+  // Se exige uno u otro según el tipo de sociedad (refineJuridicaStep2)
+  avisoOperacionesFile: optionalValue,
+  actaFundacionalFile: optionalValue,
   origenFondosFile: requiredFileList("Aunque sea un Archivo de Origen de Fondos"),
   pactoSocialFile: requiredFileList("Aunque sea un Archivo de Pacto Social"),
   serviciosPublicosFile: optionalValue,
@@ -663,7 +678,26 @@ export const juridicaStep2Schema = z.object({
   certComprasFile: requiredValue("Carta de Compras con Fondos Corporativos"),
 
 
-});
+};
+
+interface JuridicaDocumentoConstitutivo {
+  tipoSociedad?: string;
+  avisoOperacionesFile?: string;
+  actaFundacionalFile?: string;
+}
+
+function refineJuridicaStep2(data: JuridicaDocumentoConstitutivo, ctx: z.RefinementCtx) {
+  if (isFundacion(data.tipoSociedad)) {
+    requireIfEmpty(ctx, data.actaFundacionalFile, "Copia de Acta Fundacional", "actaFundacionalFile");
+  } else {
+    requireIfEmpty(ctx, data.avisoOperacionesFile, "Copia de Certificado de Aviso de Operaciones", "avisoOperacionesFile");
+  }
+}
+
+// tipoSociedad se captura en el paso 1; aquí solo decide qué documento se exige.
+export const juridicaStep2Schema = z
+  .object({ ...juridicaStep2Shape, tipoSociedad: z.string().optional() })
+  .superRefine(refineJuridicaStep2);
 
 // Paso 3: Declaración y Firma (Anterior Paso 5)
 export const juridicaStep3Schema = z.object({
@@ -682,7 +716,10 @@ export const juridicaStep5Schema = z.object({});
 // Final Combined Schema for Juridical Person
 export const juridicaFormSchema = z.object({
   ...juridicaStep1Shape,
-  ...juridicaStep2Schema.shape,
+  ...juridicaStep2Shape,
   ...juridicaStep3Schema.shape,
   conclusionesVerificacion: optionalValue,
-}).superRefine(refineJuridicaStep1);
+}).superRefine((data, ctx) => {
+  refineJuridicaStep1(data, ctx);
+  refineJuridicaStep2(data, ctx);
+});

@@ -120,7 +120,7 @@ estructura de filas
 | **Documentos de Junta Directiva** | `Carta_de_Junta_Directiva` | Checkbox (Boolean) | personDocuments (FormState)|
 | **Declaración Jurada de Beneficiario Final** | `Declaraci_n_Jurada_de_Beneficiario_Final` | Checkbox (Boolean) | personDocuments (FormState)|
 
-| **Aviso de Operaciones** | `Aviso de Operaciones` | Checkbox (Boolean) | avisoOperacionesFile (FormState)|
+| **Aviso de Operaciones** | `Aviso de Operaciones` | Checkbox (Boolean) | avisoOperacionesFile o actaFundacionalFile (FormState)|
 | **Estados Financieros** | `Estados Financieros` | Checkbox (Boolean) | origenFondosFile (FormState)|
 | **Pacto Social** | `Pacto Social` | Checkbox (Boolean) | pactoSocialFile (FormState)|
 | **Certificado de Registro Público** | `Certificado de Registro Público` | Checkbox (Boolean) | certRegistroFile (FormState)|

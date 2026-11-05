@@ -1,6 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { FormState } from "@/types/persona-natural";
+import DocumentPreviewOverlay from "@/components/DocumentPreviewOverlay";
 import { Check, FileCheck2, UploadCloud, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import es from "@/messages/es.json";
@@ -13,6 +15,9 @@ interface Step3Props {
   onFileUpload: (fieldName: keyof FormState, file: File) => void;
   // fileName is passed for multi-file fields to remove one specific entry
   onRemoveFile: (fieldName: keyof FormState, fileName?: string) => void;
+  // Name the client gave each file, keyed by the stored (Zoho) name
+  displayNames: Record<string, string>;
+  draftToken: string | null;
   errors: Record<string, string>;
 }
 
@@ -22,8 +27,11 @@ export default function Step3Documentos({
   uploadProgress,
   onFileUpload,
   onRemoveFile,
+  displayNames,
+  draftToken,
   errors = {},
 }: Step3Props) {
+  const [previewName, setPreviewName] = useState<string | null>(null);
   const t = useTranslations("NaturalForm.DocumentsStep.Titles");
   const p = useTranslations("NaturalForm.DocumentsStep.Placeholders");
   const typeIdLabel = optionLabeler(es.NaturalForm.NaturalFormStep1OptionFields.TypeIdOption, useTranslations("NaturalForm.NaturalFormStep1OptionFields.TypeIdOption"));
@@ -57,7 +65,13 @@ export default function Step3Documentos({
               <li key={fname} className="flex items-center justify-between gap-2 text-xs text-zinc-700 font-medium">
                 <span className="inline-flex items-center gap-1.5 truncate">
                   <FileCheck2 className="h-4 w-4 text-emerald-600 shrink-0" />
-                  <span className="truncate">{fname}</span>
+                  <button
+                    type="button"
+                    onClick={() => setPreviewName(fname)}
+                    className="truncate text-left hover:underline cursor-pointer"
+                  >
+                    {displayNames[fname] ?? fname}
+                  </button>
                 </span>
                 <button
                   type="button"
@@ -116,7 +130,13 @@ export default function Step3Documentos({
             <div className="flex items-center justify-between w-full">
               <div className="flex items-center gap-2 max-w-[70%]">
                 <FileCheck2 className="h-4 w-4 text-emerald-600 flex-shrink-0" />
-                <span className="text-xs text-zinc-700 font-medium truncate">{fileName}</span>
+                <button
+                  type="button"
+                  onClick={() => setPreviewName(fileName as string)}
+                  className="text-xs text-zinc-700 font-medium truncate text-left hover:underline cursor-pointer"
+                >
+                  {displayNames[fileName as string] ?? fileName}
+                </button>
               </div>
               <div className="flex items-center gap-2">
                 <span className="bg-emerald-500/10 text-emerald-600 border border-emerald-500/25 px-2.5 py-1 rounded-md text-[10px] font-bold flex items-center gap-1">
@@ -190,6 +210,15 @@ export default function Step3Documentos({
           true
         )}
       </div>
+
+      {previewName && (
+        <DocumentPreviewOverlay
+          storedName={previewName}
+          displayName={displayNames[previewName] ?? previewName}
+          draftToken={draftToken}
+          onClose={() => setPreviewName(null)}
+        />
+      )}
     </div>
   );
 }

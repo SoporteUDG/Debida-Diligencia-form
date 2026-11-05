@@ -24,6 +24,7 @@ export async function GET(request: NextRequest) {
         ? [
             "copiaIdFile",
             "avisoOperacionesFile",
+            "actaFundacionalFile",
             "origenFondosFile",
             "pactoSocialFile",
             "certBancariaFile",

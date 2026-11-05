@@ -34,6 +34,7 @@ import {
 } from "@/lib/validation";
 
 import { useAutosave } from "@/hooks/useAutosave";
+import { useDocumentDisplayNames } from "@/hooks/useDocumentDisplayNames";
 import { PHONE_INPUT_FIELDS, sanitizePhoneInput } from "@/lib/phoneInput";
 import BrandFooter from "@/components/BrandFooter";
 
@@ -172,6 +173,8 @@ export default function PersonaNaturalPage() {
       setConflictoBorrador({ data: dbData, step: dbStep, updatedAt: dbUpdatedAt });
     }
   });
+
+  const { displayNames, rememberDisplayName } = useDocumentDisplayNames(draftToken, "NATURAL", accessStatus === "granted");
 
   /** Conserva lo que hay en pantalla y lo guarda pisando la versión del servidor. */
   const conservarCambiosLocales = async () => {
@@ -359,6 +362,8 @@ export default function PersonaNaturalPage() {
         if (data.draftUpdatedAt && lastSavedAtRef) {
           lastSavedAtRef.current = data.draftUpdatedAt;
         }
+
+        rememberDisplayName(data.document.name, file.name);
 
         // Set success states
         setUploadProgress(prev => ({ ...prev, [fieldName]: 100 }));
@@ -919,6 +924,8 @@ export default function PersonaNaturalPage() {
                   uploadProgress={uploadProgress}
                   onFileUpload={handleFileUpload}
                   onRemoveFile={handleRemoveFile}
+                  displayNames={displayNames}
+                  draftToken={draftToken}
                   errors={shownErrors}
                 />
               )}

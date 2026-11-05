@@ -1,6 +1,6 @@
 import PDFDocument from "pdfkit";
 import { isFieldVisible, muestraBloquePep, muestraBloqueTercero } from "./conditionalFields";
-import { DOCUMENT_LABELS } from "./documentFields";
+import { DOCUMENT_LABELS, isFundacion } from "./documentFields";
 
 /**
  * Generador único del expediente de Debida Diligencia en PDF.
@@ -592,7 +592,9 @@ export function requisitosDocumentales(
       });
     }
     requisitos.push(
-      ranura("avisoOperacionesFile", "Certificado de Aviso de Operaciones o Equivalente"),
+      isFundacion(data.tipoSociedad)
+        ? ranura("actaFundacionalFile", "Acta Fundacional")
+        : ranura("avisoOperacionesFile", "Certificado de Aviso de Operaciones o Equivalente"),
       ranura("origenFondosFile", "Origen de Fondos", true),
       ranura("pactoSocialFile", "Copia del Pacto Social Registrado y Enmiendas"),
       ranura("certBancariaFile", "Certificación de Cuenta Bancaria o Referencia"),

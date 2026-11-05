@@ -44,6 +44,7 @@ export const DOCUMENT_LABELS: Record<string, string> = {
   certBancariaFile: "Certificación Bancaria",
   pactoSocialFile: "Pacto Social y sus Adendas",
   avisoOperacionesFile: "Certificado de Aviso de Operaciones",
+  actaFundacionalFile: "Acta Fundacional",
   serviciosPublicosFile: "Factura de Servicios Públicos",
   certRegistroFile: "Certificado de Registro Público",
   certComprasFile: "Compras de Beneficiarios con Fondos Corporativos"
@@ -53,6 +54,32 @@ export const DOCUMENT_LABELS: Record<string, string> = {
 export function getDocumentLabel(documentType: string): string {
   return DOCUMENT_LABELS[documentType] || documentType.replace(/_/g, " ").trim();
 }
+
+/** "Fundación" y "Fundación de Interés Privado" (con o sin tilde). */
+export function isFundacion(tipoSociedad: unknown): boolean {
+  return String(tipoSociedad ?? "")
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .trim()
+    .toLowerCase()
+    .startsWith("fundacion");
+}
+
+/**
+ * Una fundación entrega Acta Fundacional en lugar de Aviso de Operaciones. Si
+ * cambia el tipo de sociedad, cada ranura conserva su archivo y solo cambia cuál
+ * se pide.
+ */
+export function isDocumentSlotApplicable(field: string, tipoSociedad: unknown): boolean {
+  if (field === "avisoOperacionesFile") return !isFundacion(tipoSociedad);
+  if (field === "actaFundacionalFile") return isFundacion(tipoSociedad);
+  return true;
+}
+
+/** Nombre del archivo guardado cuando difiere del de la ranura (su carpeta en WorkDrive). */
+const STORED_FILE_LABELS: Record<string, string> = {
+  avisoOperacionesFile: "Aviso de Operaciones",
+};
 
 /** Quita tildes y reemplaza todo lo que no sea alfanumérico por "_". */
 function toFileNamePart(value: string): string {
@@ -103,7 +130,7 @@ export function buildDocumentFileName(params: {
   index?: number;
   suffix?: string;
 }): string {
-  const partes = [toFileNamePart(getDocumentLabel(params.documentType))];
+  const partes = [toFileNamePart(STORED_FILE_LABELS[params.documentType] || getDocumentLabel(params.documentType))];
   const titular = params.ownerName ? toFileNamePart(params.ownerName) : "";
   if (titular) partes.push(titular);
   if (params.person) partes.push(`${params.person.type}-${params.person.index}`);

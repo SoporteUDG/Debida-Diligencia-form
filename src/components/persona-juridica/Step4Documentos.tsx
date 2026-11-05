@@ -1,15 +1,19 @@
 "use client";
 
+import { useState } from "react";
 import { FormState, DocumentTarget  } from "@/types/persona-juridica";
+import DocumentPreviewOverlay from "@/components/DocumentPreviewOverlay";
 import { Check, FileCheck2, UploadCloud, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import es from "@/messages/es.json";
 import { optionLabeler } from "@/i18n/optionLabel";
+import { isDocumentSlotApplicable } from "@/lib/documentFields";
 
 // Translation keys (JuridicaForm.DocumentsStep.Titles) for each static document slot.
 // Used only at render time; staticDocumentFields keeps its original Spanish labels.
 const staticDocumentKeys = {
   avisoOperacionesFile: { title: "AvisoOperacionesTitle", subtitle: undefined },
+  actaFundacionalFile: { title: "ActaFundacionalTitle", subtitle: undefined },
   origenFondosFile: { title: "OrigenFondosTitle", subtitle: "OrigenFondosSubtitle" },
   pactoSocialFile: { title: "PactoSocialTitle", subtitle: "PactoSocialSubtitle" },
   certBancariaFile: { title: "CertBancariaTitle", subtitle: "CertBancariaSubtitle" },
@@ -30,6 +34,11 @@ export const staticDocumentFields = [
       field: "avisoOperacionesFile" as keyof FormState,
       checkboxField: "checkedAvisoOperaciones" as keyof FormState,
       title: "Certificado de Aviso de Operaciones o Equivalente",
+      required: true,
+    },
+    {
+      field: "actaFundacionalFile" as keyof FormState,
+      title: "Acta Fundacional",
       required: true,
     },
     {
@@ -123,6 +132,9 @@ interface Step4Props {
   uploadProgress: Record<string, number>;
   onFileUpload: (fieldName: DocumentTarget, file: File) => void;
   onRemoveFile: (fieldName: DocumentTarget) => void;
+  // Name the client gave each file, keyed by the stored (Zoho) name
+  displayNames: Record<string, string>;
+  draftToken: string | null;
   onInputChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => void;
   errors: Record<string, string>;
 }
@@ -133,9 +145,12 @@ export default function Step4Documentos({
   uploadProgress,
   onFileUpload,
   onRemoveFile,
+  displayNames,
+  draftToken,
   onInputChange,
   errors = {},
 }: Step4Props) {
+  const [previewName, setPreviewName] = useState<string | null>(null);
   const t = useTranslations("JuridicaForm.DocumentsStep.Titles");
   const cargoLabel = optionLabeler(es.JuridicaForm.JuridicaFormStep2Options.CargoOptions, useTranslations("JuridicaForm.JuridicaFormStep2Options.CargoOptions"));
 
@@ -246,7 +261,13 @@ export default function Step4Documentos({
                 {hasFile && (status === "success" || (status === "idle" && hasFile)) && (
                   <div className="flex items-start gap-1.5 min-w-0 text-xs text-zinc-700 font-medium pt-1.5">
                     <FileCheck2 className="h-4 w-4 text-emerald-600 shrink-0" />
-                    <span className="min-w-0 break-all">{fileName}</span>
+                    <button
+                      type="button"
+                      onClick={() => setPreviewName(fileName as string)}
+                      className="min-w-0 break-all text-left hover:underline cursor-pointer"
+                    >
+                      {displayNames[fileName as string] ?? fileName}
+                    </button>
                   </div>
                 )}
                 {hasError && status !== "uploading" &&(
@@ -314,7 +335,7 @@ export default function Step4Documentos({
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {staticDocumentFields.map((doc) => {
+          {staticDocumentFields.filter((doc) => isDocumentSlotApplicable(doc.field, formData.tipoSociedad)).map((doc) => {
             const rawValue = formData[doc.field] as string | string[];
             const fileList: string[] = doc.multiple ? (Array.isArray(rawValue) ? rawValue : []) : [];
             const hasFile = !!formData[doc.field];
@@ -345,7 +366,13 @@ export default function Step4Documentos({
                       <li key={fname} className="flex items-center justify-between gap-2 text-xs text-zinc-700 font-medium">
                         <span className="inline-flex items-center gap-1.5 truncate">
                           <FileCheck2 className="h-4 w-4 text-emerald-600 shrink-0" />
-                          <span className="truncate">{fname}</span>
+                          <button
+                            type="button"
+                            onClick={() => setPreviewName(fname)}
+                            className="truncate text-left hover:underline cursor-pointer"
+                          >
+                            {displayNames[fname] ?? fname}
+                          </button>
                         </span>
                         <button
                           type="button"
@@ -364,7 +391,13 @@ export default function Step4Documentos({
                 {!doc.multiple && hasFile && status !== "uploading" && (
                   <div className="flex items-start gap-1.5 min-w-0 text-xs text-zinc-700 font-medium pt-1.5">
                     <FileCheck2 className="h-4 w-4 text-emerald-600 shrink-0" />
-                    <span className="min-w-0 break-all">{singleFileName}</span>
+                    <button
+                      type="button"
+                      onClick={() => setPreviewName(singleFileName as string)}
+                      className="min-w-0 break-all text-left hover:underline cursor-pointer"
+                    >
+                      {displayNames[singleFileName as string] ?? singleFileName}
+                    </button>
                   </div>
                 )}
 
@@ -432,6 +465,14 @@ export default function Step4Documentos({
         </div>
       </div>
 
+      {previewName && (
+        <DocumentPreviewOverlay
+          storedName={previewName}
+          displayName={displayNames[previewName] ?? previewName}
+          draftToken={draftToken}
+          onClose={() => setPreviewName(null)}
+        />
+      )}
     </div>
   );
 }

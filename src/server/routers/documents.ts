@@ -333,6 +333,7 @@ export const documentsRouter = router({
               formId: validFormId,
               draftId: validDraftId,
               name: finalFileName,
+              originalName: input.fileName,
               fileType: detected.mime,
               url: shareLinkUrl,
               zohoFileId,

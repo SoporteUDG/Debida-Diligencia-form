@@ -1461,6 +1461,10 @@ export default function AdminDashboard() {
                           <span className="text-[#c8a788] text-[10px]">{selectedSub.data.avisoOperacionesFile || "-"}</span>
                         </div>
                         <div className="flex items-center justify-between text-zinc-400 bg-zinc-900/20 p-2 rounded-lg">
+                          <span>Acta Fundacional</span>
+                          <span className="text-[#c8a788] text-[10px]">{selectedSub.data.actaFundacionalFile || "-"}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-zinc-400 bg-zinc-900/20 p-2 rounded-lg">
                           <span>Servicios Públicos</span>
                           <span className="text-[#c8a788] text-[10px]">{selectedSub.data.serviciosPublicosFile || "-"}</span>
                         </div>

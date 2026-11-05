@@ -335,6 +335,7 @@ model Document {
   draftId    String?
   draft      Draft?         @relation(fields: [draftId], references: [id], onDelete: Cascade)
   name       String
+  originalName String? // Nombre del archivo tal como lo subió el cliente (se muestra en el formulario)
   fileType   String
   url        String         @db.Text // URL en almacenamiento/WorkDrive
   zohoFileId String?        @db.Text // Identificador de archivo en Zoho WorkDrive

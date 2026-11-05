@@ -12,6 +12,8 @@
  * o quitar un campo de carga hay que reflejarlo aquí.
  */
 
+import { isDocumentSlotApplicable } from "./documentFields";
+
 /** Un documento del expediente tal como lo expone getFormView. */
 export interface ExpectedDocumentMatch {
   documentType?: string | null;
@@ -59,6 +61,7 @@ const NATURAL_SLOTS = (data: FormData): ExpectedDocument[] => [
 
 const JURIDICA_STATIC_SLOTS: ExpectedDocument[] = [
   { key: "avisoOperacionesFile", label: "Certificado de Aviso de Operaciones o equivalente", required: false },
+  { key: "actaFundacionalFile", label: "Acta Fundacional", required: false },
   {
     key: "origenFondosFile",
     label: "Origen de fondos",
@@ -116,7 +119,9 @@ export function getExpectedDocuments(
     return NATURAL_SLOTS(data || {}).map((slot) => ({ ...slot, documentType: slot.key }));
   }
   return [
-    ...JURIDICA_STATIC_SLOTS.map((slot) => ({ ...slot, documentType: slot.key })),
+    ...JURIDICA_STATIC_SLOTS
+      .filter((slot) => isDocumentSlotApplicable(slot.key, data?.tipoSociedad))
+      .map((slot) => ({ ...slot, documentType: slot.key })),
     ...juridicaPersonSlots(data || {}),
   ];
 }

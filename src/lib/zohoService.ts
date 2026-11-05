@@ -2289,7 +2289,8 @@ export function mapFormToCrmPayload(
       "C_dula_de_Representante_Legal": hasPersonDoc(d.personDocuments, "RL", docs),
       "Carta_de_Junta_Directiva": hasPersonDoc(d.personDocuments, "GJC", docs),
       "Declaraci_n_Jurada_de_Beneficiario_Final": hasPersonDoc(d.personDocuments, "BF", docs),
-      "Aviso_de_Operaciones": hasFile(d.avisoOperacionesFile, docs, "avisoOperacionesFile"),
+      // Misma casilla para el aviso y para el acta fundacional de una fundación
+      "Aviso_de_Operaciones": hasFile(d.avisoOperacionesFile, docs, "avisoOperacionesFile") || hasFile(d.actaFundacionalFile, docs, "actaFundacionalFile"),
       "Estados_Financieros": hasFile(d.origenFondosFile, docs, "origenFondosFile"),
       "Pacto_Social": hasFile(d.pactoSocialFile, docs, "pactoSocialFile"),
       "Certificado_de_Registro_P_blico": hasFile(d.certRegistroFile, docs, "certRegistroFile"),

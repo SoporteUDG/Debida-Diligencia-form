@@ -872,6 +872,7 @@
     "DocumentsStep": {
       "Titles": {
         "AvisoOperacionesTitle": "Notice of Operations Certificate or Equivalent",
+        "ActaFundacionalTitle": "Foundation Charter",
         "OrigenFondosTitle": "Source of Funds (income tax return, financial statements, etc.)",
         "OrigenFondosSubtitle": "(Multiple files)",
         "PactoSocialTitle": "Articles of Incorporation and Amendments",
@@ -941,6 +942,10 @@
     }
   },
 
+  "DocumentPreview": {
+    "Close": "Close",
+    "OpenInNewTab": "Open in new tab"
+  },
   "Validation": {
     "Messages": {
       "Required": "{field} is required",
@@ -952,6 +957,7 @@
       "Underage": "{field} indicates a minor (must be 18 years or older)",
       "FutureDate": "{field} cannot be a future date",
       "InvalidPercentage": "{field} must be a valid percentage between 0 and 100%",
+      "InvalidAmountWithExample": "{field} must be a valid numeric amount (e.g. 5000 or 5,000.00)",
       "InvalidPositiveAmount": "{field} must be a valid numeric amount greater than 0 (e.g. 5000 or 5,000.00)",
       "InvalidAmount": "{field} must be a valid numeric amount",
       "SelectAtLeastOne": "You must select at least one {field}",
@@ -1070,6 +1076,7 @@
       "PreguntaDePepDePersonaJuridica": "Legal Entity PEP Question",
       "DestinoDeFondos": "Destination of Funds",
       "CopiaDeCertificadoDeAvisoDeOperaciones": "Copy of Notice of Operations Certificate",
+      "CopiaDeActaFundacional": "Copy of Foundation Charter",
       "AunqueSeaUnArchivoDeOrigenDeFondos": "Even a Single Source of Funds File",
       "AunqueSeaUnArchivoDePactoSocial": "Even a Single Articles of Incorporation File",
       "OrigenDeFondos": "Source of Funds",

@@ -189,6 +189,16 @@ describe("ZohoService Unit Tests", () => {
       expect(payload).not.toHaveProperty("Email");
     });
 
+    it("usa la misma casilla para el aviso de operaciones y el acta fundacional", () => {
+      const casilla = (form: Record<string, unknown>, documentos?: any[]) =>
+        mapFormToCrmPayload("JURIDICA", form, { documentos })["Aviso_de_Operaciones"];
+
+      expect(casilla({ avisoOperacionesFile: "aviso.pdf" })).toBe(true);
+      expect(casilla({ actaFundacionalFile: "acta.pdf" })).toBe(true);
+      expect(casilla({}, [{ documentType: "actaFundacionalFile", name: "acta.pdf" }])).toBe(true);
+      expect(casilla({})).toBe(false);
+    });
+
     it("marca las casillas multi-archivo con al menos un archivo en el formulario", () => {
       const payload = mapFormToCrmPayload("NATURAL", {
         origenFondosFile: ["", "carta_1.pdf", "carta_2.pdf"],

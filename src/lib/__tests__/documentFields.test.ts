@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
   buildDocumentFileName,
+  getDocumentLabel,
+  isDocumentSlotApplicable,
   isMultiFileField,
   nextDocumentFileIndex,
   normalizeMultiFileValue,
@@ -48,6 +50,30 @@ describe("documentFields", () => {
   });
 
   describe("buildDocumentFileName", () => {
+    it("nombra el aviso y el acta con su propio nombre", () => {
+      expect(buildDocumentFileName({ documentType: "avisoOperacionesFile", ext: "pdf", ownerName: "ACME" })).toBe("Aviso_de_Operaciones_ACME.pdf");
+      expect(buildDocumentFileName({ documentType: "actaFundacionalFile", ext: "pdf", ownerName: "ACME" })).toBe("Acta_Fundacional_ACME.pdf");
+    });
+
+    it("el acta tiene su propia carpeta y el aviso conserva la suya", () => {
+      expect(getDocumentLabel("actaFundacionalFile")).toBe("Acta Fundacional");
+      expect(getDocumentLabel("avisoOperacionesFile")).toBe("Certificado de Aviso de Operaciones");
+    });
+
+    it.each([
+      ["Sociedad Anónima", true, false],
+      ["Sociedad Civil", true, false],
+      ["Otros", true, false],
+      [undefined, true, false],
+      ["Fundación", false, true],
+      ["Fundación de Interés Privado", false, true],
+      ["fundacion", false, true],
+    ])("ranura aplicable para tipoSociedad %j", (tipoSociedad, aviso, acta) => {
+      expect(isDocumentSlotApplicable("avisoOperacionesFile", tipoSociedad)).toBe(aviso);
+      expect(isDocumentSlotApplicable("actaFundacionalFile", tipoSociedad)).toBe(acta);
+      expect(isDocumentSlotApplicable("certRegistroFile", tipoSociedad)).toBe(true);
+    });
+
     it("arma Etiqueta_Titular_file_N_sufijo sin tildes ni símbolos", () => {
       expect(
         buildDocumentFileName({

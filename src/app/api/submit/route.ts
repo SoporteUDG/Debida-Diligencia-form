@@ -144,6 +144,7 @@ export async function POST(request: NextRequest) {
           documents: {
             create: [
               ...(juridicaData.avisoOperacionesFile ? [{ name: "Aviso de Operaciones", fileType: "pdf", url: juridicaData.avisoOperacionesFile }] : []),
+              ...(juridicaData.actaFundacionalFile ? [{ name: "Acta Fundacional", fileType: "pdf", url: juridicaData.actaFundacionalFile }] : []),
               ...(juridicaData.origenFondosFile || []).filter(f => f.trim() !== "").map(f => ({ name: "Origen de Fondos", fileType: "pdf", url: f })),
               ...(juridicaData.serviciosPublicosFile ? [{ name: "Factura Servicios Públicos", fileType: "pdf", url: juridicaData.serviciosPublicosFile }] : []),
               ...(juridicaData.pactoSocialFile || []).filter(f => f.trim() !== "").map(f => ({ name: "Pacto Social", fileType: "pdf", url: f })),

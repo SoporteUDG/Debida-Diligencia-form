@@ -38,6 +38,7 @@ import {
 } from "@/lib/validation";
 
 import { useAutosave } from "@/hooks/useAutosave";
+import { useDocumentDisplayNames } from "@/hooks/useDocumentDisplayNames";
 import { MULTI_FILE_FIELDS_JURIDICA, normalizeMultiFileValue } from "@/lib/documentFields";
 import { PHONE_INPUT_FIELDS, sanitizePhoneInput } from "@/lib/phoneInput";
 import BrandFooter from "@/components/BrandFooter";
@@ -48,7 +49,7 @@ const getStepForField = (field: string): number => {
     "rlNombre", "rlFechaNacimiento", "rlNacionalidad", "rlNoIdentificacion", "rlProfesionOcupacion", "rlActividadEconomica", "rlDireccion", "rlPaisResidencia", "rlTelefono", "rlObjetoInvestigacion", "gjcMembers",
     "bfMembers", "ingresosMensuales", "medioPago", "fuenteFondosInmueble", "terceroNombre", "terceroNacionalidad", "terceroVinculo", "terceroFuenteFondos", "adquiereMasUnidades", "cantidadUnidadesInmobiliarias", "montoServiciosAnuales", "esPep", "pepNombre", "pepCargo", "pepInstitucion", "pepRelacion", "actividadComercial", "origenFondos", "destinoFondos", "volumenVentas", "bancoReferencia"
   ];
-  const step2Fields = ["avisoOperacionesFile", "copiaIdFile", "origenFondosFile", "pactoSocialFile", "serviciosPublicosFile", "certBancariaFile", "certRegistroFile"];
+  const step2Fields = ["avisoOperacionesFile", "actaFundacionalFile", "copiaIdFile", "origenFondosFile", "pactoSocialFile", "serviciosPublicosFile", "certBancariaFile", "certRegistroFile"];
   const step3Fields = ["termsAccepted", "signatureConfirmed", "signerName", "signatureDate", "firmaImage"];
 
   if (step1Fields.some(f => field.startsWith(f))) return 1;
@@ -175,6 +176,8 @@ export default function PersonaJuridicaPage() {
       setConflictoBorrador({ data: dbData, step: dbStep, updatedAt: dbUpdatedAt });
     }
   });
+
+  const { displayNames, rememberDisplayName } = useDocumentDisplayNames(draftToken, "JURIDICA", accessStatus === "granted");
 
   /** Conserva lo que hay en pantalla y lo guarda pisando la versión del servidor. */
   const conservarCambiosLocales = async () => {
@@ -538,6 +541,8 @@ export default function PersonaJuridicaPage() {
         if (data.draftUpdatedAt && lastSavedAtRef) {
           lastSavedAtRef.current = data.draftUpdatedAt;
         }
+
+        rememberDisplayName(data.document.name, file.name);
 
         // Set success states
         setUploadProgress(prev => ({ ...prev, [key]: 100 }));
@@ -1169,6 +1174,8 @@ export default function PersonaJuridicaPage() {
                   uploadProgress={uploadProgress}
                   onFileUpload={handleFileUpload}
                   onRemoveFile={handleRemoveFile}
+                  displayNames={displayNames}
+                  draftToken={draftToken}
                   onInputChange={handleInputChange}
                   errors={shownErrors}
                 />
