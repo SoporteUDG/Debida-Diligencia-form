@@ -288,7 +288,7 @@ export async function crearContactoYSocio(params: {
   const OPCIONES_SOCIO = {
     Persona_de_Tipo: ["Natural", "Jurídica"],
     Proyecto: [
-      "Alive", "Altos del Parque", "Caminos de Centennial", "Deici", "Guayacán", "Living73",
+      "Alive", "Altos del Parque", "Caminos de Centennial", "Deici","Euphoria", "Guayacán", "Living73",
       "New West I", "New West II", "Paramount", "Spotlight", "The Hub",
     ],
   } as const;

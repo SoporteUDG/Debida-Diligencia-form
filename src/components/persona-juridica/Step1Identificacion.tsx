@@ -56,6 +56,7 @@ export default function Step1Identificacion({
               <option value="Altos del Parque">Altos del Parque</option>
               <option value="Caminos de Centennial">Caminos de Centennial</option>
               <option value="Deici">Deici</option>
+              <option value="Euphoria">Euphoria</option>
               <option value="Guayacán">Guayacán</option>
               <option value="Living73">Living73</option>
               <option value="New West I">New West I</option>
